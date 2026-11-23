@@ -1,14 +1,16 @@
 import { useDesign, useUi } from "@/app/store";
 import { paramVar } from "@/design/theme";
 import type { Row, WidgetOf } from "@/design/types";
+import { Numeric, RowStatus } from "@/safety/Numeric";
 
 /**
  * The ICU-style rows: trace on one side, numbers on the other.
  *
  * Scaffold: lays the rows out from the design (order, height, colour, labels) so
- * layout and colour edits are already visible. M2 replaces <RowBody> with the
- * real trace (WaveCanvas / TrendTrace / BarTrace / EventsTrace) and live numerics,
- * and makes a row tap open the 'alarm-limits' sheet with the row as context.
+ * layout and colour edits are already visible. M2 adds the real trace
+ * (WaveCanvas / TrendTrace / BarTrace / EventsTrace) and passes live values to
+ * <Numeric>. Keep <Numeric> and <RowStatus>: they decide what is shown when there
+ * is no trustworthy number (standby, connection lost, check sensor, poor trace).
  */
 export function MonitorRows({ widget }: { widget: WidgetOf<"monitor-rows"> }) {
   const design = useDesign()!;
@@ -33,15 +35,10 @@ export function MonitorRows({ widget }: { widget: WidgetOf<"monitor-rows"> }) {
                   onClick={() => useUi.getState().showSheet("alarm-limits", row.id)}>
             <div className="row-trace">
               <span className="row-label">{label}</span>
-              <span className="row-kind">{row.trace ?? "trend"}{row.waveform ? ` · ${row.waveform}` : ""}</span>
+              {row.parameter && <RowStatus parameter={row.parameter} />}
             </div>
             <div className="row-numerics">
-              {(row.numerics?.length ? row.numerics : []).map((p, i) => (
-                <span key={p} className={i === 0 ? "num num-main" : "num"}>
-                  <span className="num-value">--</span>
-                  <span className="num-unit">{registry.parameters[p]?.short} {registry.parameters[p]?.unit}</span>
-                </span>
-              ))}
+              {row.numerics.map((p, i) => <Numeric key={p} parameter={p} main={i === 0} />)}
             </div>
           </button>
         );

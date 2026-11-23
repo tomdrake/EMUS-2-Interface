@@ -17,7 +17,8 @@ from datetime import datetime
 from typing import AsyncIterator
 
 from app.models.clinical import (
-    ObservationSet, OxygenTherapy, Patient, StreamMessage,
+    DeviceStatus, ObservationSet, OxygenTherapy, Patient, SignalQuality, SignalStatus,
+    StreamMessage,
 )
 
 
@@ -48,7 +49,44 @@ class DeviceSource(ABC):
     def stream(self) -> AsyncIterator[StreamMessage]:
         """Yield NumericsMessage about once a second and WaveformMessage frames of
         roughly 200 ms, in real time, until cancelled. Must also yield a
-        StatusMessage first and whenever connection or replay state changes."""
+        StatusMessage first and whenever connection or replay state changes, and a
+        DevicesMessage first, on any change, and at least every 5 seconds."""
+
+    # ---- monitoring health: the display never guesses these from missing values
+
+    @abstractmethod
+    def devices(self) -> list[DeviceStatus]:
+        """Every device expected for this patient, including ones not connected
+        (connection='not-paired'), with battery and link state."""
+
+    @abstractmethod
+    def signal_status(self) -> dict[str, SignalStatus]:
+        """One entry for every parameter the source could provide.
+
+        Rules (see docs/human-factors.md):
+          * device not-paired            -> 'standby'
+          * device connecting / no value yet -> 'acquiring'
+          * no data for registry.CONNECTION_LOST_AFTER_S -> 'connection-lost'
+          * device reports sensor/lead off, or trace graded 'unusable' with
+            issue 'flatline'             -> 'sensor-off'
+          * trace graded poor or unusable -> 'poor-signal' (value still sent)
+          * otherwise                    -> 'ok'
+        When the state is not 'ok' or 'poor-signal' the numeric value sent is None.
+        """
+
+    def signal_quality(self) -> list[SignalQuality]:
+        """Latest quality per waveform: the device's own flags where it has them,
+        else app.signal_quality.assess on the last ~6 s."""
+        return []
+
+    def inject_fault(self, fault: str, *, device_id: str | None = None,
+                     seconds: float | None = None) -> None:
+        """Demo only: force a failure mode (registry.DEMO_FAULTS) so it can be shown
+        on demand. ``seconds=None`` means until cleared."""
+        raise NotImplementedError
+
+    def clear_faults(self) -> None:
+        raise NotImplementedError
 
     @abstractmethod
     def history(self, parameter: str, start: datetime, end: datetime,

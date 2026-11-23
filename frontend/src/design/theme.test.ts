@@ -7,7 +7,8 @@ const theme = {
   colours: {
     background: "#000000", surface: "#111111", surface_alt: "#222222", text: "#ffffff",
     text_muted: "#aaaaaa", border: "#333333", accent: "#4c8dff", alarm_high: "#ff0000",
-    alarm_medium: "#ffcc00", alarm_low: "#00ccff", ai_highlight: "#3b2f6b", forecast: "#b79cff",
+    alarm_medium: "#ffcc00", alarm_low: "#00ccff", silenced: "#ffc400", technical: "#35d0e6",
+    inactive: "#8a94a3", ai_highlight: "#3b2f6b", forecast: "#b79cff",
   },
   parameter_colours: { hr: "#00ff00", bp_sys: "#ff5a4d" },
   news_bands: {

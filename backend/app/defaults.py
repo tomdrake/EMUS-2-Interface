@@ -55,7 +55,8 @@ THEME_PRESETS: dict[str, dict] = {
             "background": "#000000", "surface": "#0E1116", "surface_alt": "#1A1F27",
             "text": "#F2F4F7", "text_muted": "#9AA4B2", "border": "#2A313C",
             "accent": "#4C8DFF", "alarm_high": "#FF2D2D", "alarm_medium": "#FFC400",
-            "alarm_low": "#35D0E6", "ai_highlight": "#3B2F6B", "forecast": "#B79CFF",
+            "alarm_low": "#35D0E6", "silenced": "#FFC400", "technical": "#35D0E6", "inactive": "#8A94A3",
+            "ai_highlight": "#3B2F6B", "forecast": "#B79CFF",
         },
         "parameter_colours": _ICU_PARAM_COLOURS,
         "news_bands": _NEWS_BANDS_DARK,
@@ -69,7 +70,8 @@ THEME_PRESETS: dict[str, dict] = {
             "background": "#FFFFFF", "surface": "#F5F7FA", "surface_alt": "#E6EBF2",
             "text": "#14181F", "text_muted": "#566070", "border": "#B9C2CF",
             "accent": "#2A5DB8", "alarm_high": "#C8102E", "alarm_medium": "#B36B00",
-            "alarm_low": "#00708A", "ai_highlight": "#E8DEFF", "forecast": "#6A3FC9",
+            "alarm_low": "#00708A", "silenced": "#F2B600", "technical": "#00708A", "inactive": "#6B7480",
+            "ai_highlight": "#E8DEFF", "forecast": "#6A3FC9",
         },
         "parameter_colours": _PAPER_PARAM_COLOURS,
         "news_bands": _NEWS_BANDS_LIGHT,
@@ -83,7 +85,8 @@ THEME_PRESETS: dict[str, dict] = {
             "background": "#000000", "surface": "#000000", "surface_alt": "#1C1C1C",
             "text": "#FFFFFF", "text_muted": "#D0D0D0", "border": "#FFFFFF",
             "accent": "#FFFF00", "alarm_high": "#FF3B30", "alarm_medium": "#FFD60A",
-            "alarm_low": "#40E0FF", "ai_highlight": "#4B2E83", "forecast": "#D9C2FF",
+            "alarm_low": "#40E0FF", "silenced": "#FFD60A", "technical": "#40E0FF", "inactive": "#D0D0D0",
+            "ai_highlight": "#4B2E83", "forecast": "#D9C2FF",
         },
         "parameter_colours": {**_ICU_PARAM_COLOURS, "temp": "#FFFFFF", "timer": "#FFFFFF"},
         "news_bands": {**_NEWS_BANDS_DARK, "grid": "#FFFFFF", "score_0": "#000000"},
@@ -97,7 +100,8 @@ THEME_PRESETS: dict[str, dict] = {
             "background": "#000000", "surface": "#0E1116", "surface_alt": "#1A1F27",
             "text": "#F2F4F7", "text_muted": "#9AA4B2", "border": "#2A313C",
             "accent": "#56B4E9", "alarm_high": "#D55E00", "alarm_medium": "#F0E442",
-            "alarm_low": "#56B4E9", "ai_highlight": "#4A2C4F", "forecast": "#CC79A7",
+            "alarm_low": "#56B4E9", "silenced": "#F0E442", "technical": "#56B4E9", "inactive": "#9AA4B2",
+            "ai_highlight": "#4A2C4F", "forecast": "#CC79A7",
         },
         "parameter_colours": _CB_PARAM_COLOURS,
         "news_bands": {
@@ -261,7 +265,7 @@ _MENUS: list[dict] = [
 ]
 
 _TOP_BAR = {"fields": ["name", "dob", "age", "nhs_number", "bed", "oxygen", "news2",
-                       "alarm_status", "date", "clock"]}
+                       "alarm_status", "devices", "date", "clock"]}
 
 _ALARM_DEFAULTS = {
     "hr": {"low": 50, "high": 120, "priority": "high"},

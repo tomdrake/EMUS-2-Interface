@@ -63,17 +63,20 @@ backend/app/
   patching.py        applies and validates design edits (the chatbot boundary)
   scenarios.py       scripted simulated patients
   sources/           device adapters: simulator, MIMIC replay, ANNE One (stub)
+  signal_quality.py  is this trace good enough to trust?
   ai/                interpretation, forecaster, certainty, LLM providers
   interop/           FHIR R4 and HL7 v2 mapping
   routers/           HTTP and WebSocket API
 frontend/src/
   design/            generated types, theme to CSS variables, navigation
   layout/            top bar, bottom tabs, menus, sheets, split layouts
+  safety/            what shows instead of a number, sound-paused and MONITOR banners
   widgets/           what goes in a pane: rows, NEWS2 chart, labs, forecast ...
   studio/            sheets: clinical panels and design-studio sections
 docs/
   HANDOFF.md              what is built, what is next, the rules
   briefs/                 one brief per milestone
+  human-factors.md        how failure modes are told apart; alarm and device states
   forecast-options.md     forecast displays and certainty metrics to choose from
   causal-model-contract.md  how to connect the causal model
 .claude/workflows/   agent workflows that implement each milestone
@@ -85,12 +88,15 @@ findings and forecasts are shown. Editing by touch, editing by chat and version
 history all act on that document. It refers to clinical items only by id; the
 items themselves live in the read-only registry, so a redesign cannot alter data
 structures. A few things cannot be designed away: the patient's name, the clock,
-the alarm-silence button (always two minutes) and the settings button.
+the alarm-silence button (always two minutes), the settings button, and the
+warnings that say the monitoring itself has a problem.
 
 ## Data and standards
 
 - Simulated scenarios: pneumonia with deterioration, paroxysmal AF, COPD on SpO2
-  scale 2 with a fall, non-sustained VT with critical potassium, and a stable patient.
+  scale 2 with a fall, non-sustained VT with critical potassium, a stable patient,
+  and a well patient with monitoring problems (standby, low battery, poor trace,
+  sensor off, connection lost).
 - MIMIC-IV Clinical Database Demo v2.2 (open access) via `make mimic` (milestone M6).
 - Target device: Sibel ANNE One (ECG, HR, RR, SpO2, pulse, skin temperature,
   position, activity, falls). The adapter is a documented stub until SDK access.

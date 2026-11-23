@@ -4,6 +4,7 @@
   --c-background: #000; --c-surface: #0e1116; --c-surface-alt: #1a1f27; --c-text: #f2f4f7;
   --c-text-muted: #9aa4b2; --c-border: #2a313c; --c-accent: #4c8dff;
   --c-alarm-high: #ff2d2d; --c-alarm-medium: #ffc400; --c-alarm-low: #35d0e6;
+  --c-silenced: #ffc400; --c-technical: #35d0e6; --c-inactive: #8a94a3;
   --c-ai-highlight: #3b2f6b; --c-forecast: #b79cff;
   --font-family: system-ui, sans-serif; --font-scale: 1; --numeric-scale: 1;
   --trace-width: 2px; --touch: 56px; --radius: 8px; --gap: 8px;
@@ -31,7 +32,13 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
   padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
   background: var(--c-surface); border-bottom: 1px solid var(--c-border); white-space: nowrap;
 }
-.tb-field { display: flex; align-items: baseline; gap: 6px; min-width: 0; color: var(--c-text-muted); }
+.tb-field { display: flex; align-items: baseline; gap: 6px; min-width: 0; color: var(--c-text-muted); flex: 0 1 auto; }
+/* What must never be squeezed: who the patient is, the time, and alarm state. */
+.tb-field.tb-name { flex: 0 1 auto; min-width: 9ch; }
+.tb-field.tb-clock, .tb-field.tb-alarm-status { flex: none; }
+.tb-field.tb-devices { overflow: hidden; }
+.topbar > .badge { flex: none; }
+@media (max-width: 1100px) { .tb-field.tb-date { display: none; } .tb-field.tb-clock { margin-left: auto; } }
 .tb-name { color: var(--c-text); font-size: 1.2em; overflow: hidden; text-overflow: ellipsis; }
 .tb-clock { margin-left: auto; }
 .tb-clock time, .tb-clock { color: var(--c-text); font-size: 1.35em; font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -62,6 +69,84 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .row-trace { flex: 1 1 0; min-width: 0; display: flex; gap: 12px; align-items: flex-start; padding: 6px 12px; }
 .row-label { font-weight: 600; }
 .row-kind { color: var(--c-text-muted); font-size: 0.8em; }
+
+/* =======================================================================
+   Safety states. Each state differs from every other in WORD, colour and
+   weight, never colour alone. See docs/human-factors.md.
+   ======================================================================= */
+.tone-inactive { color: var(--c-inactive); }
+.tone-technical { color: var(--c-technical); }
+.tone-stale { color: var(--c-text-muted); }
+.tone-silenced { color: var(--c-silenced); }
+
+/* A word in place of a number: smaller than a number, upper case, never a dash. */
+.num-state { font-size: min(calc(1.05rem * var(--numeric-scale)), 34cqh); font-weight: 700;
+  letter-spacing: 0.04em; white-space: nowrap; padding: 2px 8px; border-radius: 4px;
+  border: 1px solid currentColor; }
+.num-standby .num-state, .num-acquiring .num-state, .num-no-data .num-state { border-style: dashed; }
+.num-flag { color: var(--c-technical); margin-left: 2px; }
+.num-poor-signal .num-value { opacity: 0.75; }
+.num-last { font-size: 0.7em; color: var(--c-text-muted); text-decoration: line-through; }
+.num-alarm-off { color: var(--c-silenced); font-weight: 700; }
+.tone-stale .num-unit, .tone-inactive .num-unit { color: var(--c-text-muted); }
+
+.row-status { display: inline-flex; align-items: baseline; gap: 8px; font-size: 0.85em; white-space: nowrap; }
+.row-status strong { letter-spacing: 0.03em; }
+.row-advice { color: var(--c-text); opacity: 0.85; }
+.row-battery { color: var(--c-technical); }
+
+/* Alarm sound paused: always on screen for as long as it lasts. */
+.silence-banner { flex: none; display: flex; align-items: center; gap: 14px; z-index: 35;
+  padding: 6px 8px 6px 16px; background: var(--c-silenced); color: var(--c-background); font-weight: 600; }
+.silence-title { font-size: 1.15em; letter-spacing: 0.05em; }
+.silence-count { font-size: 1.5em; font-weight: 800; font-variant-numeric: tabular-nums; }
+.silence-note { margin-right: auto; }
+.silence-resume { background: var(--c-background); color: var(--c-silenced); border-color: var(--c-background); }
+
+/* Monitoring problems: their own colour and a MONITOR tag, not a patient alarm. */
+.system-banner { flex: none; z-index: 34; }
+.system-line { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 16px; min-height: 40px;
+  background: var(--c-surface-alt); color: var(--c-technical); border-bottom: 1px solid var(--c-technical);
+  font-weight: 600; }
+.system-tag { font-size: 0.7em; letter-spacing: 0.08em; padding: 2px 6px; border: 1px solid currentColor; border-radius: 4px; }
+.system-text { margin-right: auto; color: var(--c-text); }
+.system-high { background: var(--c-technical); color: var(--c-background); }
+.system-high .system-text { color: var(--c-background); font-size: 1.1em; }
+.system-more { padding: 2px 16px; font-size: 0.8em; color: var(--c-technical); background: var(--c-surface-alt); }
+
+/* Devices in the top bar. */
+/* On a narrow screen a chip that does not fit wraps onto a hidden second line, so
+   it disappears whole instead of being cut mid-word. Problems are listed first, and
+   every problem is also in the MONITOR banner. */
+.devices { display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 40px; align-items: center;
+  height: 1.6em; overflow: hidden; }
+.device { height: 1.6em; white-space: nowrap; }
+.device { display: inline-flex; gap: 6px; align-items: center; font-size: 0.8em; }
+.device-label { color: var(--c-text-muted); }
+.device-text { font-weight: 600; font-variant-numeric: tabular-nums; }
+.device-ok .device-text { color: var(--c-text); }
+.device-inactive, .device-inactive .device-text { color: var(--c-inactive); }
+.device-low, .device-critical, .device-lost { color: var(--c-technical); }
+.device-critical .device-text, .device-lost .device-text { text-transform: uppercase; }
+.battery { flex: none; }
+.alarm-status { font-weight: 600; }
+
+/* When this screen is not receiving data, nothing on it may look live. */
+.app[data-link="stale"] .screen, .app[data-link="down"] .screen,
+.app[data-link="stale"] .devices, .app[data-link="down"] .devices { filter: grayscale(1); opacity: 0.55; }
+
+/* Flash rates: fast for high priority, slow for medium, steady for low. The rates
+   sit inside the ranges IEC 60601-1-8 gives for alarm indicator lights as recalled
+   (high 1.4 to 2.8 Hz, medium 0.4 to 0.8 Hz); check against the standard. */
+@keyframes flash-high { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.35; } }
+@keyframes flash-medium { 0%, 59% { opacity: 1; } 60%, 100% { opacity: 0.45; } }
+.silence-banner.is-pulsing .silence-count, .tab-silence.is-silenced .icon { animation: flash-medium 1.6s steps(1) infinite; }
+.system-high .system-tag, .device-critical .battery, .device-lost .device-text { animation: flash-high 0.5s steps(1) infinite; }
+.system-medium .system-tag, .device-low .battery { animation: flash-medium 1.6s steps(1) infinite; }
+/* People who ask for less motion still get the state in words, colour and position. */
+@media (prefers-reduced-motion: reduce) {
+  .silence-banner *, .tab-silence *, .system-line *, .device * { animation: none !important; }
+}
 .row-numerics { flex: none; min-width: 24%; display: flex; align-items: center; justify-content: flex-end;
   gap: 16px; padding: 0 16px; border-left: 1px solid var(--c-border); }
 .row-left .row-numerics { border-left: 0; border-right: 1px solid var(--c-border); justify-content: flex-start; }
@@ -95,8 +180,9 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .tab-label { font-size: 0.8em; font-weight: 600; white-space: nowrap; }
 .tab.is-active { color: var(--c-text); background: var(--c-surface-alt); box-shadow: inset 0 3px 0 var(--c-accent); }
 .tab:active { background: var(--c-surface-alt); }
-.tab-silence { color: var(--c-alarm-medium); }
-.tab-silence.is-silenced { background: var(--c-alarm-medium); color: var(--c-background); }
+/* The silence button is found by colour and position without reading. */
+.tab-silence { color: var(--c-silenced); box-shadow: inset 0 0 0 2px var(--c-silenced); }
+.tab-silence.is-silenced { background: var(--c-silenced); color: var(--c-background); }
 
 /* ---- menus and sheets ---- */
 .scrim { position: absolute; inset: 0; background: color-mix(in srgb, var(--c-background) 55%, transparent); z-index: 10; }

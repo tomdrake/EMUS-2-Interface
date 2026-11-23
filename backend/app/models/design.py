@@ -11,6 +11,8 @@ by hand.
 
 Safety invariants enforced by validators (see ``Design._check``):
   * the top bar always shows the patient name and the clock;
+  * monitoring problems (alarm sound paused, standby, connection lost, low battery,
+    poor trace) can be restyled but never hidden, and their colours stay distinct;
   * the tab bar always has exactly one alarm-silence button and one settings button;
   * every function is at most two touches from the tab bar (menus cannot nest);
   * ids are unique and every reference resolves.
@@ -66,6 +68,12 @@ class ThemeColours(_Model):
     alarm_high: Colour
     alarm_medium: Colour
     alarm_low: Colour
+    silenced: Colour = Field(description="The alarm-sound-paused state: the silence button "
+                                         "and its banner. Conventionally yellow.")
+    technical: Colour = Field(description="Technical alarms and signal problems (connection, "
+                                          "battery, sensor, poor trace). Must differ from the "
+                                          "patient alarm colours.")
+    inactive: Colour = Field(description="STANDBY and SEARCHING text: nothing is being measured.")
     ai_highlight: Colour = Field(description="Highlight behind AI interpretation text.")
     forecast: Colour = Field(description="Dashed forecast lines and bands. Keep distinct "
                                          "from the NEWS score colours.")
@@ -345,7 +353,7 @@ SETTINGS_MENU_ID = "settings"
 
 TopBarField = Literal[
     "name", "dob", "age", "sex", "nhs_number", "bed", "ward", "consultant",
-    "clock", "date", "alarm_status", "oxygen", "news2", "allergies", "weight",
+    "clock", "date", "alarm_status", "devices", "oxygen", "news2", "allergies", "weight",
 ]
 
 
@@ -385,6 +393,35 @@ class AlarmPresentation(_Model):
     banner: Literal["top", "none"] = "top"
     sound: Literal["standard", "soft", "off-in-demo"] = "standard"
     show_silence_countdown: Literal[True] = True
+
+
+# ------------------------------------------------------- safety presentation
+
+class SafetyDisplay(_Model):
+    """How monitoring problems are shown. See docs/human-factors.md.
+
+    Only presentation is adjustable here. That each state is shown, and shown
+    differently from every other state, is fixed: there is no option to hide the
+    alarm-paused banner, a technical alarm, a battery warning or a lost signal.
+    """
+
+    #: Where the "alarm sound paused" banner sits. It is always shown while paused.
+    silence_banner: Literal["top", "above-tabs"] = "top"
+    silence_banner_pulse: bool = True
+    #: Words for a selected modality with no device. Choices only: free text could
+    #: be set to something that reads like a value.
+    standby_text: Literal["STANDBY", "NOT CONNECTED", "OFF"] = "STANDBY"
+    #: After a signal is lost: hide the old number, or show it greyed with its age.
+    #: It is never shown as a current value either way.
+    stale_values: Literal["hide", "dim-with-age"] = "hide"
+    #: Show the "what to check" line under a poor trace or sensor problem.
+    show_advice: bool = True
+    #: Where device battery and wireless state appear. Low battery and lost
+    #: connection are always raised as technical alarms regardless.
+    device_status: Literal["top-bar", "top-bar-and-rows"] = "top-bar-and-rows"
+    show_battery_percent: bool = True
+    #: Dim a trace while its quality is poor so it is not read as clean.
+    dim_poor_traces: bool = True
 
 
 # ---------------------------------------------------------- AI interpretation
@@ -478,6 +515,7 @@ class Design(_Model):
     sweep: Sweep = Field(default_factory=Sweep)
     alarm_defaults: dict[ParameterId, AlarmDefault] = Field(default_factory=dict)
     alarm_presentation: AlarmPresentation = Field(default_factory=AlarmPresentation)
+    safety: SafetyDisplay = Field(default_factory=SafetyDisplay)
     ai: AiDisplay = Field(default_factory=AiDisplay)
     forecast: Forecast = Field(default_factory=Forecast)
 
@@ -503,6 +541,17 @@ class Design(_Model):
         for required in ("name", "clock"):
             if required not in self.top_bar.fields:
                 raise ValueError(f"top_bar.fields must include {required!r}")
+
+        # Distinct states need distinct colours: a technical problem must not look like
+        # a patient alarm, and "alarm sound paused" must not look like nothing.
+        c = self.theme.colours
+        clash = {c.alarm_high.lower(), c.alarm_medium.lower()} & {c.technical.lower()}
+        if clash:
+            raise ValueError("theme.colours.technical must differ from the high and medium "
+                             "patient alarm colours")
+        for token in ("silenced", "technical", "inactive"):
+            if getattr(c, token).lower() in (c.background.lower(), c.surface.lower()):
+                raise ValueError(f"theme.colours.{token} must be visible against the background")
 
         # Required controls: exactly one silence button and one settings button.
         tab_actions = [t.action.type for t in self.tabs]

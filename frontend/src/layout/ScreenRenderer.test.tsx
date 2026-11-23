@@ -20,8 +20,9 @@ const split: Screen = {
 
 beforeEach(() => {
   useUi.setState({
-    stored: { document: { rows } as unknown as Design } as any,
-    registry: { parameters: { hr: { label: "Heart rate", short: "HR", unit: "bpm" } } } as any,
+    stored: { document: { rows, safety: { standby_text: "STANDBY", show_advice: true } } as unknown as Design } as any,
+    registry: { parameters: { hr: { label: "Heart rate", short: "HR", unit: "bpm" } },
+                signal_states: { standby: { text: "STANDBY", tone: "inactive" } }, signal_issues: {} } as any,
   });
 });
 

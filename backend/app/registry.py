@@ -30,6 +30,22 @@ NHS_NUMBER_SYSTEM = "https://fhir.nhs.uk/Id/nhs-number"
 #: Alarm audio is silenced for exactly this long. Deliberately not design-editable.
 ALARM_SILENCE_SECONDS = 120
 
+# ------------------------------------------------------- fixed safety behaviour
+# None of these are design-editable. See docs/human-factors.md.
+
+#: No data from a device for this long -> its signals become 'connection-lost'.
+CONNECTION_LOST_AFTER_S = 5
+#: The screen has had no message from the server for this long -> everything on
+#: screen is marked stale ("NO DATA"). Guards against a frozen display that looks live.
+DISPLAY_STALE_AFTER_S = 3
+#: A value from a continuous parameter older than this is never shown as current.
+VALUE_STALE_AFTER_S = 10
+BATTERY_LOW_PCT = 20
+BATTERY_CRITICAL_PCT = 10
+#: Signal quality index (0-1) below which a trace is "poor" / "unusable".
+SQI_POOR_BELOW = 0.6
+SQI_UNUSABLE_BELOW = 0.3
+
 Priority = Literal["high", "medium", "low"]
 Source = Literal["anne-one", "manual", "derived", "epr", "flow-meter", "simulated"]
 
@@ -177,6 +193,100 @@ O2_DEVICES: dict[str, str] = {
 }
 
 ACVPU_LEVELS: tuple[str, ...] = ("A", "C", "V", "P", "U")
+
+
+# ------------------------------------------------ signal states and technical alarms
+
+#: Why a number is or is not on screen. Each state has its own word, icon and
+#: colour so that "no number" can never mean two different things.
+SIGNAL_STATES: dict[str, dict] = {
+    "ok": {"text": "", "shows_value": True, "tone": "normal",
+           "meaning": "Valid, current value."},
+    "standby": {"text": "STANDBY", "shows_value": False, "tone": "inactive",
+                "meaning": "Selected for display but no device is connected or started. "
+                           "Nothing is wrong; nothing is being measured."},
+    "acquiring": {"text": "SEARCHING", "shows_value": False, "tone": "inactive",
+                  "meaning": "Device connected and looking for a signal."},
+    "poor-signal": {"text": "POOR TRACE", "shows_value": True, "tone": "technical",
+                    "meaning": "A value is available but the trace is noisy; treat with caution."},
+    "sensor-off": {"text": "CHECK SENSOR", "shows_value": False, "tone": "technical",
+                   "meaning": "Device connected but the sensor or lead is off the patient."},
+    "connection-lost": {"text": "CONNECTION LOST", "shows_value": False, "tone": "technical",
+                        "meaning": "The device was sending data and has stopped."},
+    "invalid": {"text": "-?-", "shows_value": False, "tone": "technical",
+                "meaning": "A measurement was made but is outside the measurable range."},
+}
+SIGNAL_STATE_IDS: tuple[str, ...] = tuple(SIGNAL_STATES)
+
+#: What is wrong with a trace, and what to suggest. Wording is for a nurse at the
+#: bedside: say what to check, never what the diagnosis is.
+SIGNAL_ISSUES: dict[str, dict] = {
+    "noise": {"label": "Noisy trace", "advice": "Check electrode or sensor contact"},
+    "motion": {"label": "Movement artefact", "advice": "Patient moving; recheck when still"},
+    "baseline-wander": {"label": "Wandering baseline", "advice": "Check electrode contact"},
+    "low-amplitude": {"label": "Weak signal", "advice": "Check sensor position"},
+    "low-perfusion": {"label": "Low perfusion", "advice": "Check sensor site; try another site"},
+    "flatline": {"label": "No signal", "advice": "Check the sensor is attached"},
+    "saturated": {"label": "Signal clipped", "advice": "Check sensor position"},
+}
+SIGNAL_ISSUE_IDS: tuple[str, ...] = tuple(SIGNAL_ISSUES)
+
+#: Technical alarms: something is wrong with the monitoring, not with the patient.
+#: Shown in their own colour with a device icon, never styled as a patient alarm.
+TECHNICAL_ALARMS: dict[str, dict] = {
+    "connection-lost": {"label": "Connection lost", "priority": "medium",
+                        "message": "{device}: connection lost. Not monitoring {parameters}."},
+    "sensor-off": {"label": "Sensor off", "priority": "medium",
+                   "message": "{device}: check sensor. Not monitoring {parameters}."},
+    "battery-critical": {"label": "Battery critical", "priority": "medium",
+                         "message": "{device}: battery {battery}%. Replace or charge now."},
+    "battery-low": {"label": "Battery low", "priority": "low",
+                    "message": "{device}: battery {battery}%."},
+    "poor-signal": {"label": "Poor trace", "priority": "low",
+                    "message": "{parameter}: poor trace. {advice}."},
+    # Raised by the display itself, not the server:
+    "display-disconnected": {"label": "Display not updating", "priority": "high",
+                             "message": "This screen has lost contact with the monitor server. "
+                                        "Values are not updating."},
+    "sound-unavailable": {"label": "Alarm sound off", "priority": "medium",
+                          "message": "This screen cannot play alarm sounds. Tap to enable."},
+}
+TECHNICAL_ALARM_IDS: tuple[str, ...] = tuple(TECHNICAL_ALARMS)
+
+DEVICE_KINDS: dict[str, str] = {
+    "anne-chest": "ANNE chest sensor",
+    "anne-limb": "ANNE limb sensor",
+    "bp-cuff": "Blood pressure cuff",
+    "flow-meter": "Oxygen flow meter",
+    "other": "Other device",
+}
+DEVICE_KIND_IDS: tuple[str, ...] = tuple(DEVICE_KINDS)
+
+#: Faults the demo controls can inject so each failure mode can be shown on demand.
+DEMO_FAULTS: dict[str, str] = {
+    "battery-low": "Battery low",
+    "battery-critical": "Battery critical",
+    "connection-lost": "Wireless connection lost",
+    "sensor-off": "Sensor off the patient",
+    "noise": "Noisy trace",
+    "motion": "Movement artefact",
+    "low-perfusion": "Low perfusion (pleth)",
+    "not-paired": "Device not connected (standby)",
+}
+DEMO_FAULT_IDS: tuple[str, ...] = tuple(DEMO_FAULTS)
+
+
+def battery_state(pct: float | None, charging: bool = False) -> str:
+    """'unknown' | 'charging' | 'ok' | 'low' | 'critical'."""
+    if pct is None:
+        return "unknown"
+    if charging:
+        return "charging"
+    if pct <= BATTERY_CRITICAL_PCT:
+        return "critical"
+    if pct <= BATTERY_LOW_PCT:
+        return "low"
+    return "ok"
 
 
 # --------------------------------------------------------------------------- labs
@@ -393,6 +503,20 @@ def as_public_dict() -> dict:
 
     return {
         "alarm_silence_seconds": ALARM_SILENCE_SECONDS,
+        "safety": {
+            "connection_lost_after_s": CONNECTION_LOST_AFTER_S,
+            "display_stale_after_s": DISPLAY_STALE_AFTER_S,
+            "value_stale_after_s": VALUE_STALE_AFTER_S,
+            "battery_low_pct": BATTERY_LOW_PCT,
+            "battery_critical_pct": BATTERY_CRITICAL_PCT,
+            "sqi_poor_below": SQI_POOR_BELOW,
+            "sqi_unusable_below": SQI_UNUSABLE_BELOW,
+        },
+        "signal_states": SIGNAL_STATES,
+        "signal_issues": SIGNAL_ISSUES,
+        "technical_alarms": TECHNICAL_ALARMS,
+        "device_kinds": DEVICE_KINDS,
+        "demo_faults": DEMO_FAULTS,
         "parameters": {k: asdict(v) for k, v in PARAMETERS.items()},
         "waveforms": WAVEFORMS,
         "o2_devices": O2_DEVICES,

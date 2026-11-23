@@ -21,8 +21,6 @@ interface UiState {
   editMode: boolean;
   patientId: string;
   notice: string | null;
-  /** ISO time until which alarm audio is silenced (server state, mirrored in M2). */
-  silencedUntil: string | null;
 
   load(stored: StoredDesign, registry: Registry): void;
   setDraft(draft: Design | null): void;
@@ -31,7 +29,6 @@ interface UiState {
   showSheet(sheet: SheetId | null, context?: string | null): void;
   setEditMode(on: boolean): void;
   setNotice(text: string | null): void;
-  setSilencedUntil(iso: string | null): void;
   fail(message: string): void;
 }
 
@@ -40,7 +37,7 @@ export const DEFAULT_PATIENT = "scn-pneumonia";
 export const useUi = create<UiState>((set) => ({
   stored: null, draft: null, registry: null, error: null,
   screenId: null, openMenu: null, openSheet: null, sheetContext: null,
-  editMode: false, patientId: DEFAULT_PATIENT, notice: null, silencedUntil: null,
+  editMode: false, patientId: DEFAULT_PATIENT, notice: null,
 
   load: (stored, registry) =>
     set((s) => ({ stored, registry, error: null,
@@ -51,7 +48,6 @@ export const useUi = create<UiState>((set) => ({
   showSheet: (openSheet, sheetContext = null) => set({ openSheet, sheetContext, openMenu: null }),
   setEditMode: (editMode) => set({ editMode }),
   setNotice: (notice) => set({ notice }),
-  setSilencedUntil: (silencedUntil) => set({ silencedUntil }),
   fail: (error) => set({ error }),
 }));
 

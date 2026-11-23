@@ -6,6 +6,10 @@ import { ScreenRenderer } from "@/layout/ScreenRenderer";
 import { Sheet } from "@/layout/Sheet";
 import { TabBar } from "@/layout/TabBar";
 import { TopBar } from "@/layout/TopBar";
+import { useSilenceActions, useSilenceRemaining } from "@/alarms/SilenceButton";
+import { SilenceBanner } from "@/safety/SilenceBanner";
+import { startLinkWatchdog, useSafety } from "@/safety/store";
+import { SystemBanner } from "@/safety/SystemBanner";
 
 import { api } from "./api";
 import { useDesign, useUi } from "./store";
@@ -24,6 +28,13 @@ export function App() {
 
   useEffect(() => { if (design) applyTheme(design.theme); }, [design]);
 
+  // A screen that has stopped receiving data must say so (see safety/store.ts).
+  const staleAfter = useUi((s) => s.registry?.safety.display_stale_after_s);
+  useEffect(() => (staleAfter ? startLinkWatchdog(staleAfter * 1000) : undefined), [staleAfter]);
+  const link = useSafety((s) => s.link);
+  const silenceLeft = useSilenceRemaining();
+  const { resume } = useSilenceActions();
+
   useEffect(() => {
     if (!notice) return;
     const id = window.setTimeout(() => useUi.getState().setNotice(null), 4000);
@@ -36,10 +47,16 @@ export function App() {
   const screen = design.screens.find((s) => s.id === screenId)
     ?? design.screens.find((s) => s.id === design.home_screen)!;
 
+  const banner = <SilenceBanner secondsLeft={silenceLeft} onResume={resume} />;
+  const bannerOnTop = design.safety.silence_banner === "top";
+
   return (
-    <div className="app" data-testid="app" data-design={design.name}>
+    <div className="app" data-testid="app" data-design={design.name} data-link={link}>
       <TopBar />
+      {bannerOnTop && banner}
+      <SystemBanner />
       <ScreenRenderer screen={screen} />
+      {!bannerOnTop && banner}
       <MenuSheet />
       <Sheet />
       {notice && <div className="notice" role="status" data-testid="notice">{notice}</div>}

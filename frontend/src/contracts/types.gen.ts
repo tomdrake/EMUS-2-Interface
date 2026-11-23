@@ -15,7 +15,7 @@ export interface Contracts {
   oxygen: OxygenTherapy;
   patient: Patient;
   patient_settings: PatientSettings;
-  stream_message: NumericsMessage | WaveformMessage | AlarmMessage | FindingsMessage | StatusMessage;
+  stream_message: NumericsMessage | WaveformMessage | AlarmMessage | FindingsMessage | DevicesMessage | StatusMessage;
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema
@@ -23,21 +23,7 @@ export interface Contracts {
  */
 export interface AlarmState {
   active: AlarmEvent[];
-  silence_seconds: number;
-  silenced_until: string | null;
-}
-/**
- * This interface was referenced by `Contracts`'s JSON-Schema
- * via the `definition` "AlarmEvent".
- */
-export interface AlarmEvent {
-  acknowledged_at: string | null;
-  ended_at: string | null;
-  id: string;
-  kind: "low" | "high" | "event" | "technical";
-  limit: number | null;
-  message: string;
-  parameter:
+  alarms_off: (
     | "hr"
     | "pulse"
     | "spo2"
@@ -54,9 +40,76 @@ export interface AlarmEvent {
     | "position"
     | "falls"
     | "sleep"
-    | "timer";
+    | "timer"
+  )[];
+  silence_seconds: number;
+  silenced_until: string | null;
+  unmonitored: (
+    | "hr"
+    | "pulse"
+    | "spo2"
+    | "rr"
+    | "bp_sys"
+    | "bp_dia"
+    | "bp_mean"
+    | "temp"
+    | "o2_flow"
+    | "fio2"
+    | "acvpu"
+    | "news2"
+    | "activity"
+    | "position"
+    | "falls"
+    | "sleep"
+    | "timer"
+  )[];
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "AlarmEvent".
+ */
+export interface AlarmEvent {
+  acknowledged_at: string | null;
+  device_id: string | null;
+  ended_at: string | null;
+  id: string;
+  kind: "low" | "high" | "event" | "technical";
+  limit: number | null;
+  message: string;
+  parameter:
+    | (
+        | "hr"
+        | "pulse"
+        | "spo2"
+        | "rr"
+        | "bp_sys"
+        | "bp_dia"
+        | "bp_mean"
+        | "temp"
+        | "o2_flow"
+        | "fio2"
+        | "acvpu"
+        | "news2"
+        | "activity"
+        | "position"
+        | "falls"
+        | "sleep"
+        | "timer"
+      )
+    | null;
   priority: "high" | "medium" | "low";
   started_at: string;
+  technical:
+    | (
+        | "connection-lost"
+        | "sensor-off"
+        | "battery-critical"
+        | "battery-low"
+        | "poor-signal"
+        | "display-disconnected"
+        | "sound-unavailable"
+      )
+    | null;
   value: number | null;
 }
 /**
@@ -721,6 +774,115 @@ export interface AlarmMessage {
 export interface FindingsMessage {
   findings: Finding[];
   type: "findings";
+}
+/**
+ * Sent on connect, on any change, and at least every 5 seconds.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "DevicesMessage".
+ */
+export interface DevicesMessage {
+  at: string;
+  devices: DeviceStatus[];
+  quality: SignalQuality[];
+  signals: {
+    [k: string]: SignalStatus;
+  };
+  type: "devices";
+}
+/**
+ * One physical device feeding this patient's monitor.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "DeviceStatus".
+ */
+export interface DeviceStatus {
+  battery: "ok" | "low" | "critical" | "charging" | "unknown";
+  battery_pct: number | null;
+  connected_since: string | null;
+  connection: "connected" | "connecting" | "lost" | "not-paired";
+  id: string;
+  kind: "anne-chest" | "anne-limb" | "bp-cuff" | "flow-meter" | "other";
+  label: string;
+  last_seen: string | null;
+  link_quality: number | null;
+  parameters: (
+    | "hr"
+    | "pulse"
+    | "spo2"
+    | "rr"
+    | "bp_sys"
+    | "bp_dia"
+    | "bp_mean"
+    | "temp"
+    | "o2_flow"
+    | "fio2"
+    | "acvpu"
+    | "news2"
+    | "activity"
+    | "position"
+    | "falls"
+    | "sleep"
+    | "timer"
+  )[];
+  simulated: boolean;
+  waveforms: ("ecg" | "pleth" | "resp")[];
+}
+/**
+ * Assessment of one stretch of one waveform (see app.signal_quality).
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "SignalQuality".
+ */
+export interface SignalQuality {
+  advice: string;
+  assessed_by: "device" | "heuristic";
+  grade: "good" | "poor" | "unusable";
+  issue: ("noise" | "motion" | "baseline-wander" | "low-amplitude" | "low-perfusion" | "flatline" | "saturated") | null;
+  label: string;
+  /**
+   * 1 = clean, 0 = unusable
+   */
+  sqi: number;
+  waveform: "ecg" | "pleth" | "resp";
+}
+/**
+ * Why a parameter's number is, or is not, on screen right now.
+ *
+ * The display never infers this from a missing value: the server always says
+ * which state applies, so STANDBY, CONNECTION LOST and CHECK SENSOR cannot be
+ * confused with each other or with a blank.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "SignalStatus".
+ */
+export interface SignalStatus {
+  advice: string;
+  device_id: string | null;
+  issue: ("noise" | "motion" | "baseline-wander" | "low-amplitude" | "low-perfusion" | "flatline" | "saturated") | null;
+  last_value: number | string | null;
+  last_value_at: string | null;
+  parameter:
+    | "hr"
+    | "pulse"
+    | "spo2"
+    | "rr"
+    | "bp_sys"
+    | "bp_dia"
+    | "bp_mean"
+    | "temp"
+    | "o2_flow"
+    | "fio2"
+    | "acvpu"
+    | "news2"
+    | "activity"
+    | "position"
+    | "falls"
+    | "sleep"
+    | "timer";
+  quality: number | null;
+  since: string;
+  state: "ok" | "standby" | "acquiring" | "poor-signal" | "sensor-off" | "connection-lost" | "invalid";
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema

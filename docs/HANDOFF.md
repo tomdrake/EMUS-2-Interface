@@ -17,6 +17,8 @@ are ready to be implemented, one at a time, in order.
 | LLM system prompt and tool definition | Done (`backend/app/ai/llm.py`) |
 | All other backend modules and routes | Stubs with docstrings; routes return 501 naming their milestone |
 | Frontend shell: top bar, tab bar, menus, sheets, split layouts, theme | Done |
+| Trace-quality check (noise, movement, flat line, clipping, weak signal) | Done (`backend/app/signal_quality.py`) |
+| Safety display: standby / searching / check sensor / connection lost / poor trace / no data, sound-paused banner, MONITOR banner, device battery and link | Done (`frontend/src/safety/`), driven by test data until M2 supplies live state |
 | Frontend widgets and sheets | Placeholders naming their milestone (`frontend/src/widgets`, `frontend/src/studio`) |
 | Generated TypeScript types | Done (`make types`) |
 
@@ -91,6 +93,12 @@ with, then commit. To use a different model for the agents, pass it as an argume
 9. **One commit per milestone** on the working branch, message starting `M2:` etc.
    Append a short "Notes for review" section to the brief: what was built, anything
    left out, any contract or test that needed changing and why.
+
+10. **Safety states are not optional** (`docs/human-factors.md`). Every number goes
+    through `<Numeric>`; never render a blank or `--`. Never show a value unless its
+    signal state is `ok` or `poor-signal`. Never raise a patient alarm from missing
+    data. Do not add a way to hide the paused banner, technical alarms or device
+    warnings.
 
 ## Things that need a person
 

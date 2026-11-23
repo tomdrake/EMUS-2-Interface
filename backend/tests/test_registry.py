@@ -26,6 +26,23 @@ def test_news2_inputs_are_in_the_registry():
         "hr", "spo2", "rr", "bp_sys", "temp", "o2_flow", "acvpu"}
 
 
+def test_technical_scenario_covers_every_failure_mode():
+    s = SCENARIOS["scn-technical"]
+    assert {f["fault"] for f in s["faults"]} >= {
+        "battery-low", "battery-critical", "motion", "sensor-off", "connection-lost"}
+    assert any(d["connection"] == "not-paired" for d in s["devices"]), "one modality on standby"
+    assert not s["rhythms"] and not s["events"], "the patient is well throughout"
+
+
+def test_technical_alarms_and_safety_constants():
+    for a in r.TECHNICAL_ALARMS.values():
+        assert a["priority"] in ("high", "medium", "low") and a["label"] and a["message"]
+    assert r.TECHNICAL_ALARMS["battery-critical"]["priority"] != "low"
+    assert r.BATTERY_CRITICAL_PCT < r.BATTERY_LOW_PCT
+    assert r.SQI_UNUSABLE_BELOW < r.SQI_POOR_BELOW
+    assert r.DISPLAY_STALE_AFTER_S <= r.CONNECTION_LOST_AFTER_S
+
+
 def test_alarm_silence_is_two_minutes():
     assert r.ALARM_SILENCE_SECONDS == 120
 
@@ -68,6 +85,13 @@ def test_scenarios_only_use_registry_vocabulary():
             assert (o2["flow_l_min"] == 0) == (o2["device"] == "A"), s["id"]
         for span in s["rhythms"]:
             assert span["rhythm"] in r.RHYTHM_LABELS and span["from_min"] < span["to_min"]
+        device_ids = {d["id"] for d in s["devices"]}
+        for d in s["devices"]:
+            assert d["kind"] in r.DEVICE_KINDS and set(d["parameters"]) <= set(r.PARAMETERS)
+            assert set(d["waveforms"]) <= set(r.WAVEFORMS)
+        for f in s["faults"]:
+            assert f["fault"] in r.DEMO_FAULTS and f["device"] in device_ids, (s["id"], f)
+            assert s["start_min"] <= f["at_min"] <= s["end_min"]
         story = s["forecast_story"]
         for c in story["contributors"]:
             assert c["parameter"] is None or c["parameter"] in r.PARAMETERS

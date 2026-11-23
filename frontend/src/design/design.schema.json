@@ -1397,6 +1397,81 @@
       "title": "Row",
       "type": "object"
     },
+    "SafetyDisplay": {
+      "additionalProperties": false,
+      "description": "How monitoring problems are shown. See docs/human-factors.md.\n\nOnly presentation is adjustable here. That each state is shown, and shown\ndifferently from every other state, is fixed: there is no option to hide the\nalarm-paused banner, a technical alarm, a battery warning or a lost signal.",
+      "properties": {
+        "device_status": {
+          "default": "top-bar-and-rows",
+          "enum": [
+            "top-bar",
+            "top-bar-and-rows"
+          ],
+          "title": "Device Status",
+          "type": "string"
+        },
+        "dim_poor_traces": {
+          "default": true,
+          "title": "Dim Poor Traces",
+          "type": "boolean"
+        },
+        "show_advice": {
+          "default": true,
+          "title": "Show Advice",
+          "type": "boolean"
+        },
+        "show_battery_percent": {
+          "default": true,
+          "title": "Show Battery Percent",
+          "type": "boolean"
+        },
+        "silence_banner": {
+          "default": "top",
+          "enum": [
+            "top",
+            "above-tabs"
+          ],
+          "title": "Silence Banner",
+          "type": "string"
+        },
+        "silence_banner_pulse": {
+          "default": true,
+          "title": "Silence Banner Pulse",
+          "type": "boolean"
+        },
+        "stale_values": {
+          "default": "hide",
+          "enum": [
+            "hide",
+            "dim-with-age"
+          ],
+          "title": "Stale Values",
+          "type": "string"
+        },
+        "standby_text": {
+          "default": "STANDBY",
+          "enum": [
+            "STANDBY",
+            "NOT CONNECTED",
+            "OFF"
+          ],
+          "title": "Standby Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "silence_banner",
+        "silence_banner_pulse",
+        "standby_text",
+        "stale_values",
+        "show_advice",
+        "device_status",
+        "show_battery_percent",
+        "dim_poor_traces"
+      ],
+      "title": "SafetyDisplay",
+      "type": "object"
+    },
     "Screen": {
       "additionalProperties": false,
       "properties": {
@@ -2002,6 +2077,18 @@
           "title": "Forecast",
           "type": "string"
         },
+        "inactive": {
+          "description": "STANDBY and SEARCHING text: nothing is being measured.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Inactive",
+          "type": "string"
+        },
+        "silenced": {
+          "description": "The alarm-sound-paused state: the silence button and its banner. Conventionally yellow.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Silenced",
+          "type": "string"
+        },
         "surface": {
           "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
           "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
@@ -2012,6 +2099,12 @@
           "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
           "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
           "title": "Surface Alt",
+          "type": "string"
+        },
+        "technical": {
+          "description": "Technical alarms and signal problems (connection, battery, sensor, poor trace). Must differ from the patient alarm colours.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Technical",
           "type": "string"
         },
         "text": {
@@ -2038,6 +2131,9 @@
         "alarm_high",
         "alarm_medium",
         "alarm_low",
+        "silenced",
+        "technical",
+        "inactive",
         "ai_highlight",
         "forecast"
       ],
@@ -2071,6 +2167,7 @@
               "clock",
               "date",
               "alarm_status",
+              "devices",
               "oxygen",
               "news2",
               "allergies",
@@ -2246,6 +2343,9 @@
       "title": "Rows",
       "type": "array"
     },
+    "safety": {
+      "$ref": "#/$defs/SafetyDisplay"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
@@ -2297,6 +2397,7 @@
     "sweep",
     "alarm_defaults",
     "alarm_presentation",
+    "safety",
     "ai",
     "forecast"
   ],

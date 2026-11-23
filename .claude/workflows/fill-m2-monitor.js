@@ -35,30 +35,30 @@ export const meta = {
 const MODEL = (args && args.model) || 'sonnet'
 const ID = 'M2'
 const BRIEF = 'docs/briefs/M2-monitor.md'
-const TESTS = 'backend/tests/test_m2_monitor.py'
+const TESTS = 'backend/tests/test_m2_monitor.py and backend/tests/test_m2_safety.py'
 const BACKEND = [
   [
     "simulator",
-    "Implement backend/app/sources/simulator.py: scenario_values, synth_ecg, synth_pleth, synth_resp and SimulatorSource (info, patient, stream, history, observation_sets, oxygen, now, seek, set_speed). Make the simulator tests pass: `cd backend && ../.venv/bin/python -m pytest -q tests/test_m2_monitor.py -k 'scenario or synthetic'`."
+    "Implement backend/app/sources/simulator.py: scenario_values, synth_ecg, synth_pleth, synth_resp and SimulatorSource (info, patient, stream, history, observation_sets, oxygen, now, seek, set_speed). Also implement add_artefact, devices(), signal_status(), signal_quality(), inject_fault() and clear_faults() as the brief's 'Monitoring health' section and the DeviceSource docstrings describe, grading waveforms with app/signal_quality.py. Make the simulator tests pass: `cd backend && ../.venv/bin/python -m pytest -q tests/test_m2_monitor.py tests/test_m2_safety.py -k 'scenario or synthetic'`."
   ],
   [
     "api-stream-alarms",
-    "Implement the M2 routes in backend/app/routers/patients.py (list, detail, trend, oxygen, alarm limits), backend/app/routers/stream.py (WebSocket fan-out and demo controls) and backend/app/routers/alarms.py, with a new alarm engine module and persistence helpers as the brief describes. Make every remaining test in backend/tests/test_m2_monitor.py pass."
+    "Implement the M2 routes in backend/app/routers/patients.py (list, detail, trend, oxygen, alarm limits), backend/app/routers/stream.py (WebSocket fan-out and demo controls) and backend/app/routers/alarms.py, with a new alarm engine module (patient alarms and technical alarms, unmonitored and alarms-off lists) and persistence helpers as the brief describes, including the fault-injection routes. Make every remaining test in backend/tests/test_m2_monitor.py and backend/tests/test_m2_safety.py pass."
   ]
 ]
-const BASE = "Create frontend/src/app/live.ts (Zustand store for numerics, waveform ring buffers, alarm state and connection status, plus a WebSocket client with reconnect), add the M2 calls to frontend/src/app/api.ts (patients, trend, oxygen, alarm limits, alarms, demo controls), and make frontend/src/layout/TopBar.tsx show the real patient, oxygen, alarm status and a SIMULATED badge. Start the stream from App.tsx."
+const BASE = "Read docs/human-factors.md and the existing frontend/src/safety/ folder first: it is built and tested, and you must use it, not replace it. Create frontend/src/app/live.ts (Zustand store for numerics and waveform ring buffers, plus a WebSocket client with reconnect that feeds useSafety: heartbeat() on every message, setDevices() for DevicesMessage, setAlarms() for AlarmMessage, setLink('down') on close), add the M2 calls to frontend/src/app/api.ts (patients, trend, oxygen, alarm limits, alarms, demo controls), and make frontend/src/layout/TopBar.tsx show the real patient, oxygen, alarm status and a SIMULATED badge. Start the stream from App.tsx."
 const PARTS = [
   [
     "traces",
-    "Own these files only: frontend/src/widgets/MonitorRows.tsx and new WaveCanvas.tsx, TrendTrace.tsx, BarTrace.tsx, EventsTrace.tsx, TimerRow.tsx plus one co-located monitor-rows.css imported by MonitorRows.tsx. Real traces and live numerics as the brief's Frontend table describes, including the sweep break and flashing numerics on alarm."
+    "Own these files only: frontend/src/widgets/MonitorRows.tsx and new WaveCanvas.tsx, TrendTrace.tsx, BarTrace.tsx, EventsTrace.tsx, TimerRow.tsx plus one co-located monitor-rows.css imported by MonitorRows.tsx. Real traces as the brief's Frontend table describes, including the sweep break and flashing numerics on alarm. Keep rendering every number through <Numeric> from frontend/src/safety/Numeric.tsx (pass it the live value) and keep <RowStatus>; dim poor traces and freeze traces when the link is not live."
   ],
   [
     "alarms",
-    "Own these files only: everything under frontend/src/alarms/ (audio.ts, AlarmBanner.tsx, SilenceButton.tsx, alarms.css), new frontend/src/studio/AlarmLimitsSheet.tsx and new frontend/src/widgets/Alarms.tsx. Server-driven two-minute silence with countdown, alarm banner, tones by priority, limit steppers bounded by the registry."
+    "Own these files only: everything under frontend/src/alarms/ (audio.ts, AlarmBanner.tsx, SilenceButton.tsx, alarms.css), new frontend/src/studio/AlarmLimitsSheet.tsx and new frontend/src/widgets/Alarms.tsx. Patient alarm banner, tones by priority, limit steppers bounded by the registry with a confirm step to switch an alarm off. audio.ts must set useSafety sound to 'blocked' until audio is unlocked and register enableSound. SilenceButton already exists and reads useSafety; keep its behaviour (second press resumes)."
   ],
   [
     "oxygen-patient-demo",
-    "Own these new files only: frontend/src/studio/OxygenSheet.tsx, PatientSheet.tsx, DemoControlsSheet.tsx, frontend/src/widgets/Oxygen.tsx, Patient.tsx and one co-located clinical-sheets.css. Oxygen flow presets and device grid, patient details, scenario picker with speed, jump and restart."
+    "Own these new files only: frontend/src/studio/OxygenSheet.tsx, PatientSheet.tsx, DemoControlsSheet.tsx, frontend/src/widgets/Oxygen.tsx, Patient.tsx and one co-located clinical-sheets.css. Oxygen flow presets and device grid, patient details, scenario picker with speed, jump and restart, and a 'Show a failure' grid from registry.demo_faults."
   ]
 ]
 

@@ -51,6 +51,13 @@ class LabPoint(TypedDict):
     value: float                   # UK units
 
 
+class Fault(TypedDict, total=False):
+    at_min: float
+    fault: str                     # registry.DEMO_FAULTS key
+    device: str                    # device id
+    minutes: float                 # omitted = until the end
+
+
 class Scenario(TypedDict):
     id: str
     title: str
@@ -70,6 +77,11 @@ class Scenario(TypedDict):
     imaging: list[dict]            # ImagingStudy fields with at_min instead of performed_at
     #: Scripted reasons the placeholder forecaster reports (never inferred).
     forecast_story: dict
+    #: Devices on this patient (DeviceStatus fields; battery_pct is the level at
+    #: minute 0 and drains at battery_drain_pct_per_hour).
+    devices: list[dict]
+    #: Scripted monitoring problems. Empty for the clinical scenarios.
+    faults: list[Fault]
 
 
 def _pt(family: str, given: str, title: str, dob: str, sex: str, nhs: str, bed: str,
@@ -355,6 +367,64 @@ SCENARIOS: dict[str, Scenario] = {
         "imaging": [],
         "forecast_story": {"contributors": [], "suggested_causes": [], "what_if": None},
     },
+}
+
+# ------------------------------------------------------------------ devices
+
+def standard_devices(*, chest: float = 78, limb: float = 64, cuff: bool = True) -> list[dict]:
+    """The usual kit: ANNE chest and limb sensors and a BP cuff."""
+    return [
+        {"id": "anne-chest", "label": "Chest sensor", "kind": "anne-chest",
+         "parameters": ["hr", "rr", "temp", "activity", "position", "falls"],
+         "waveforms": ["ecg", "resp"], "battery_pct": chest, "battery_drain_pct_per_hour": 3.0,
+         "connection": "connected"},
+        {"id": "anne-limb", "label": "Limb sensor", "kind": "anne-limb",
+         "parameters": ["spo2", "pulse"], "waveforms": ["pleth"],
+         "battery_pct": limb, "battery_drain_pct_per_hour": 3.5, "connection": "connected"},
+        {"id": "bp-cuff", "label": "BP cuff", "kind": "bp-cuff",
+         "parameters": ["bp_sys", "bp_dia", "bp_mean"], "waveforms": [],
+         "battery_pct": 90 if cuff else None, "battery_drain_pct_per_hour": 0.5,
+         "connection": "connected" if cuff else "not-paired"},
+    ]
+
+
+for _s in SCENARIOS.values():
+    _s.setdefault("devices", standard_devices())
+    _s.setdefault("faults", [])
+
+SCENARIOS["scn-technical"] = {
+    "id": "scn-technical",
+    "title": "Monitoring problems, patient well",
+    "teaching_point": "Telling failure modes apart: a modality on standby, a low battery, a "
+                      "noisy trace, a sensor off and a lost wireless connection each look and "
+                      "read differently, and none of them looks like a patient alarm.",
+    "patient": _pt("FERGUSON", "Alan", "Mr", "1958-09-14", "male", "999 000 0069", "Bed 6",
+                   consultant="Dr S. Iyer", weight_kg=79),
+    "spo2_scale": 1,
+    "start_min": -240, "end_min": 30,
+    "segments": [
+        {"at_min": -240, "hr": 70, "rr": 14, "spo2": 97, "bp_sys": 126, "bp_dia": 78,
+         "temp": 36.7, "activity": 15, "position": "upright", "acvpu": "A"},
+        {"at_min": 30, "hr": 72, "rr": 14, "spo2": 97, "bp_sys": 126, "bp_dia": 78,
+         "temp": 36.7, "activity": 15, "position": "upright", "acvpu": "A"},
+    ],
+    "rhythms": [],
+    "oxygen": [{"at_min": -240, "flow_l_min": 0, "device": "A"}],
+    "events": [],
+    "obs_interval_min": 240,
+    "labs": [], "historic_labs": [], "imaging": [],
+    "forecast_story": {"contributors": [], "suggested_causes": [], "what_if": None},
+    # No cuff connected: blood pressure is selected for display but on STANDBY.
+    # The limb sensor starts just above the low-battery threshold.
+    "devices": standard_devices(chest=71, limb=21, cuff=False),
+    "faults": [
+        {"at_min": 1, "fault": "battery-low", "device": "anne-limb"},
+        {"at_min": 3, "fault": "motion", "device": "anne-chest", "minutes": 2},
+        {"at_min": 7, "fault": "low-perfusion", "device": "anne-limb", "minutes": 2},
+        {"at_min": 10, "fault": "sensor-off", "device": "anne-chest", "minutes": 2},
+        {"at_min": 13, "fault": "connection-lost", "device": "anne-limb", "minutes": 3},
+        {"at_min": 17, "fault": "battery-critical", "device": "anne-limb"},
+    ],
 }
 
 DEFAULT_SCENARIO = "scn-pneumonia"

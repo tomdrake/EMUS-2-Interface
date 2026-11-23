@@ -18,7 +18,8 @@ def list_patients() -> list[dict]:
 
 @router.get("/patients/{patient_id}")
 def get_patient(patient_id: str) -> dict:
-    """Patient, PatientSettings, current oxygen, and the source's SourceInfo."""
+    """{'patient', 'settings', 'oxygen', 'source': SourceInfo, 'devices': [DeviceStatus],
+    'signals': {parameter: SignalStatus}}."""
     todo("M2", "patient detail")
 
 

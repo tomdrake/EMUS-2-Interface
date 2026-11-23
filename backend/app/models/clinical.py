@@ -21,6 +21,11 @@ from app.models.design import CertaintyMetricId, EventTypeId, ParameterId, Wavef
 LabTestId = Literal[*registry.LAB_TEST_IDS]  # type: ignore[valid-type]
 Source = Literal["anne-one", "manual", "derived", "epr", "flow-meter", "simulated"]
 Priority = Literal["high", "medium", "low"]
+SignalState = Literal[*registry.SIGNAL_STATE_IDS]  # type: ignore[valid-type]
+SignalIssue = Literal[*registry.SIGNAL_ISSUE_IDS]  # type: ignore[valid-type]
+TechnicalAlarmId = Literal[*registry.TECHNICAL_ALARM_IDS]  # type: ignore[valid-type]
+DeviceKind = Literal[*registry.DEVICE_KIND_IDS]  # type: ignore[valid-type]
+DemoFault = Literal[*registry.DEMO_FAULT_IDS]  # type: ignore[valid-type]
 
 
 class _Model(BaseModel):
@@ -109,6 +114,63 @@ class WaveformFrame(_Model):
     t0: datetime
     hz: float
     samples: list[float]
+
+
+# ------------------------------------------------- devices and signal status
+
+class DeviceStatus(_Model):
+    """One physical device feeding this patient's monitor."""
+
+    id: str
+    label: str
+    kind: DeviceKind
+    #: 'not-paired' = never connected this session (its parameters show STANDBY).
+    #: 'lost' = was connected and has stopped sending (CONNECTION LOST).
+    connection: Literal["connected", "connecting", "lost", "not-paired"]
+    connected_since: datetime | None = None
+    last_seen: datetime | None = None
+    battery_pct: float | None = Field(None, ge=0, le=100)
+    battery: Literal["ok", "low", "critical", "charging", "unknown"] = "unknown"
+    #: Wireless link quality 0-1 where the device reports one.
+    link_quality: float | None = Field(None, ge=0, le=1)
+    parameters: list[ParameterId] = Field(default_factory=list)
+    waveforms: list[WaveformId] = Field(default_factory=list)
+    simulated: bool = True
+
+
+class SignalQuality(_Model):
+    """Assessment of one stretch of one waveform (see app.signal_quality)."""
+
+    waveform: WaveformId
+    sqi: float = Field(ge=0, le=1, description="1 = clean, 0 = unusable")
+    grade: Literal["good", "poor", "unusable"]
+    issue: SignalIssue | None = None
+    label: str = ""
+    advice: str = ""
+    #: 'device' when the device reported it; 'heuristic' for the built-in check.
+    assessed_by: Literal["device", "heuristic"] = "heuristic"
+
+
+class SignalStatus(_Model):
+    """Why a parameter's number is, or is not, on screen right now.
+
+    The display never infers this from a missing value: the server always says
+    which state applies, so STANDBY, CONNECTION LOST and CHECK SENSOR cannot be
+    confused with each other or with a blank.
+    """
+
+    parameter: ParameterId
+    state: SignalState
+    since: datetime
+    device_id: str | None = None
+    quality: float | None = Field(None, ge=0, le=1)
+    issue: SignalIssue | None = None
+    #: Short clinician-facing advice, e.g. 'Check electrode or sensor contact'.
+    advice: str = ""
+    #: Last valid value and when, so a lost signal can show "last 96 % 2 min ago"
+    #: (only when the design asks for it; never styled as a current value).
+    last_value: float | str | None = None
+    last_value_at: datetime | None = None
 
 
 # ------------------------------------------------------------------------- labs
@@ -336,8 +398,13 @@ class ForecastBundle(_Model):
 
 class AlarmEvent(_Model):
     id: str
-    parameter: ParameterId
+    #: None for device-level technical alarms (battery, connection).
+    parameter: ParameterId | None = None
     kind: Literal["low", "high", "event", "technical"]
+    #: Set when kind == 'technical'. Technical alarms are about the monitoring,
+    #: not the patient, and are displayed differently.
+    technical: TechnicalAlarmId | None = None
+    device_id: str | None = None
     priority: Priority
     message: str
     value: float | None = None
@@ -352,6 +419,12 @@ class AlarmState(_Model):
     #: Audio is muted until this time; None when not silenced.
     silenced_until: datetime | None = None
     silence_seconds: int = registry.ALARM_SILENCE_SECONDS
+    #: Parameters whose alarm is switched off for this patient (shown with a
+    #: crossed bell on the row).
+    alarms_off: list[ParameterId] = Field(default_factory=list)
+    #: Parameters that have an enabled alarm but no valid data, so the alarm
+    #: cannot fire. Shown as "NOT MONITORED".
+    unmonitored: list[ParameterId] = Field(default_factory=list)
 
 
 # ------------------------------------------------------------- stream (WebSocket)
@@ -378,6 +451,16 @@ class FindingsMessage(_Model):
     findings: list[Finding]
 
 
+class DevicesMessage(_Model):
+    """Sent on connect, on any change, and at least every 5 seconds."""
+
+    type: Literal["devices"] = "devices"
+    at: datetime
+    devices: list[DeviceStatus]
+    signals: dict[ParameterId, SignalStatus]
+    quality: list[SignalQuality] = Field(default_factory=list)
+
+
 class StatusMessage(_Model):
     type: Literal["status"] = "status"
     source: str
@@ -389,7 +472,8 @@ class StatusMessage(_Model):
 
 
 StreamMessage = Annotated[
-    Union[NumericsMessage, WaveformMessage, AlarmMessage, FindingsMessage, StatusMessage],
+    Union[NumericsMessage, WaveformMessage, AlarmMessage, FindingsMessage, DevicesMessage,
+          StatusMessage],
     Field(discriminator="type"),
 ]
 

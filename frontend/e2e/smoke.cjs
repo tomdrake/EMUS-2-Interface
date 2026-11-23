@@ -87,6 +87,99 @@ for (const vp of VIEWPORTS) {
   check(await page.getByTestId("sheet-alarm-limits").isVisible(), `${vp.name}: row tap opens alarm limits`);
   await page.getByTestId("sheet-close").click();
 
+  // --- safety states (driven through the test handle until the simulator can inject them)
+  const numerics = () => page.locator(".num").allInnerTexts();
+  check(!(await numerics()).some((t) => /--/.test(t)), `${vp.name}: no numeric ever shows dashes`);
+
+  // Keep the screen "live" for the next checks: the watchdog marks it stale after 3 s of silence.
+  await page.evaluate(() => {
+    const s = window.__emus.safety;
+    window.__beat = setInterval(() => s.getState().heartbeat(), 400);
+    s.getState().heartbeat();
+    const t = new Date().toISOString();
+    const sig = (parameter, state, extra = {}) => [parameter, { parameter, state, since: t, advice: "", ...extra }];
+    s.getState().setDevices(
+      [
+        { id: "anne-chest", label: "Chest sensor", kind: "anne-chest", connection: "connected", battery: "ok", battery_pct: 71, parameters: [], waveforms: [] },
+        { id: "anne-limb", label: "Limb sensor", kind: "anne-limb", connection: "lost", battery: "low", battery_pct: 18, last_seen: new Date(Date.now() - 42000).toISOString(), parameters: [], waveforms: [] },
+        { id: "bp-cuff", label: "BP cuff", kind: "bp-cuff", connection: "not-paired", battery: "unknown", battery_pct: null, parameters: [], waveforms: [] },
+      ],
+      Object.fromEntries([
+        sig("hr", "poor-signal", { issue: "motion", device_id: "anne-chest", quality: 0.4 }),
+        sig("rr", "sensor-off", { device_id: "anne-chest", advice: "Check the sensor is attached" }),
+        sig("spo2", "connection-lost", { device_id: "anne-limb" }), sig("pulse", "connection-lost", { device_id: "anne-limb" }),
+        sig("temp", "acquiring", { device_id: "anne-chest" }),
+        sig("bp_sys", "standby"), sig("bp_dia", "standby"), sig("bp_mean", "standby"),
+      ]));
+    s.getState().setAlarms({ active: [
+      { id: "t1", kind: "technical", technical: "connection-lost", priority: "medium", device_id: "anne-limb", parameter: null,
+        message: "Limb sensor: connection lost. Not monitoring SpO2, PR.", started_at: t },
+      { id: "t2", kind: "technical", technical: "battery-low", priority: "low", device_id: "anne-limb", parameter: null,
+        message: "Limb sensor: battery 18%.", started_at: t },
+    ], silenced_until: null, silence_seconds: 120, alarms_off: [], unmonitored: ["spo2", "pulse"] });
+  });
+  const state = (p) => page.getByTestId(`num-${p}`).getAttribute("data-state");
+  const text = (p) => page.getByTestId(`num-${p}`).innerText();
+  check(await state("bp_sys") === "standby" && /STANDBY/.test(await text("bp_sys")), `${vp.name}: a modality with no device says STANDBY`);
+  check(/CONNECTION LOST/.test(await text("spo2")), `${vp.name}: a lost wireless link says CONNECTION LOST`);
+  check(/CHECK SENSOR/.test(await text("rr")), `${vp.name}: a sensor off the patient says CHECK SENSOR`);
+  check(/SEARCHING/.test(await text("temp")), `${vp.name}: a device still acquiring says SEARCHING`);
+  check(/POOR TRACE/.test(await page.getByTestId("row-status-hr").innerText()) && /moving/i.test(await page.getByTestId("row-status-hr").innerText()),
+        `${vp.name}: a noisy trace says POOR TRACE with what to check`);
+  const words = new Set(await Promise.all(["bp_sys", "spo2", "rr", "temp"].map(text)).then((a) => a.map((x) => x.split("\n")[0])));
+  check(words.size === 4, `${vp.name}: each failure mode reads differently`);
+  check(/no signal 0:4\d/i.test(await page.getByTestId("device-anne-limb").innerText()),
+        `${vp.name}: a lost device says so in words with how long`);
+  check(/^Limb sensor/.test(await page.getByTestId("devices").innerText()), `${vp.name}: the device with a problem is listed first`);
+  check(/CONNECTION LOST \d:\d\d/.test(await page.getByTestId("row-status-spo2").innerText()), `${vp.name}: the row counts how long the connection has been lost`);
+  const tb = await page.evaluate(() => {
+    const r = (sel) => document.querySelector(sel).getBoundingClientRect();
+    const clock = r('[data-testid="clock"]'), dev = r(".tb-devices"), badge = r(".badge-proto");
+    return { overlap: dev.right > clock.left + 1, clockVisible: clock.right <= badge.left + 1 && clock.width > 0 };
+  });
+  check(!tb.overlap && tb.clockVisible, `${vp.name}: top bar fields do not overlap the clock`);
+  const cut = await page.locator(".device").evaluateAll((els) => {
+    const box = document.querySelector(".tb-devices").getBoundingClientRect();
+    return els.map((e) => e.getBoundingClientRect())
+      .filter((r) => r.top < box.bottom && r.right > box.right + 1).length;
+  });
+  check(cut === 0, `${vp.name}: no device chip is cut off mid-word`);
+  check(/standby/i.test(await page.getByTestId("device-bp-cuff").innerText()), `${vp.name}: an unconnected device says standby`);
+  const sys = await page.getByTestId("system-banner").innerText();
+  check(/MONITOR/.test(sys) && /connection lost/i.test(sys) && /battery 18%/i.test(sys), `${vp.name}: monitoring problems are listed and tagged MONITOR`);
+  await shot("failure-modes");
+
+  // --- alarm sound paused: yellow button, banner with countdown, says alarms still show
+  await page.evaluate(() => window.__emus.safety.getState().setSilencedUntil(new Date(Date.now() + 120000).toISOString()));
+  const banner = page.getByTestId("silence-banner");
+  await banner.waitFor();
+  const bannerText = await banner.innerText();
+  check(/ALARM SOUND PAUSED/.test(bannerText) && /Alarms still show/.test(bannerText), `${vp.name}: paused banner says what is and is not affected`);
+  check(/^(2:00|1:5\d)$/.test(await page.getByTestId("silence-count").innerText()), `${vp.name}: paused banner counts down from two minutes`);
+  const yellow = await page.evaluate(() => {
+    const want = getComputedStyle(document.documentElement).getPropertyValue("--c-silenced").trim().toLowerCase();
+    const hex = (rgb) => "#" + rgb.match(/\d+/g).slice(0, 3).map((n) => Number(n).toString(16).padStart(2, "0")).join("");
+    const btn = getComputedStyle(document.querySelector('[data-testid="silence"]')).backgroundColor;
+    const ban = getComputedStyle(document.querySelector('[data-testid="silence-banner"]')).backgroundColor;
+    return { want, btn: hex(btn), ban: hex(ban) };
+  });
+  check(yellow.btn === yellow.want && yellow.ban === yellow.want, `${vp.name}: silence button and banner are solid ${yellow.want}`);
+  check(/Paused (2:00|1:5\d)/.test(await page.getByTestId("silence").innerText()), `${vp.name}: silence button shows the time left`);
+  check(/Sound paused/.test(await page.getByTestId("alarm-status").innerText()), `${vp.name}: top bar says sound is paused`);
+  check((await page.getByTestId("system-banner").innerText()).length > 0, `${vp.name}: pausing sound does not hide monitoring problems`);
+  await shot("sound-paused");
+  await page.evaluate(() => window.__emus.safety.getState().setSilencedUntil(null));
+  check(await banner.count() === 0, `${vp.name}: banner goes when sound resumes`);
+
+  // --- a screen that stops receiving must not look live
+  await page.evaluate(() => clearInterval(window.__beat));
+  await page.waitForFunction(() => document.querySelector('[data-testid="app"]').dataset.link === "stale", null, { timeout: 8000 });
+  check((await numerics()).every((t) => /NO DATA/.test(t)), `${vp.name}: every numeric says NO DATA when the screen stops updating`);
+  const stale = await page.getByTestId("system-banner").innerText();
+  check(/not updating/i.test(stale) && !/battery/i.test(stale), `${vp.name}: the screen says it is not updating and repeats nothing stale`);
+  check(/no data/i.test(await page.getByTestId("alarm-status").innerText()), `${vp.name}: alarm status admits it has no data`);
+  await shot("not-updating");
+
   // ===== milestone checks are added below this line =====
 
   check(errors.length === 0, `${vp.name}: no page errors ${errors.join(" | ")}`);

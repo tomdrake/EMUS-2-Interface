@@ -42,7 +42,7 @@ optional note. Editing a built-in design offers "Make a copy to edit" first.
 | new `src/studio/LayoutSheet.tsx` | Screens list; per screen choose single widget or split, direction, ratio slider, widget type per pane and its options. Add, rename, remove screens. |
 | new `src/studio/RowsSheet.tsx` | Reorder with up/down buttons, show/hide, add from the registry's parameters, remove; per row: label, colour, trace type, waveform, height, numbers shown, AI text and forecast toggles. Sweep settings. |
 | new `src/studio/NavigationSheet.tsx` | Tabs (order, label, icon, target), menus and their items, top bar fields and order. The schema refuses to remove the silence and settings buttons, the name or the clock: show that as a plain message, not an error dump. |
-| new `src/studio/AlarmDefaultsSheet.tsx` | Default limits per parameter (bounded by registry) and alarm presentation. |
+| new `src/studio/AlarmDefaultsSheet.tsx` | Default limits per parameter (bounded by registry), alarm presentation, and the `safety` display options (paused-banner position and pulse, standby wording, stale values, advice line, where device status shows, dimming poor traces) with the state colours `silenced`, `technical`, `inactive`. There is deliberately no option to hide any of them; say so on the sheet. |
 | new `src/studio/VersionsSheet.tsx` | Designs list with "use on this monitor"; version history with author, note, source, sections touched; preview a version; revert; duplicate; export and import as a file. |
 | edit mode | A toggle in the unsaved-changes bar or Settings menu: while on, tapping a row, widget, tab or the top bar opens the matching studio section focused on that element (`data-widget`, `data-testid` attributes are already there). |
 

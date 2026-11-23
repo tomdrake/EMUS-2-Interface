@@ -155,7 +155,9 @@ CREATE INDEX IF NOT EXISTS ix_forecasts_patient ON forecasts(patient_id, generat
 CREATE TABLE IF NOT EXISTS alarm_events (
     id          TEXT PRIMARY KEY,
     patient_id  TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-    parameter   TEXT NOT NULL,
+    parameter   TEXT,                          -- NULL for device-level technical alarms
+    technical   TEXT,                          -- registry technical alarm id, else NULL
+    device_id   TEXT,
     started_at  TEXT NOT NULL,
     ended_at    TEXT,
     document    TEXT NOT NULL                  -- models.clinical.AlarmEvent JSON

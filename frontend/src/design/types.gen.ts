@@ -16,6 +16,7 @@ export interface Design {
   menus: Menu[];
   name: string;
   rows: Row[];
+  safety: SafetyDisplay;
   schema_version: 1;
   /**
    * @minItems 1
@@ -582,6 +583,26 @@ export interface Row {
   waveform: ("ecg" | "pleth" | "resp") | null;
 }
 /**
+ * How monitoring problems are shown. See docs/human-factors.md.
+ *
+ * Only presentation is adjustable here. That each state is shown, and shown
+ * differently from every other state, is fixed: there is no option to hide the
+ * alarm-paused banner, a technical alarm, a battery warning or a lost signal.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "SafetyDisplay".
+ */
+export interface SafetyDisplay {
+  device_status: "top-bar" | "top-bar-and-rows";
+  dim_poor_traces: boolean;
+  show_advice: boolean;
+  show_battery_percent: boolean;
+  silence_banner: "top" | "above-tabs";
+  silence_banner_pulse: boolean;
+  stale_values: "hide" | "dim-with-age";
+  standby_text: "STANDBY" | "NOT CONNECTED" | "OFF";
+}
+/**
  * This interface was referenced by `Design`'s JSON-Schema
  * via the `definition` "Screen".
  */
@@ -947,6 +968,14 @@ export interface ThemeColours {
    */
   forecast: string;
   /**
+   * STANDBY and SEARCHING text: nothing is being measured.
+   */
+  inactive: string;
+  /**
+   * The alarm-sound-paused state: the silence button and its banner. Conventionally yellow.
+   */
+  silenced: string;
+  /**
    * Hex colour, #RRGGBB or #RRGGBBAA.
    */
   surface: string;
@@ -954,6 +983,10 @@ export interface ThemeColours {
    * Hex colour, #RRGGBB or #RRGGBBAA.
    */
   surface_alt: string;
+  /**
+   * Technical alarms and signal problems (connection, battery, sensor, poor trace). Must differ from the patient alarm colours.
+   */
+  technical: string;
   /**
    * Hex colour, #RRGGBB or #RRGGBBAA.
    */
@@ -1018,6 +1051,7 @@ export interface TopBar {
     | "clock"
     | "date"
     | "alarm_status"
+    | "devices"
     | "oxygen"
     | "news2"
     | "allergies"

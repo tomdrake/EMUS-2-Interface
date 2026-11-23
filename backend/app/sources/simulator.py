@@ -5,7 +5,10 @@ Plays ``app.scenarios.SCENARIOS`` in real time:
   * waveforms: synthetic ECG / pleth / resp for the rhythm in force
     (sinus, af, svt, vt, brady, pause) at the registry sample rates;
   * charted observation sets every ``obs_interval_min``, scored with app.news2;
-  * activity, position, sleep, fall events, oxygen steps.
+  * activity, position, sleep, fall events, oxygen steps;
+  * devices with battery drain and link state, scripted and injected faults
+    (registry.DEMO_FAULTS): noise and movement are added to the synthetic waveform
+    so that app.signal_quality grades it honestly rather than being told the answer.
 
 Must be deterministic for a given (scenario, seed) so screenshots and tests are stable.
 """
@@ -19,6 +22,13 @@ from app.models.clinical import ObservationSet, OxygenTherapy, Patient, StreamMe
 from app.sources.base import DeviceSource, SourceInfo
 
 M = "M2"
+
+
+def add_artefact(samples: list[float], kind: str, hz: float, t0: float, seed: int = 0) -> list[float]:
+    """Return samples with a demo artefact added: 'noise' (broadband), 'motion'
+    (noise plus large slow drift), 'low-perfusion' (amplitude scaled to ~10%),
+    'sensor-off' (flat line). Deterministic for a given seed."""
+    raise NotImplementedError(M)
 
 
 def synth_ecg(rhythm: str, hr: float, hz: float, n: int, t0: float, seed: int = 0) -> list[float]:
@@ -60,6 +70,21 @@ class SimulatorSource(DeviceSource):
         raise NotImplementedError(M)
 
     def stream(self) -> AsyncIterator[StreamMessage]:
+        raise NotImplementedError(M)
+
+    def devices(self):
+        raise NotImplementedError(M)
+
+    def signal_status(self):
+        raise NotImplementedError(M)
+
+    def signal_quality(self):
+        raise NotImplementedError(M)
+
+    def inject_fault(self, fault, *, device_id=None, seconds=None):
+        raise NotImplementedError(M)
+
+    def clear_faults(self):
         raise NotImplementedError(M)
 
     def history(self, parameter, start, end, max_points=600):

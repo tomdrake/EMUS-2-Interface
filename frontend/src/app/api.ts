@@ -36,6 +36,16 @@ export const del = <T>(path: string) => request<T>("DELETE", path);
 /** Read-only clinical vocabulary (backend/app/registry.py). */
 export interface Registry {
   alarm_silence_seconds: number;
+  safety: {
+    connection_lost_after_s: number; display_stale_after_s: number; value_stale_after_s: number;
+    battery_low_pct: number; battery_critical_pct: number;
+    sqi_poor_below: number; sqi_unusable_below: number;
+  };
+  signal_states: Record<string, { text: string; shows_value: boolean; tone: string; meaning: string }>;
+  signal_issues: Record<string, { label: string; advice: string }>;
+  technical_alarms: Record<string, { label: string; priority: "high" | "medium" | "low"; message: string }>;
+  device_kinds: Record<string, string>;
+  demo_faults: Record<string, string>;
   parameters: Record<string, {
     id: string; label: string; short: string; unit: string; decimals: number;
     kind: string; default_low: number | null; default_high: number | null;
@@ -70,4 +80,6 @@ export const api = {
   // Later milestones add their calls here (patients, stream, alarms, chat, ...).
   silence: (patientId: string, by = "") =>
     post<{ silenced_until: string | null }>(`/api/patients/${patientId}/alarms/silence`, { by }),
+  unsilence: (patientId: string) =>
+    del<{ silenced_until: string | null }>(`/api/patients/${patientId}/alarms/silence`),
 };

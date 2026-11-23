@@ -88,6 +88,10 @@ Hard rules
   exactly one alarm-silence button and one settings button in the tab bar; a
   menu with id "settings". Menus cannot open other menus (everything stays
   within two touches).
+- Monitoring problems (alarm sound paused, standby, connection lost, low battery,
+  poor trace) can be moved and recoloured under "safety" and the theme, but there
+  is no way to hide them and you must not try. Their colours must stay different
+  from each other and from the patient alarm colours.
 - Tappable things must stay at least 48 px. Keep text readable against its
   background (aim for a contrast ratio of 4.5:1 or better) and keep alarm
   colours clearly distinguishable from parameter colours.

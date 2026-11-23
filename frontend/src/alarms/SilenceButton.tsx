@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { api, ApiError } from "@/app/api";
 import { useUi } from "@/app/store";
 import type { Tab } from "@/design/types";
 import { Icon } from "@/layout/Icon";
+import { elapsed } from "@/safety/status";
+import { useSafety } from "@/safety/store";
 
-/** Seconds of silence remaining, re-evaluated every 250 ms. */
+/** Seconds of sound pause remaining, re-evaluated four times a second. */
 export function useSilenceRemaining(): number {
-  const until = useUi((s) => s.silencedUntil);
+  const until = useSafety((s) => s.alarms?.silenced_until ?? null);
   const [left, setLeft] = useState(0);
   useEffect(() => {
     if (!until) { setLeft(0); return; }
@@ -19,38 +21,44 @@ export function useSilenceRemaining(): number {
   return left;
 }
 
+/** Pause and resume alarm sound. Shared by the button and the banner. */
+export function useSilenceActions() {
+  const patientId = useUi((s) => s.patientId);
+  const fail = (e: unknown, what: string) => useUi.getState().setNotice(
+    e instanceof ApiError && e.notBuilt ? "Alarms are not connected yet (milestone M2)." : what);
+  const pause = useCallback(async () => {
+    try { useSafety.getState().setSilencedUntil((await api.silence(patientId)).silenced_until); }
+    catch (e) { fail(e, "Could not pause alarm sound."); }
+  }, [patientId]);
+  const resume = useCallback(async () => {
+    try { useSafety.getState().setSilencedUntil((await api.unsilence(patientId)).silenced_until); }
+    catch (e) { fail(e, "Could not resume alarm sound."); }
+  }, [patientId]);
+  return { pause, resume };
+}
+
 /**
- * The alarm-silence button. One touch silences audio for the fixed two minutes
- * (duration comes from the server, never from the design) and shows the countdown.
+ * The alarm-silence button.
  *
- * M2: the server is the source of truth for `silenced_until`; mirror AlarmMessage
- * from the stream into the store and stop audio in alarms/audio.ts.
+ *  Ready:   yellow outline and icon, so it is found without reading.
+ *  Paused:  solid yellow, pulsing, with the time left; the SilenceBanner says the
+ *           same thing in words across the screen.
+ *
+ * One touch pauses sound for the fixed two minutes (the duration comes from the
+ * server, never from the design). Pressing again while paused resumes sound:
+ * a mistaken second press fails in the safe direction.
  */
 export function SilenceButton({ tab, showLabel }: { tab: Tab; showLabel: boolean }) {
-  const patientId = useUi((s) => s.patientId);
-  const setSilencedUntil = useUi((s) => s.setSilencedUntil);
-  const setNotice = useUi((s) => s.setNotice);
+  const { pause, resume } = useSilenceActions();
   const left = useSilenceRemaining();
-  const silenced = left > 0;
-
-  const onPress = async () => {
-    try {
-      const state = await api.silence(patientId);
-      setSilencedUntil(state.silenced_until);
-    } catch (e) {
-      setNotice(e instanceof ApiError && e.notBuilt
-        ? "Alarms are not connected yet (milestone M2)." : "Could not silence alarms.");
-    }
-  };
-
-  const mm = String(Math.floor(left / 60));
-  const ss = String(left % 60).padStart(2, "0");
+  const paused = left > 0;
   return (
-    <button type="button" className={`tab tab-silence${silenced ? " is-silenced" : ""}`}
-            data-testid="silence" aria-pressed={silenced} onClick={onPress}
-            style={tab.colour ? { color: tab.colour } : undefined}>
-      <Icon id={tab.icon ?? "alarm-off"} />
-      {showLabel && <span className="tab-label">{silenced ? `Silenced ${mm}:${ss}` : tab.label}</span>}
+    <button type="button" className={`tab tab-silence${paused ? " is-silenced" : ""}`}
+            data-testid="silence" aria-pressed={paused}
+            aria-label={paused ? `Alarm sound paused, ${left} seconds left. Press to resume.` : tab.label}
+            onClick={paused ? resume : pause}>
+      <Icon id={tab.icon === "none" ? "alarm-off" : tab.icon} />
+      {showLabel && <span className="tab-label">{paused ? `Paused ${elapsed(left * 1000)}` : tab.label}</span>}
     </button>
   );
 }

@@ -123,6 +123,32 @@ def test_touch_target_cannot_go_below_48(icu_design):
     _broken(icu_design, lambda d: d["theme"].__setitem__("touch_target_px", 30))
 
 
+def test_safety_states_can_be_restyled_but_not_hidden_or_confused(icu_design):
+    from app.models.design import SafetyDisplay
+    fields = set(SafetyDisplay.model_fields)
+    assert not {f for f in fields if f.startswith(("hide", "show_silence", "show_technical"))}, \
+        "no switch may hide the paused banner or technical alarms"
+    doc = copy.deepcopy(icu_design)
+    doc["safety"] = {"silence_banner": "above-tabs", "standby_text": "NOT CONNECTED",
+                     "stale_values": "dim-with-age"}
+    Design.model_validate(doc)
+    # Standby wording is a fixed choice: it cannot be set to something value-like.
+    _broken(icu_design, lambda d: d.__setitem__("safety", {"standby_text": "--"}))
+    _broken(icu_design, lambda d: d.__setitem__("safety", {"standby_text": "98"}))
+    _broken(icu_design, lambda d: d.__setitem__("safety", {"silence_banner": "none"}))
+
+
+def test_state_colours_must_stay_distinct_and_visible(icu_design):
+    red = icu_design["theme"]["colours"]["alarm_high"]
+    err = _broken(icu_design, lambda d: d["theme"]["colours"].__setitem__("technical", red))
+    assert "technical" in err
+    bg = icu_design["theme"]["colours"]["background"]
+    assert "silenced" in _broken(
+        icu_design, lambda d: d["theme"]["colours"].__setitem__("silenced", bg))
+    assert "inactive" in _broken(
+        icu_design, lambda d: d["theme"]["colours"].__setitem__("inactive", bg))
+
+
 def test_sweep_speed_is_one_of_the_standard_speeds(icu_design):
     _broken(icu_design, lambda d: d.__setitem__("sweep", {"speed_mm_s": 30}))
     doc = copy.deepcopy(icu_design)

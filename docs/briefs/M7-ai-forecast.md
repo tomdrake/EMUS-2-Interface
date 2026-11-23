@@ -33,6 +33,12 @@ Findings:
 - `RuleInterpretation` produces the lab and vital-sign findings for MIMIC patients
   with simple, stated rules. No rhythm claims for MIMIC patients (their waveforms
   are synthetic).
+- **Trace quality gates interpretation.** No new rhythm finding is raised from a
+  stretch graded `unusable`; one raised on a `poor` stretch carries a lowered
+  `input_quality` certainty and says so in its explanation. While the ECG is not
+  `ok` or `poor-signal` (standby, sensor off, connection lost) the ECG row says
+  "Rhythm analysis paused" instead of repeating the last finding as if current.
+  Forecasts take `input_quality` from the same source.
 - Every finding has certainty values, a plain explanation, provenance
   (`ModelInfo`, `generated_at`) and `placeholder: true`.
 - `ask`: sends the one finding and a summary of its evidence, without patient

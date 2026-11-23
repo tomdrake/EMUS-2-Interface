@@ -16,6 +16,18 @@
           "default": null,
           "title": "Acknowledged At"
         },
+        "device_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device Id"
+        },
         "ended_at": {
           "anyOf": [
             {
@@ -60,27 +72,35 @@
           "type": "string"
         },
         "parameter": {
-          "enum": [
-            "hr",
-            "pulse",
-            "spo2",
-            "rr",
-            "bp_sys",
-            "bp_dia",
-            "bp_mean",
-            "temp",
-            "o2_flow",
-            "fio2",
-            "acvpu",
-            "news2",
-            "activity",
-            "position",
-            "falls",
-            "sleep",
-            "timer"
+          "anyOf": [
+            {
+              "enum": [
+                "hr",
+                "pulse",
+                "spo2",
+                "rr",
+                "bp_sys",
+                "bp_dia",
+                "bp_mean",
+                "temp",
+                "o2_flow",
+                "fio2",
+                "acvpu",
+                "news2",
+                "activity",
+                "position",
+                "falls",
+                "sleep",
+                "timer"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
           ],
-          "title": "Parameter",
-          "type": "string"
+          "default": null,
+          "title": "Parameter"
         },
         "priority": {
           "enum": [
@@ -95,6 +115,27 @@
           "format": "date-time",
           "title": "Started At",
           "type": "string"
+        },
+        "technical": {
+          "anyOf": [
+            {
+              "enum": [
+                "connection-lost",
+                "sensor-off",
+                "battery-critical",
+                "battery-low",
+                "poor-signal",
+                "display-disconnected",
+                "sound-unavailable"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Technical"
         },
         "value": {
           "anyOf": [
@@ -113,6 +154,8 @@
         "id",
         "parameter",
         "kind",
+        "technical",
+        "device_id",
         "priority",
         "message",
         "value",
@@ -206,6 +249,32 @@
           "title": "Active",
           "type": "array"
         },
+        "alarms_off": {
+          "items": {
+            "enum": [
+              "hr",
+              "pulse",
+              "spo2",
+              "rr",
+              "bp_sys",
+              "bp_dia",
+              "bp_mean",
+              "temp",
+              "o2_flow",
+              "fio2",
+              "acvpu",
+              "news2",
+              "activity",
+              "position",
+              "falls",
+              "sleep",
+              "timer"
+            ],
+            "type": "string"
+          },
+          "title": "Alarms Off",
+          "type": "array"
+        },
         "silence_seconds": {
           "default": 120,
           "title": "Silence Seconds",
@@ -223,12 +292,40 @@
           ],
           "default": null,
           "title": "Silenced Until"
+        },
+        "unmonitored": {
+          "items": {
+            "enum": [
+              "hr",
+              "pulse",
+              "spo2",
+              "rr",
+              "bp_sys",
+              "bp_dia",
+              "bp_mean",
+              "temp",
+              "o2_flow",
+              "fio2",
+              "acvpu",
+              "news2",
+              "activity",
+              "position",
+              "falls",
+              "sleep",
+              "timer"
+            ],
+            "type": "string"
+          },
+          "title": "Unmonitored",
+          "type": "array"
         }
       },
       "required": [
         "active",
         "silenced_until",
-        "silence_seconds"
+        "silence_seconds",
+        "alarms_off",
+        "unmonitored"
       ],
       "title": "AlarmState",
       "type": "object"
@@ -393,6 +490,234 @@
         "evidence"
       ],
       "title": "Contributor",
+      "type": "object"
+    },
+    "DeviceStatus": {
+      "additionalProperties": false,
+      "description": "One physical device feeding this patient's monitor.",
+      "properties": {
+        "battery": {
+          "default": "unknown",
+          "enum": [
+            "ok",
+            "low",
+            "critical",
+            "charging",
+            "unknown"
+          ],
+          "title": "Battery",
+          "type": "string"
+        },
+        "battery_pct": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Battery Pct"
+        },
+        "connected_since": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Connected Since"
+        },
+        "connection": {
+          "enum": [
+            "connected",
+            "connecting",
+            "lost",
+            "not-paired"
+          ],
+          "title": "Connection",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "anne-chest",
+            "anne-limb",
+            "bp-cuff",
+            "flow-meter",
+            "other"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "last_seen": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Seen"
+        },
+        "link_quality": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Link Quality"
+        },
+        "parameters": {
+          "items": {
+            "enum": [
+              "hr",
+              "pulse",
+              "spo2",
+              "rr",
+              "bp_sys",
+              "bp_dia",
+              "bp_mean",
+              "temp",
+              "o2_flow",
+              "fio2",
+              "acvpu",
+              "news2",
+              "activity",
+              "position",
+              "falls",
+              "sleep",
+              "timer"
+            ],
+            "type": "string"
+          },
+          "title": "Parameters",
+          "type": "array"
+        },
+        "simulated": {
+          "default": true,
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "waveforms": {
+          "items": {
+            "enum": [
+              "ecg",
+              "pleth",
+              "resp"
+            ],
+            "type": "string"
+          },
+          "title": "Waveforms",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "kind",
+        "connection",
+        "connected_since",
+        "last_seen",
+        "battery_pct",
+        "battery",
+        "link_quality",
+        "parameters",
+        "waveforms",
+        "simulated"
+      ],
+      "title": "DeviceStatus",
+      "type": "object"
+    },
+    "DevicesMessage": {
+      "additionalProperties": false,
+      "description": "Sent on connect, on any change, and at least every 5 seconds.",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "devices": {
+          "items": {
+            "$ref": "#/$defs/DeviceStatus"
+          },
+          "title": "Devices",
+          "type": "array"
+        },
+        "quality": {
+          "items": {
+            "$ref": "#/$defs/SignalQuality"
+          },
+          "title": "Quality",
+          "type": "array"
+        },
+        "signals": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SignalStatus"
+          },
+          "propertyNames": {
+            "enum": [
+              "hr",
+              "pulse",
+              "spo2",
+              "rr",
+              "bp_sys",
+              "bp_dia",
+              "bp_mean",
+              "temp",
+              "o2_flow",
+              "fio2",
+              "acvpu",
+              "news2",
+              "activity",
+              "position",
+              "falls",
+              "sleep",
+              "timer"
+            ]
+          },
+          "title": "Signals",
+          "type": "object"
+        },
+        "type": {
+          "const": "devices",
+          "default": "devices",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "at",
+        "devices",
+        "signals",
+        "quality"
+      ],
+      "title": "DevicesMessage",
       "type": "object"
     },
     "EventPrediction": {
@@ -2137,6 +2462,228 @@
       "title": "PatientSettings",
       "type": "object"
     },
+    "SignalQuality": {
+      "additionalProperties": false,
+      "description": "Assessment of one stretch of one waveform (see app.signal_quality).",
+      "properties": {
+        "advice": {
+          "default": "",
+          "title": "Advice",
+          "type": "string"
+        },
+        "assessed_by": {
+          "default": "heuristic",
+          "enum": [
+            "device",
+            "heuristic"
+          ],
+          "title": "Assessed By",
+          "type": "string"
+        },
+        "grade": {
+          "enum": [
+            "good",
+            "poor",
+            "unusable"
+          ],
+          "title": "Grade",
+          "type": "string"
+        },
+        "issue": {
+          "anyOf": [
+            {
+              "enum": [
+                "noise",
+                "motion",
+                "baseline-wander",
+                "low-amplitude",
+                "low-perfusion",
+                "flatline",
+                "saturated"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Issue"
+        },
+        "label": {
+          "default": "",
+          "title": "Label",
+          "type": "string"
+        },
+        "sqi": {
+          "description": "1 = clean, 0 = unusable",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Sqi",
+          "type": "number"
+        },
+        "waveform": {
+          "enum": [
+            "ecg",
+            "pleth",
+            "resp"
+          ],
+          "title": "Waveform",
+          "type": "string"
+        }
+      },
+      "required": [
+        "waveform",
+        "sqi",
+        "grade",
+        "issue",
+        "label",
+        "advice",
+        "assessed_by"
+      ],
+      "title": "SignalQuality",
+      "type": "object"
+    },
+    "SignalStatus": {
+      "additionalProperties": false,
+      "description": "Why a parameter's number is, or is not, on screen right now.\n\nThe display never infers this from a missing value: the server always says\nwhich state applies, so STANDBY, CONNECTION LOST and CHECK SENSOR cannot be\nconfused with each other or with a blank.",
+      "properties": {
+        "advice": {
+          "default": "",
+          "title": "Advice",
+          "type": "string"
+        },
+        "device_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device Id"
+        },
+        "issue": {
+          "anyOf": [
+            {
+              "enum": [
+                "noise",
+                "motion",
+                "baseline-wander",
+                "low-amplitude",
+                "low-perfusion",
+                "flatline",
+                "saturated"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Issue"
+        },
+        "last_value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Value"
+        },
+        "last_value_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Value At"
+        },
+        "parameter": {
+          "enum": [
+            "hr",
+            "pulse",
+            "spo2",
+            "rr",
+            "bp_sys",
+            "bp_dia",
+            "bp_mean",
+            "temp",
+            "o2_flow",
+            "fio2",
+            "acvpu",
+            "news2",
+            "activity",
+            "position",
+            "falls",
+            "sleep",
+            "timer"
+          ],
+          "title": "Parameter",
+          "type": "string"
+        },
+        "quality": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quality"
+        },
+        "since": {
+          "format": "date-time",
+          "title": "Since",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "ok",
+            "standby",
+            "acquiring",
+            "poor-signal",
+            "sensor-off",
+            "connection-lost",
+            "invalid"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "parameter",
+        "state",
+        "since",
+        "device_id",
+        "quality",
+        "issue",
+        "advice",
+        "last_value",
+        "last_value_at"
+      ],
+      "title": "SignalStatus",
+      "type": "object"
+    },
     "StatusMessage": {
       "additionalProperties": false,
       "properties": {
@@ -2455,6 +3002,7 @@
       "discriminator": {
         "mapping": {
           "alarms": "#/$defs/AlarmMessage",
+          "devices": "#/$defs/DevicesMessage",
           "findings": "#/$defs/FindingsMessage",
           "numerics": "#/$defs/NumericsMessage",
           "status": "#/$defs/StatusMessage",
@@ -2474,6 +3022,9 @@
         },
         {
           "$ref": "#/$defs/FindingsMessage"
+        },
+        {
+          "$ref": "#/$defs/DevicesMessage"
         },
         {
           "$ref": "#/$defs/StatusMessage"

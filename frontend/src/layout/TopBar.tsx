@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 
 import { useDesign, useUi } from "@/app/store";
+import { useSilenceRemaining } from "@/alarms/SilenceButton";
 import type { Design } from "@/design/types";
+import { DeviceChips } from "@/safety/DeviceChips";
+import { elapsed } from "@/safety/status";
+import { useSafety } from "@/safety/store";
 
 type Field = Design["top_bar"]["fields"][number];
 
@@ -12,6 +16,20 @@ function useNow(showSeconds: boolean): Date {
     return () => window.clearInterval(id);
   }, [showSeconds]);
   return now;
+}
+
+/** Whether alarms can currently be heard, in words. Never an icon alone. */
+function AlarmStatus() {
+  const left = useSilenceRemaining();
+  const sound = useSafety((s) => s.sound);
+  const link = useSafety((s) => s.link);
+  const active = useSafety((s) => s.alarms?.active.filter((a) => a.kind !== "technical").length ?? 0);
+  if (link !== "live") return <span className="alarm-status tone-stale" data-testid="alarm-status">Alarms: no data</span>;
+  if (left > 0) return <span className="alarm-status tone-silenced" data-testid="alarm-status">Sound paused {elapsed(left * 1000)}</span>;
+  if (sound === "blocked") return <span className="alarm-status tone-technical" data-testid="alarm-status">Sound off</span>;
+  // Only claim alarms are audible once this screen has shown it can play sound.
+  if (sound !== "ready") return <span className="alarm-status tone-technical" data-testid="alarm-status">Sound not confirmed</span>;
+  return <span className="alarm-status" data-testid="alarm-status">{active ? `${active} alarm${active > 1 ? "s" : ""}` : "Alarms on"}</span>;
 }
 
 /**
@@ -42,6 +60,8 @@ export function TopBar() {
     switch (field) {
       case "clock": return <time className="tb-clock" data-testid="clock">{clock}</time>;
       case "date": return <span className="tb-date">{date}</span>;
+      case "devices": return <DeviceChips />;
+      case "alarm_status": return <AlarmStatus />;
       case "name": return <strong className="tb-name" data-testid="patient-name">{PLACEHOLDER.name}</strong>;
       default: return PLACEHOLDER[field] ? <span>{PLACEHOLDER[field]}</span> : null;
     }
