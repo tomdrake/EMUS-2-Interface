@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { api, ApiError } from "@/app/api";
-import { useUi } from "@/app/store";
+import { useDesign, useUi } from "@/app/store";
+import { label } from "@/design/text";
 import type { Tab } from "@/design/types";
 import { Icon } from "@/layout/Icon";
 import { elapsed } from "@/safety/status";
@@ -41,24 +42,29 @@ export function useSilenceActions() {
  * The alarm-silence button.
  *
  *  Ready:   yellow outline and icon, so it is found without reading.
- *  Paused:  solid yellow, pulsing, with the time left; the SilenceBanner says the
- *           same thing in words across the screen.
+ *  Paused:  solid yellow, pulsing, with the time left; the notification box shows
+ *           SOUND PAUSED with the same countdown.
  *
  * One touch pauses sound for the fixed two minutes (the duration comes from the
  * server, never from the design). Pressing again while paused resumes sound:
  * a mistaken second press fails in the safe direction.
  */
-export function SilenceButton({ tab, showLabel }: { tab: Tab; showLabel: boolean }) {
+export function SilenceButton({ tab, showLabel, where = "tab" }:
+  { tab: Tab; showLabel: boolean; where?: "tab" | "top" }) {
+  const design = useDesign()!;
   const { pause, resume } = useSilenceActions();
   const left = useSilenceRemaining();
   const paused = left > 0;
   return (
-    <button type="button" className={`tab tab-silence${paused ? " is-silenced" : ""}`}
+    <button type="button"
+            className={`${where === "tab" ? "tab" : "topbtn"} tab-silence${paused ? " is-silenced" : ""}`}
             data-testid="silence" aria-pressed={paused}
             aria-label={paused ? `Alarm sound paused, ${left} seconds left. Press to resume.` : tab.label}
             onClick={paused ? resume : pause}>
       <Icon id={tab.icon === "none" ? "alarm-off" : tab.icon} />
-      {showLabel && <span className="tab-label">{paused ? `Paused ${elapsed(left * 1000)}` : tab.label}</span>}
+      {showLabel && (
+        <span className="tab-label">{paused ? `Paused ${elapsed(left * 1000)}` : label(tab.label, design)}</span>
+      )}
     </button>
   );
 }

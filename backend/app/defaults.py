@@ -50,7 +50,7 @@ _NEWS_BANDS_DARK = {
 
 THEME_PRESETS: dict[str, dict] = {
     "icu-dark": {
-        "preset": "icu-dark",
+        "preset": "icu-dark", "mode": "dark",
         "colours": {
             "background": "#000000", "surface": "#0E1116", "surface_alt": "#1A1F27",
             "text": "#F2F4F7", "text_muted": "#9AA4B2", "border": "#2A313C",
@@ -65,7 +65,7 @@ THEME_PRESETS: dict[str, dict] = {
         "density": "comfortable",
     },
     "news-paper": {
-        "preset": "news-paper",
+        "preset": "news-paper", "mode": "light",
         "colours": {
             "background": "#FFFFFF", "surface": "#F5F7FA", "surface_alt": "#E6EBF2",
             "text": "#14181F", "text_muted": "#566070", "border": "#B9C2CF",
@@ -80,7 +80,7 @@ THEME_PRESETS: dict[str, dict] = {
         "density": "comfortable",
     },
     "high-contrast": {
-        "preset": "high-contrast",
+        "preset": "high-contrast", "mode": "dark",
         "colours": {
             "background": "#000000", "surface": "#000000", "surface_alt": "#1C1C1C",
             "text": "#FFFFFF", "text_muted": "#D0D0D0", "border": "#FFFFFF",
@@ -95,7 +95,7 @@ THEME_PRESETS: dict[str, dict] = {
         "density": "large",
     },
     "colour-blind-safe": {
-        "preset": "colour-blind-safe",
+        "preset": "colour-blind-safe", "mode": "dark",
         "colours": {
             "background": "#000000", "surface": "#0E1116", "surface_alt": "#1A1F27",
             "text": "#F2F4F7", "text_muted": "#9AA4B2", "border": "#2A313C",
@@ -119,26 +119,26 @@ THEME_PRESETS: dict[str, dict] = {
 
 _ROWS: list[dict] = [
     {"id": "ecg", "parameter": "hr", "trace": "waveform", "waveform": "ecg",
-     "numerics": ["hr"], "height": 1.4},
+     "numerics": ["hr"], "height": 1.3},
     {"id": "spo2", "parameter": "spo2", "trace": "waveform", "waveform": "pleth",
      "numerics": ["spo2", "pulse"], "height": 1.0},
     {"id": "resp", "parameter": "rr", "trace": "waveform", "waveform": "resp",
      "numerics": ["rr"], "height": 1.0},
-    {"id": "bp", "parameter": "bp_sys", "label": "Blood pressure", "trace": "trend",
+    {"id": "bp", "parameter": "bp_sys", "label": "Blood Pressure", "trace": "trend",
      "numerics": ["bp_sys", "bp_dia", "bp_mean"], "trend_window_min": 240, "height": 1.0},
     {"id": "temp", "parameter": "temp", "trace": "trend", "numerics": ["temp"],
-     "trend_window_min": 240, "height": 0.7},
+     "trend_window_min": 240, "height": 1.0},
     {"id": "oxygen", "parameter": "o2_flow", "trace": "bar", "numerics": ["o2_flow"],
-     "height": 0.6, "show_forecast": False},
+     "height": 1.0, "show_forecast": False},
     {"id": "sweep-break", "kind": "spacer", "trace": "none", "height": 0.25,
      "show_ai": False, "show_forecast": False, "show_limits": False},
     {"id": "activity", "parameter": "activity", "trace": "bar", "numerics": ["position"],
-     "trend_window_min": 240, "height": 0.6, "show_forecast": False},
+     "trend_window_min": 240, "height": 1.0, "show_forecast": False},
     {"id": "sleep", "parameter": "sleep", "trace": "events", "trend_window_min": 720,
      "height": 0.5, "show_forecast": False, "visible": False},
     {"id": "falls", "parameter": "falls", "trace": "events", "trend_window_min": 720,
-     "height": 0.5},
-    {"id": "obs-timer", "kind": "timer", "label": "Next obs due", "trace": "none",
+     "height": 0.6},
+    {"id": "obs-timer", "kind": "timer", "label": "Next Obs Due", "trace": "none",
      "height": 0.5, "show_ai": False, "show_forecast": False, "show_limits": False},
 ]
 
@@ -169,17 +169,17 @@ def _screens(news_variant: str) -> list[dict]:
     return [
         {"id": "monitor", "name": "Monitor", "layout": _rows("monitor-rows", _MONITOR_ROW_IDS)},
         {"id": "news2", "name": "NEWS2", "layout": _news("news2-full", news_variant)},
-        {"id": "split-h", "name": "Split (side by side)",
+        {"id": "split-h", "name": "Split (Side by Side)",
          "layout": _split("horizontal", 0.5, _news("news2-left", news_variant),
                           _rows("rows-right", _COMPACT_ROW_IDS))},
-        {"id": "split-v", "name": "Split (stacked)",
+        {"id": "split-v", "name": "Split (Stacked)",
          "layout": _split("vertical", 0.55, _rows("rows-top", _COMPACT_ROW_IDS),
                           _news("news2-bottom", news_variant))},
         {"id": "epr", "name": "Results",
          "layout": _split("horizontal", 0.6,
                           _w({"id": "labs", "type": "epr-labs", "title": "Laboratory"}),
                           _w({"id": "imaging", "type": "epr-imaging", "title": "Imaging"}))},
-        {"id": "predict", "name": "AI and predictions",
+        {"id": "predict", "name": "AI and Predictions",
          "layout": _split("horizontal", 0.5,
                           _split("vertical", 0.5,
                                  _w({"id": "forecast", "type": "forecast-panel",
@@ -187,7 +187,7 @@ def _screens(news_variant: str) -> list[dict]:
                                  _w({"id": "timeline", "type": "events-timeline",
                                      "title": "Events"})),
                           _w({"id": "ai-summary", "type": "ai-summary",
-                              "title": "What the AI sees now"}))},
+                              "title": "What the AI Sees Now"}))},
         {"id": "alarms", "name": "Alarms",
          "layout": _w({"id": "alarms-panel", "type": "alarms", "view": "both"})},
     ]
@@ -208,56 +208,66 @@ _TABS: list[dict] = [
      "action": {"type": "screen", "screen_id": "alarms"}},
     {"id": "patient", "label": "Patient", "icon": "patient",
      "action": {"type": "menu", "menu_id": "patient"}},
-    {"id": "silence", "label": "Silence 2 min", "icon": "alarm-off",
+    {"id": "silence", "label": "Silence 2 Min", "icon": "alarm-off",
      "action": {"type": "silence-alarms"}},
+]
+
+# Top right: admit and discharge, day / night, and settings (a cog).
+_TOP_BUTTONS: list[dict] = [
+    {"id": "new-patient", "label": "New Patient", "icon": "new-patient",
+     "action": {"type": "sheet", "sheet": "new-patient"}},
+    {"id": "discharge", "label": "Discharge", "icon": "discharge",
+     "action": {"type": "sheet", "sheet": "discharge-patient"}},
+    {"id": "theme", "label": "Dark / Light", "icon": "theme",
+     "action": {"type": "toggle-theme"}},
     {"id": "settings", "label": "Settings", "icon": "settings",
      "action": {"type": "open-settings"}},
 ]
 
 _MENUS: list[dict] = [
     {"id": "views", "title": "Views", "items": [
-        {"id": "side", "label": "NEWS2 beside monitor", "icon": "split",
+        {"id": "side", "label": "NEWS2 Beside Monitor", "icon": "split",
          "action": {"type": "screen", "screen_id": "split-h"}},
-        {"id": "stacked", "label": "Monitor above NEWS2", "icon": "split",
+        {"id": "stacked", "label": "Monitor Above NEWS2", "icon": "split",
          "action": {"type": "screen", "screen_id": "split-v"}},
-        {"id": "news-variant", "label": "NEWS2 chart style", "icon": "chart",
+        {"id": "news-variant", "label": "NEWS2 Chart Style", "icon": "chart",
          "action": {"type": "sheet", "sheet": "news2-variant"}},
-        {"id": "home", "label": "Choose home screen", "icon": "layout",
+        {"id": "home", "label": "Choose Home Screen", "icon": "layout",
          "action": {"type": "sheet", "sheet": "home-screen"}},
     ]},
     {"id": "patient", "title": "Patient", "items": [
-        {"id": "details", "label": "Patient details", "icon": "patient",
+        {"id": "details", "label": "Patient Details", "icon": "patient",
          "action": {"type": "sheet", "sheet": "patient"}},
-        {"id": "observations", "label": "Record observations", "icon": "chart",
+        {"id": "observations", "label": "Record Observations", "icon": "chart",
          "action": {"type": "sheet", "sheet": "record-observations"}},
         {"id": "oxygen", "label": "Oxygen", "icon": "oxygen",
          "action": {"type": "sheet", "sheet": "oxygen"}},
-        {"id": "limits", "label": "Alarm limits", "icon": "alarm",
+        {"id": "limits", "label": "Alarm Limits", "icon": "alarm",
          "action": {"type": "sheet", "sheet": "alarm-limits"}},
-        {"id": "horizon", "label": "Forecast horizon", "icon": "forecast",
+        {"id": "horizon", "label": "Forecast Horizon", "icon": "forecast",
          "action": {"type": "sheet", "sheet": "forecast-horizon"}},
     ]},
     # Opened by the Settings button. Every design-studio section is one more touch.
     {"id": "settings", "title": "Settings", "items": [
         {"id": "appearance", "label": "Appearance", "icon": "palette",
          "action": {"type": "sheet", "sheet": "studio-appearance"}},
-        {"id": "layout", "label": "Screens and layout", "icon": "layout",
+        {"id": "layout", "label": "Screens and Layout", "icon": "layout",
          "action": {"type": "sheet", "sheet": "studio-layout"}},
         {"id": "rows", "label": "Rows", "icon": "monitor",
          "action": {"type": "sheet", "sheet": "studio-rows"}},
-        {"id": "navigation", "label": "Tabs and menus", "icon": "layout",
+        {"id": "navigation", "label": "Tabs and Menus", "icon": "layout",
          "action": {"type": "sheet", "sheet": "studio-navigation"}},
-        {"id": "alarm-defaults", "label": "Alarm defaults", "icon": "alarm",
+        {"id": "alarm-defaults", "label": "Alarm Defaults", "icon": "alarm",
          "action": {"type": "sheet", "sheet": "studio-alarms"}},
-        {"id": "forecast", "label": "Forecast and certainty", "icon": "forecast",
+        {"id": "forecast", "label": "Forecast and Certainty", "icon": "forecast",
          "action": {"type": "sheet", "sheet": "studio-forecast"}},
-        {"id": "assistant", "label": "Redesign with AI", "icon": "chat",
+        {"id": "assistant", "label": "Redesign With AI", "icon": "chat",
          "action": {"type": "sheet", "sheet": "assistant"}},
         {"id": "versions", "label": "Versions", "icon": "history",
          "action": {"type": "sheet", "sheet": "versions"}},
-        {"id": "tokens", "label": "API tokens", "icon": "settings",
+        {"id": "tokens", "label": "API Tokens", "icon": "settings",
          "action": {"type": "sheet", "sheet": "api-tokens"}},
-        {"id": "demo", "label": "Demo controls", "icon": "info",
+        {"id": "demo", "label": "Demo Controls", "icon": "info",
          "action": {"type": "sheet", "sheet": "demo-controls"}},
         {"id": "about", "label": "About", "icon": "info",
          "action": {"type": "sheet", "sheet": "about"}},
@@ -265,7 +275,8 @@ _MENUS: list[dict] = [
 ]
 
 _TOP_BAR = {"fields": ["name", "dob", "age", "nhs_number", "bed", "oxygen", "news2",
-                       "alarm_status", "devices", "date", "clock"]}
+                       "alarm_status", "date", "clock"],
+            "buttons": _TOP_BUTTONS}
 
 _ALARM_DEFAULTS = {
     "hr": {"low": 50, "high": 120, "priority": "high"},
@@ -283,6 +294,8 @@ def _design(name: str, description: str, preset: str, home: str, news_variant: s
         "name": name,
         "description": description,
         "theme": copy.deepcopy(THEME_PRESETS[preset]),
+        "alt_theme": copy.deepcopy(THEME_PRESETS[
+            "news-paper" if THEME_PRESETS[preset]["mode"] == "dark" else "icu-dark"]),
         "top_bar": copy.deepcopy(_TOP_BAR),
         "tabs": copy.deepcopy(_TABS),
         "menus": copy.deepcopy(_MENUS),

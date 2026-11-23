@@ -32,6 +32,8 @@ export function themeToCssVars(theme: Theme): Record<string, string> {
 export function applyTheme(theme: Theme, el: HTMLElement = document.documentElement): void {
   for (const [k, v] of Object.entries(themeToCssVars(theme))) el.style.setProperty(k, v);
   el.dataset.themePreset = theme.preset;
+  el.dataset.themeMode = theme.mode;
+  el.style.colorScheme = theme.mode;
 }
 
 /** CSS variable holding a parameter's colour, e.g. paramVar("bp_sys") -> "var(--p-bp-sys)". */

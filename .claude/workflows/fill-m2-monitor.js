@@ -43,22 +43,22 @@ const BACKEND = [
   ],
   [
     "api-stream-alarms",
-    "Implement the M2 routes in backend/app/routers/patients.py (list, detail, trend, oxygen, alarm limits), backend/app/routers/stream.py (WebSocket fan-out and demo controls) and backend/app/routers/alarms.py, with a new alarm engine module (patient alarms and technical alarms, unmonitored and alarms-off lists) and persistence helpers as the brief describes, including the fault-injection routes. Make every remaining test in backend/tests/test_m2_monitor.py and backend/tests/test_m2_safety.py pass."
+    "Implement the M2 routes in backend/app/routers/patients.py (list, detail, admit, discharge, trend, oxygen, alarm limits), backend/app/routers/stream.py (WebSocket fan-out and demo controls) and backend/app/routers/alarms.py, with a new alarm engine module (patient alarms and technical alarms, unmonitored and alarms-off lists) and persistence helpers as the brief describes, including the fault-injection routes. Make every remaining test in backend/tests/test_m2_monitor.py and backend/tests/test_m2_safety.py pass."
   ]
 ]
 const BASE = "Read docs/human-factors.md and the existing frontend/src/safety/ folder first: it is built and tested, and you must use it, not replace it. Create frontend/src/app/live.ts (Zustand store for numerics and waveform ring buffers, plus a WebSocket client with reconnect that feeds useSafety: heartbeat() on every message, setDevices() for DevicesMessage, setAlarms() for AlarmMessage, setLink('down') on close), add the M2 calls to frontend/src/app/api.ts (patients, trend, oxygen, alarm limits, alarms, demo controls), and make frontend/src/layout/TopBar.tsx show the real patient, oxygen, alarm status and a SIMULATED badge. Start the stream from App.tsx."
 const PARTS = [
   [
     "traces",
-    "Own these files only: frontend/src/widgets/MonitorRows.tsx and new WaveCanvas.tsx, TrendTrace.tsx, BarTrace.tsx, EventsTrace.tsx, TimerRow.tsx plus one co-located monitor-rows.css imported by MonitorRows.tsx. Real traces as the brief's Frontend table describes, including the sweep break and flashing numerics on alarm. Keep rendering every number through <Numeric> from frontend/src/safety/Numeric.tsx (pass it the live value) and keep <RowStatus>; dim poor traces and freeze traces when the link is not live."
+    "Own these files only: frontend/src/widgets/MonitorRows.tsx and new WaveCanvas.tsx, TrendTrace.tsx, BarTrace.tsx, EventsTrace.tsx, TimerRow.tsx plus one co-located monitor-rows.css imported by MonitorRows.tsx. Real traces as the brief's Frontend table describes, including the sweep break and flashing numerics on alarm. Keep rendering every number through <Numeric> from frontend/src/safety/Numeric.tsx (pass it the live value, and the extra values for the combined blood pressure tile) and keep <RowStatus>; tiles must stay one size and nothing may shift the layout; dim poor traces and freeze traces when the link is not live."
   ],
   [
     "alarms",
-    "Own these files only: everything under frontend/src/alarms/ (audio.ts, AlarmBanner.tsx, SilenceButton.tsx, alarms.css), new frontend/src/studio/AlarmLimitsSheet.tsx and new frontend/src/widgets/Alarms.tsx. Patient alarm banner, tones by priority, limit steppers bounded by the registry with a confirm step to switch an alarm off. audio.ts must set useSafety sound to 'blocked' until audio is unlocked and register enableSound. SilenceButton already exists and reads useSafety; keep its behaviour (second press resumes)."
+    "Own these files only: everything under frontend/src/alarms/ (audio.ts, SilenceButton.tsx, alarms.css), new frontend/src/studio/AlarmLimitsSheet.tsx and new frontend/src/widgets/Alarms.tsx. Patient alarms shown through the existing notification box and as a flashing tile (never a banner that changes the layout), tones by priority, limit steppers bounded by the registry with a confirm step to switch an alarm off. audio.ts must set useSafety sound to 'blocked' until audio is unlocked and register enableSound. SilenceButton already exists and reads useSafety; keep its behaviour (second press resumes)."
   ],
   [
     "oxygen-patient-demo",
-    "Own these new files only: frontend/src/studio/OxygenSheet.tsx, PatientSheet.tsx, DemoControlsSheet.tsx, frontend/src/widgets/Oxygen.tsx, Patient.tsx and one co-located clinical-sheets.css. Oxygen flow presets and device grid, patient details, scenario picker with speed, jump and restart, and a 'Show a failure' grid from registry.demo_faults."
+    "Own these new files only: frontend/src/studio/OxygenSheet.tsx, PatientSheet.tsx, NewPatientSheet.tsx, DischargeSheet.tsx, DemoControlsSheet.tsx, frontend/src/widgets/Oxygen.tsx, Patient.tsx and one co-located clinical-sheets.css. Oxygen flow presets and device grid, patient details, new patient form, discharge with a deliberate confirm by name, scenario picker with speed, jump and restart, and a 'Show a failure' grid from registry.demo_faults."
   ]
 ]
 

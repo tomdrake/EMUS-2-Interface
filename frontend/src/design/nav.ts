@@ -4,7 +4,8 @@ export type Resolved =
   | { kind: "screen"; screenId: string }
   | { kind: "menu"; menu: Menu }
   | { kind: "sheet"; sheet: Extract<Action, { type: "sheet" }>["sheet"] }
-  | { kind: "silence" };
+  | { kind: "silence" }
+  | { kind: "theme" };
 
 /** What a tab or menu item does. Settings opens the menu with id "settings". */
 export function resolveAction(design: Design, action: Action): Resolved {
@@ -19,6 +20,8 @@ export function resolveAction(design: Design, action: Action): Resolved {
       return { kind: "sheet", sheet: action.sheet };
     case "silence-alarms":
       return { kind: "silence" };
+    case "toggle-theme":
+      return { kind: "theme" };
   }
 }
 
@@ -28,11 +31,11 @@ function findMenu(design: Design, id: string): Menu {
   return menu;
 }
 
-/** Touches from the tab bar to the deepest function. The backend guarantees <= 2. */
+/** Touches from the always-visible buttons to the deepest function. The backend guarantees <= 2. */
 export function maxTouchDepth(design: Design): number {
   let depth = 1;
-  for (const tab of design.tabs) {
-    if (resolveAction(design, tab.action).kind === "menu") depth = 2;
+  for (const button of [...design.tabs, ...design.top_bar.buttons]) {
+    if (resolveAction(design, button.action).kind === "menu") depth = 2;
   }
   return depth;
 }

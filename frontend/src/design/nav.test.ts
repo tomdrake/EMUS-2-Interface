@@ -7,7 +7,9 @@ const design = {
     { id: "views", label: "Views", action: { type: "menu", menu_id: "views" } },
     { id: "silence", label: "Silence", action: { type: "silence-alarms" } },
     { id: "settings", label: "Settings", action: { type: "open-settings" } },
+    { id: "theme", label: "Dark / Light", action: { type: "toggle-theme" } },
   ],
+  top_bar: { buttons: [] },
   menus: [
     { id: "views", title: "Views", items: [
       { id: "a", label: "A", action: { type: "screen", screen_id: "split-h" } }] },
@@ -23,6 +25,7 @@ describe("navigation", () => {
     expect(resolveAction(design, tab(0))).toEqual({ kind: "screen", screenId: "monitor" });
     expect(resolveAction(design, tab(1))).toMatchObject({ kind: "menu", menu: { id: "views" } });
     expect(resolveAction(design, tab(2))).toEqual({ kind: "silence" });
+    expect(resolveAction(design, tab(4))).toEqual({ kind: "theme" });
     expect(resolveAction(design, design.menus[1]!.items[0]!.action))
       .toEqual({ kind: "sheet", sheet: "studio-appearance" });
   });
@@ -31,8 +34,12 @@ describe("navigation", () => {
     expect(resolveAction(design, tab(3))).toMatchObject({ kind: "menu", menu: { id: "settings" } });
   });
 
-  it("everything is within two touches", () => {
+  it("everything is within two touches, counting top-bar buttons", () => {
     expect(maxTouchDepth(design)).toBe(2);
+    const moved = { ...design, tabs: design.tabs.slice(0, 1),
+                    top_bar: { buttons: [design.tabs[3]] } } as unknown as Design;
+    expect(maxTouchDepth(moved)).toBe(2);
+    expect(maxTouchDepth({ ...moved, top_bar: { buttons: [] } } as unknown as Design)).toBe(1);
   });
 
   it("fails loudly when a menu is missing", () => {

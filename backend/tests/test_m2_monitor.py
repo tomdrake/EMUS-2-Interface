@@ -185,3 +185,46 @@ def test_demo_controls(client):
     assert client.post("/api/demo/scn-stable/speed", json={"factor": 60}).status_code == 200
     assert client.post("/api/demo/scn-stable/speed", json={"factor": 0}).status_code == 422
     assert client.post("/api/demo/scn-stable/restart").status_code == 200
+
+
+# ------------------------------------------------------- new patient / discharge
+
+@todo("M2")
+def test_new_patient_starts_clean_and_on_standby(client):
+    client.put("/api/patients/scn-stable/alarm-limits/spo2", json={"low": 85})
+    r = client.post("/api/patients", json={
+        "family_name": "NEWMAN", "given_name": "Pat", "birth_date": "1970-05-06",
+        "sex": "female", "nhs_number": "999 000 0700", "bed": "Bed 3", "by": "RN test"})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    pid = d["patient"]["id"]
+    assert d["patient"]["family_name"] == "NEWMAN" and d["patient"]["discharged_at"] is None
+    assert d["settings"]["alarm_limits"] == {} and d["settings"]["spo2_scale"] == 1, \
+        "nothing is carried over from another patient"
+    assert d["signals"]["hr"]["state"] == "standby", "no device yet: standby, not an error"
+    assert pid in {p["id"] for p in client.get("/api/patients").json()}
+    dup = client.post("/api/patients", json={
+        "family_name": "OTHER", "given_name": "X", "nhs_number": "9990000700"})
+    assert dup.status_code == 409
+    assert client.post("/api/patients", json={
+        "family_name": "BAD", "given_name": "X", "nhs_number": "12"}).status_code == 422
+
+
+@todo("M2")
+def test_discharge_needs_confirmation_and_stops_monitoring(client):
+    assert client.post("/api/patients/scn-stable/discharge", json={"by": "RN test"}).status_code == 400
+    client.post("/api/patients/scn-stable/alarms/silence", json={"by": "RN test"})
+    r = client.post("/api/patients/scn-stable/discharge", json={"by": "RN test", "confirm": True})
+    assert r.status_code == 200 and r.json()["patient"]["discharged_at"]
+    assert "scn-stable" not in {p["id"] for p in client.get("/api/patients").json()}
+    assert "scn-stable" in {p["id"] for p in client.get(
+        "/api/patients", params={"include_discharged": True}).json()}, "the record is kept"
+    state = client.get("/api/patients/scn-stable/alarms").json()
+    assert state["active"] == [] and state["silenced_until"] is None
+    assert client.post("/api/patients/scn-stable/discharge",
+                       json={"confirm": True}).status_code == 409
+    from app import db
+    with db.session() as con:
+        actions = [x["action"] for x in con.execute(
+            "SELECT action FROM audit_log WHERE target = 'scn-stable' ORDER BY id")]
+    assert actions[-1] == "patient.discharge"

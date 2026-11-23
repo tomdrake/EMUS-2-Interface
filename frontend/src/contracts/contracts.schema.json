@@ -2311,6 +2311,19 @@
           "default": null,
           "title": "Consultant"
         },
+        "discharged_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Discharged At"
+        },
         "family_name": {
           "title": "Family Name",
           "type": "string"
@@ -2407,6 +2420,7 @@
         "allergies",
         "weight_kg",
         "admitted_at",
+        "discharged_at",
         "origin",
         "simulated"
       ],

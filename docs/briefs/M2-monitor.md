@@ -40,6 +40,15 @@ Details that matter:
   (leave it silent for now and flag it as a question for clinicians).
 - Every limit change, oxygen entry and silence writes an `audit_log` row.
 
+## Patients (backend)
+
+`POST /api/patients` admits a patient and `POST /api/patients/{id}/discharge`
+discharges one; see the route docstrings. A new patient starts with default limits
+and scale 1, and with every modality on standby until a device or scenario is
+attached. Discharge needs `confirm: true`, keeps the record, ends the stream and
+any sound pause, and is audited. Validate NHS numbers (ten digits, modulus 11
+check digit; spaces allowed; the 999 test range is accepted).
+
 ## Monitoring health (backend)
 
 The display must be able to tell failure modes apart, so the server always says
@@ -61,18 +70,24 @@ alarms), the thresholds in `registry.py`, and `app/signal_quality.py`.
 ## Frontend
 
 The safety layer in `frontend/src/safety/` is already built and tested: `Numeric`
-and `RowStatus` (what shows in place of a number), `SilenceBanner`, `SystemBanner`,
-`DeviceChips`, the link watchdog and the display rules in `status.ts`. **Use it;
-do not replace it.** Every number on the monitor goes through `<Numeric>`.
+(the tile: a number or the word explaining its absence, with the device's battery
+and link) and `RowStatus`, `NotificationBox` (the one fixed-size box and its
+overlay feed), the link watchdog, and the rules in `status.ts` and
+`notifications.ts`. **Use it; do not replace it.** Every number on the monitor
+goes through `<Numeric>`; every alarm and problem reaches the user through the
+notification box. Two layout rules are tested in the browser check and must keep
+passing: every tile is the same size, and nothing that arrives (an alarm, a fault,
+the sound pause, the feed opening) moves or resizes anything.
 
 | File | Build |
 |---|---|
 | new `src/app/live.ts` | Zustand store for numerics and waveform ring buffers. WebSocket client with reconnect. Feed `useSafety`: `heartbeat()` on every message, `setDevices()` for `DevicesMessage`, `setAlarms()` for `AlarmMessage`, `setLink("down")` on close. |
-| `src/widgets/MonitorRows.tsx` + new `WaveCanvas.tsx`, `TrendTrace.tsx`, `BarTrace.tsx`, `EventsTrace.tsx`, `TimerRow.tsx` | Real traces and live numbers. Canvas sweep with the erase-bar gap (`design.sweep`), or scrolling. Speed in mm/s converted with CSS px per mm. Draw at device pixel ratio; one `requestAnimationFrame` loop for all canvases. |
+| `src/widgets/MonitorRows.tsx` (pass live values to `<Numeric>`, including the `extra` values for the combined blood pressure tile) + new `WaveCanvas.tsx`, `TrendTrace.tsx`, `BarTrace.tsx`, `EventsTrace.tsx`, `TimerRow.tsx` | Real traces and live numbers. Canvas sweep with the erase-bar gap (`design.sweep`), or scrolling. Speed in mm/s converted with CSS px per mm. Draw at device pixel ratio; one `requestAnimationFrame` loop for all canvases. |
 | `src/layout/TopBar.tsx` | Real patient fields, oxygen, alarm status, SIMULATED badge. |
-| `src/alarms/` | `audio.ts`: Web Audio tones by priority. Browsers block sound until a touch, so set `useSafety.sound` to `blocked` until audio is unlocked, register `enableSound`, and set `ready` once a test tone has played; the MONITOR banner then offers "Enable sound". Patient alarm banner (red or yellow by priority, distinct from the MONITOR banner), flashing numerics. `SilenceButton` and `SilenceBanner` exist; drive them from the server's `AlarmState`. |
+| `src/alarms/` | `audio.ts`: Web Audio tones by priority. Browsers block sound until a touch, so set `useSafety.sound` to `blocked` until audio is unlocked, register `enableSound`, and set `ready` once a test tone has played; the notification box then offers "Enable Sound". Patient alarms appear in the notification box (already styled red or yellow by priority) and as a flashing tile for the parameter concerned; do not add a banner that changes the layout. `SilenceButton` exists; drive it and the box from the server's `AlarmState`. |
 | traces | Dim a trace while its quality is poor when `design.safety.dim_poor_traces` is on; freeze and grey traces when the link is not live. |
 | new `src/studio/AlarmLimitsSheet.tsx` | Opened by tapping a row (row id in `sheetContext`) or from the Patient menu. Large steppers for low and high, bounded by registry min/max, saved on each press. Tap row then tap stepper is two touches. Switching an alarm off needs a confirm step that names the parameter, and the row then shows ALARM OFF. |
+| new `src/studio/NewPatientSheet.tsx`, `DischargeSheet.tsx` | Opened from the top-bar buttons. New patient: name, date of birth, sex, NHS number, bed, and (demo) which scenario to play; nothing is carried over from the previous patient. Discharge: shows who is on the monitor and requires a deliberate confirm (type or tick the patient's name), then clears the screen to "No Patient" with every tile on STANDBY. |
 | new `src/studio/OxygenSheet.tsx`, `PatientSheet.tsx`, `DemoControlsSheet.tsx` | Oxygen: flow presets (0, 1, 2, 4, 6, 10, 15 and plus/minus) and a device grid from `registry.o2_devices`. Demo: scenario picker, speed, jump, restart, and a "Show a failure" grid from `registry.demo_faults` with a device picker and "Clear". |
 | `src/widgets/` alarms, oxygen, patient | Replace the placeholders. |
 

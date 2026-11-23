@@ -24,52 +24,79 @@ It is not a usability-engineering file and nothing here has been validated.
    statements, each visible without opening a menu.
 6. **Monitoring problems never look like patient alarms.** They have their own
    colour, a MONITOR tag and their own wording.
-7. **A poor trace is flagged, not hidden and not trusted.** The number stays, with
+7. **Nothing that arrives may move the screen.** Alarms and problems go to one
+   notification box that is always present and always the same size, and to
+   tiles that never change size. A clinician's eye should never have to re-find a
+   number because a banner pushed it down.
+8. **A poor trace is flagged, not hidden and not trusted.** The number stays, with
    a question mark and what to check. A dangerous rhythm must never be dismissed
    as artefact.
-8. **Mistakes fail safe.** A second press on Silence resumes sound. Switching an
+9. **Mistakes fail safe.** A second press on Silence resumes sound. Switching an
    alarm off takes a deliberate confirmation and leaves a mark on the row.
-9. **These things can be restyled but not removed.** The design studio and the
+10. **These things can be restyled but not removed.** The design studio and the
    chatbot can move and recolour them; they cannot hide them or make two states
    look the same.
 
 ## What appears in place of a number
 
+Every number sits in a **tile**. All tiles are the same width and height, and a
+tile never changes size whatever it holds. Each tile carries the battery and
+wireless state of the device that measures that value, in its bottom corner.
+
 | State | Shown | Look | Means | Value shown? |
 |---|---|---|---|---|
 | `ok` | the number | parameter colour | Valid and current | Yes |
-| `standby` | **STANDBY** | grey, dashed outline | Selected for display but no device connected or started. Nothing is wrong; nothing is being measured | No |
-| `acquiring` | **SEARCHING** | grey, dashed outline | Device connected, looking for a signal | No |
+| `standby` | **STANDBY** | grey, thin outline | Selected for display but no device connected or started. Nothing is wrong; nothing is being measured | No |
+| `acquiring` | **SEARCHING** | grey, thin outline | Device connected, looking for a signal | No |
 | `poor-signal` | number with **?**, and **POOR TRACE** plus what to check on the row | technical colour, number dimmed | A value exists but the trace is noisy | Yes, flagged |
-| `sensor-off` | **CHECK SENSOR** | technical colour, solid outline | Device is connected but the sensor or lead is off the patient | No |
-| `connection-lost` | **CONNECTION LOST** with a running timer | technical colour, solid outline | The device was sending and has stopped | No (optionally the last value, struck through, with its age) |
+| `sensor-off` | **CHECK SENSOR** | technical colour, bold outline | Device is connected but the sensor or lead is off the patient | No |
+| `connection-lost` | **CONNECTION LOST** with a running timer | technical colour, bold outline | The device was sending and has stopped | No (optionally the last value, struck through, with its age) |
 | `invalid` | **-?-** | technical colour | A measurement was made but is out of measurable range, or the server said "fine" and sent nothing | No |
 | screen not receiving | **NO DATA** on every number, screen greyed | grey | This screen has lost contact with the server | No |
 
 Standby wording can be changed in the design to NOT CONNECTED or OFF. It is a
 fixed list so it can never be set to something that reads like a value.
 
+## The notification box
+
+One box lists everything that needs attention. It is always on screen and always
+the same size: bottom left of the tab bar by default, or the bottom right, the top
+bar, or a fixed strip (a design choice; removing it is not).
+
+- Nothing to report: **No Notifications**.
+- Otherwise the most important item, tagged **PATIENT** or **MONITOR**, and a
+  count of the rest ("+2"). Most serious first, newest first within a priority
+  (or simply newest first, as a design choice).
+- Touching it opens the full list as an overlay that does not dim or move the
+  monitor, with how long ago each item started.
+- Its colour follows its headline: red or yellow fill for a high or medium patient
+  alarm, the technical colour for monitoring problems.
+
 ## Alarm sound
 
 | Situation | What the clinician sees |
 |---|---|
-| Ready | Silence button with a yellow outline and icon; top bar says "Alarms on" |
-| Sound paused (two minutes) | Button solid yellow with the time left; a full-width yellow banner: **ALARM SOUND PAUSED 1:45, Alarms still show on screen**, with a Resume sound button; top bar says "Sound paused 1:45" |
-| This screen cannot play sound | MONITOR banner: "This screen cannot play alarm sounds. Tap to enable"; top bar says "Sound off". Browsers block audio until someone touches the page, so this is a real failure mode for a tablet |
-| Sound not yet confirmed | Top bar says "Sound not confirmed" rather than claiming alarms are on |
-| Alarm switched off for one parameter | "ALARM OFF" beside that number |
-| Alarm enabled but no valid data | "Not monitored: SpO2, PR" in the MONITOR banner |
+| Ready | Silence button with a yellow outline and icon; top bar says "Alarms On" |
+| Sound paused (two minutes) | Button solid yellow with the time left; a solid yellow **SOUND PAUSED 1:45** mark inside the notification box beside its headline; top bar says "Sound Paused 1:45". The list says "Alarm sound paused for 1:45. Alarms still show on screen" with a Resume Sound button |
+| This screen cannot play sound | A MONITOR notification: "This screen cannot play alarm sounds. Tap to enable"; top bar says "Sound Off". Browsers block audio until someone touches the page, so this is a real failure mode for a tablet |
+| Sound not yet confirmed | Top bar says "Sound Not Confirmed" rather than claiming alarms are on |
+| Alarm switched off for one parameter | "ALARM OFF" in that tile |
+| Alarm enabled but no valid data | A MONITOR notification: "Not monitored: SpO2, PR" |
 
 The pause is always two minutes and affects sound only. It does not hide patient
-alarms, technical alarms or the not-monitored list.
+alarms, monitoring problems or the not-monitored list, and it does not move
+anything on screen.
 
 ## Devices
 
-Each device (chest sensor, limb sensor, BP cuff, flow meter) shows in the top bar
-with words as well as a battery symbol: "71%", "battery low 18%", "battery
-critical 6%", "no signal 0:42", "standby". Problems are listed first. A low battery
-or lost connection also appears on the rows that device feeds, and is always
-raised as a technical alarm:
+The battery and wireless state of each device shows **in the tile of every value
+that device measures**: the ECG sensor's battery and link are in the Heart Rate
+tile, the limb sensor's in the SpO2 and PR tiles, the cuff's in the Blood Pressure
+tile. A battery symbol and link bars, plus a word when something is wrong:
+"LOW 18%", "BATT 6%", "NO LINK". A device that has never connected shows hollow
+link bars and its tile says STANDBY. A summary of all devices can also be put in
+the top bar as a design choice. A low battery or lost connection is always raised
+as a notification as well:
 
 | Technical alarm | Priority | Example |
 |---|---|---|
@@ -107,8 +134,11 @@ before anyone relies on it.
 
 ## Fixed, whatever the design says
 
-- The paused-sound banner shows for as long as sound is paused.
+- The notification box is always on screen and the same size; it can be moved,
+  not removed.
+- The sound-paused mark shows for as long as sound is paused.
 - Technical alarms, battery warnings and lost signals are always shown.
+- Tiles are one size and never resize; notifications never move the layout.
 - The technical colour differs from the high and medium patient alarm colours,
   and the paused, technical and standby colours are visible against the background.
 - Thresholds (`registry.py`): connection lost after 5 s without data; screen stale
@@ -134,7 +164,13 @@ controls can also inject any single failure on any scenario (milestone M2).
 5. Is yellow right for "sound paused", given yellow also means a medium-priority
    alarm on many monitors?
 6. How long without data before "connection lost"? Five seconds is a placeholder.
-7. Where should battery state live: top bar only, or also on the rows?
+7. Is the notification box best at the bottom left, or nearer the top? Is a small
+   yellow mark enough to say sound is paused, now that it no longer takes a full
+   banner?
+8. Battery and link now sit in each tile. Is that the right amount, or is a single
+   summary in the top bar easier?
+9. Discharge clears the monitor for the next patient. What should the confirmation
+   ask for so it cannot be done to the wrong patient by mistake?
 
 ## Sources and caveats
 

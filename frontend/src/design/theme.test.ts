@@ -3,7 +3,7 @@ import { paramVar, themeToCssVars } from "./theme";
 import type { Theme } from "./types";
 
 const theme = {
-  preset: "custom",
+  preset: "custom", mode: "dark",
   colours: {
     background: "#000000", surface: "#111111", surface_alt: "#222222", text: "#ffffff",
     text_muted: "#aaaaaa", border: "#333333", accent: "#4c8dff", alarm_high: "#ff0000",

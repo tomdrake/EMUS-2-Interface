@@ -29,7 +29,7 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 /* ---- top bar ---- */
 .topbar {
   flex: none; display: flex; align-items: center; gap: calc(var(--gap) * 2);
-  padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+  padding: 0 0 0 max(16px, env(safe-area-inset-left));
   background: var(--c-surface); border-bottom: 1px solid var(--c-border); white-space: nowrap;
 }
 .tb-field { display: flex; align-items: baseline; gap: 6px; min-width: 0; color: var(--c-text-muted); flex: 0 1 auto; }
@@ -37,16 +37,28 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .tb-field.tb-name { flex: 0 1 auto; min-width: 9ch; }
 .tb-field.tb-clock, .tb-field.tb-alarm-status { flex: none; }
 .tb-field.tb-devices { overflow: hidden; }
-.topbar > .badge { flex: none; }
-@media (max-width: 1100px) { .tb-field.tb-date { display: none; } .tb-field.tb-clock { margin-left: auto; } }
 .tb-name { color: var(--c-text); font-size: 1.2em; overflow: hidden; text-overflow: ellipsis; }
 .tb-clock { margin-left: auto; }
 .tb-clock time, .tb-clock { color: var(--c-text); font-size: 1.35em; font-variant-numeric: tabular-nums; font-weight: 600; }
 .tb-date { font-variant-numeric: tabular-nums; }
-.tb-date:has(+ .tb-clock), .tb-field.tb-date { margin-left: auto; }
+.tb-field.tb-date { margin-left: auto; }
 .tb-field.tb-date + .tb-field.tb-clock { margin-left: 0; }
-.badge { font-size: 0.7em; font-weight: 700; letter-spacing: 0.06em; padding: 3px 8px;
+@media (max-width: 1180px) {
+  .tb-field.tb-date { display: none; }
+  .tb-field.tb-clock, .tb-field.tb-date + .tb-field.tb-clock { margin-left: auto; }
+}
+.badge { flex: none; font-size: 0.7em; font-weight: 700; letter-spacing: 0.06em; padding: 3px 8px;
   border-radius: 999px; border: 1px solid var(--c-border); color: var(--c-text-muted); }
+@media (max-width: 1100px) { .badge-proto { display: none; } }
+/* Buttons at the top right: new patient, discharge, dark / light, settings. */
+.topbtns { flex: none; align-self: stretch; display: flex; border-left: 1px solid var(--c-border); }
+.topbtn { min-width: max(var(--touch), 64px); min-height: var(--touch); padding: 0 8px; display: flex;
+  flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  color: var(--c-text-muted); border-right: 1px solid var(--c-border); }
+.topbtn:last-child { border-right: 0; }
+.topbtn .tab-label { font-size: 0.68em; }
+.topbtn.is-active { color: var(--c-text); background: var(--c-surface-alt); box-shadow: inset 0 -3px 0 var(--c-accent); }
+.topbtn:active { background: var(--c-surface-alt); }
 
 /* ---- screen and layout ---- */
 .screen { flex: 1 1 0; min-height: 0; display: flex; padding: var(--gap); }
@@ -62,104 +74,160 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 /* ---- monitor rows ---- */
 .rows { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
 .row { min-height: 0; display: flex; align-items: stretch; text-align: left; width: 100%;
-  border-bottom: 1px solid var(--c-border); container-type: size; overflow: hidden; }
+  border-bottom: 1px solid var(--c-border); overflow: hidden; }
 .row:last-child { border-bottom: 0; }
-.row-left { flex-direction: row-reverse; }
+.rows-left .row { flex-direction: row-reverse; }
 .row-spacer { border-bottom: 1px dashed var(--c-border); }
-.row-trace { flex: 1 1 0; min-width: 0; display: flex; gap: 12px; align-items: flex-start; padding: 6px 12px; }
-.row-label { font-weight: 600; }
-.row-kind { color: var(--c-text-muted); font-size: 0.8em; }
+.row-trace { flex: 1 1 0; min-width: 0; display: flex; gap: 12px; align-items: baseline; padding: 6px 12px;
+  white-space: nowrap; overflow: hidden; }
+.row-label { font-weight: 700; flex: none; }
+.row-method { font-weight: 500; opacity: 0.8; }
+
+/* The tile column is the same width on every row: as many slots as the busiest
+   row needs, each exactly --tile wide. Tiles fill from the outer edge. */
+.row-tiles { flex: none; width: calc(var(--tile) * var(--tile-slots)); display: flex; justify-content: flex-end;
+  border-left: 1px solid var(--c-border); }
+.rows-left .row-tiles { justify-content: flex-start; border-left: 0; border-right: 1px solid var(--c-border); }
 
 /* =======================================================================
-   Safety states. Each state differs from every other in WORD, colour and
-   weight, never colour alone. See docs/human-factors.md.
+   Tiles. One number per tile, or the word that explains why there is none.
+   A tile is always --tile wide and as tall as its row. Nothing it shows can
+   change that: content scales to the tile (cqw / cqh), the tile never to it.
    ======================================================================= */
+.tile { flex: none; width: var(--tile); min-width: 0; display: grid; grid-template-rows: auto 1fr auto;
+  padding: 4px 8px; container-type: size; overflow: hidden; border-left: 1px solid var(--c-border); }
+.tile:first-child { border-left: 0; }
+.tile-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-width: 0;
+  font-size: min(0.72rem, 15cqh); line-height: 1.2; white-space: nowrap; }
+.tile-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.tile-name small { font-weight: 500; opacity: 0.8; font-size: 1em; }
+.tile-body { display: flex; align-items: center; justify-content: center; min-height: 0; line-height: 1; text-align: center; }
+.tile-value { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
+  font-size: min(calc(2.1rem * var(--numeric-scale)), 52cqh, 30cqw); }
+.tile-main .tile-value { font-size: min(calc(2.8rem * var(--numeric-scale)), 60cqh, 36cqw); }
+.tile-extra { font-size: 0.62em; }
+.tile-main:has(.tile-extra) .tile-value { font-size: min(calc(2.2rem * var(--numeric-scale)), 50cqh, 22cqw); }
+.tile-foot { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-height: 13px;
+  font-size: min(0.66rem, 15cqh); line-height: 1.2; white-space: nowrap; overflow: hidden; }
+
+/* Safety states. Each differs from every other in WORD, colour and outline, never
+   colour alone. See docs/human-factors.md. */
 .tone-inactive { color: var(--c-inactive); }
 .tone-technical { color: var(--c-technical); }
 .tone-stale { color: var(--c-text-muted); }
 .tone-silenced { color: var(--c-silenced); }
+/* The word sits inside the tile, wraps to two lines at most, and is sized to fit. */
+.tile-state { display: block; max-width: 100%; font-weight: 800; letter-spacing: 0.03em; line-height: 1.1;
+  text-wrap: balance; font-size: min(calc(1rem * var(--numeric-scale)), 26cqh, 13.5cqw); }
+.tile-standby, .tile-acquiring, .tile-no-data { box-shadow: inset 0 0 0 1px var(--c-border); }
+.tile-standby .tile-state, .tile-acquiring .tile-state, .tile-no-data .tile-state { font-weight: 700; }
+.tile-sensor-off, .tile-connection-lost, .tile-invalid { box-shadow: inset 0 0 0 2px var(--c-technical); }
+.tile-poor-signal { box-shadow: inset 0 0 0 1px var(--c-technical); }
+.tile-poor-signal .tile-value { opacity: 0.75; }
+.tile-flag { color: var(--c-technical); margin-left: 2px; }
+.tile-last { color: var(--c-text-muted); text-decoration: line-through; margin-right: auto;
+  overflow: hidden; text-overflow: ellipsis; }
+.tile-alarm-off { flex: none; color: var(--c-silenced); font-weight: 800; }
+.tone-stale .tile-name, .tone-inactive .tile-name { color: var(--c-text-muted); }
 
-/* A word in place of a number: smaller than a number, upper case, never a dash. */
-.num-state { font-size: min(calc(1.05rem * var(--numeric-scale)), 34cqh); font-weight: 700;
-  letter-spacing: 0.04em; white-space: nowrap; padding: 2px 8px; border-radius: 4px;
-  border: 1px solid currentColor; }
-.num-standby .num-state, .num-acquiring .num-state, .num-no-data .num-state { border-style: dashed; }
-.num-flag { color: var(--c-technical); margin-left: 2px; }
-.num-poor-signal .num-value { opacity: 0.75; }
-.num-last { font-size: 0.7em; color: var(--c-text-muted); text-decoration: line-through; }
-.num-alarm-off { color: var(--c-silenced); font-weight: 700; }
-.tone-stale .num-unit, .tone-inactive .num-unit { color: var(--c-text-muted); }
+/* Battery and link of the device behind the value, in the tile's corner. */
+.device-mark { flex: none; display: inline-flex; align-items: center; gap: 4px; color: var(--c-text-muted); }
+.device-word { font-weight: 800; letter-spacing: 0.02em; }
+.device-low, .device-critical, .device-lost { color: var(--c-technical); }
+.device-inactive { color: var(--c-inactive); }
+.battery, .link { flex: none; }
 
-.row-status { display: inline-flex; align-items: baseline; gap: 8px; font-size: 0.85em; white-space: nowrap; }
-.row-status strong { letter-spacing: 0.03em; }
-.row-advice { color: var(--c-text); opacity: 0.85; }
-.row-battery { color: var(--c-technical); }
+.row-status { display: inline-flex; align-items: baseline; gap: 8px; font-size: 0.85em; min-width: 0; overflow: hidden; }
+.row-status strong { letter-spacing: 0.03em; flex: none; }
+.row-advice { color: var(--c-text); opacity: 0.85; overflow: hidden; text-overflow: ellipsis; }
 
-/* Alarm sound paused: always on screen for as long as it lasts. */
-.silence-banner { flex: none; display: flex; align-items: center; gap: 14px; z-index: 35;
-  padding: 6px 8px 6px 16px; background: var(--c-silenced); color: var(--c-background); font-weight: 600; }
-.silence-title { font-size: 1.15em; letter-spacing: 0.05em; }
-.silence-count { font-size: 1.5em; font-weight: 800; font-variant-numeric: tabular-nums; }
-.silence-note { margin-right: auto; }
-.silence-resume { background: var(--c-background); color: var(--c-silenced); border-color: var(--c-background); }
-
-/* Monitoring problems: their own colour and a MONITOR tag, not a patient alarm. */
-.system-banner { flex: none; z-index: 34; }
-.system-line { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 16px; min-height: 40px;
-  background: var(--c-surface-alt); color: var(--c-technical); border-bottom: 1px solid var(--c-technical);
-  font-weight: 600; }
-.system-tag { font-size: 0.7em; letter-spacing: 0.08em; padding: 2px 6px; border: 1px solid currentColor; border-radius: 4px; }
-.system-text { margin-right: auto; color: var(--c-text); }
-.system-high { background: var(--c-technical); color: var(--c-background); }
-.system-high .system-text { color: var(--c-background); font-size: 1.1em; }
-.system-more { padding: 2px 16px; font-size: 0.8em; color: var(--c-technical); background: var(--c-surface-alt); }
-
-/* Devices in the top bar. */
-/* On a narrow screen a chip that does not fit wraps onto a hidden second line, so
-   it disappears whole instead of being cut mid-word. Problems are listed first, and
-   every problem is also in the MONITOR banner. */
-.devices { display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 40px; align-items: center;
-  height: 1.6em; overflow: hidden; }
-.device { height: 1.6em; white-space: nowrap; }
-.device { display: inline-flex; gap: 6px; align-items: center; font-size: 0.8em; }
+/* Optional device summary in the top bar. */
+.devices { display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 40px; align-items: center; height: 1.6em; overflow: hidden; }
+.device { display: inline-flex; gap: 6px; align-items: center; font-size: 0.8em; height: 1.6em; white-space: nowrap; }
 .device-label { color: var(--c-text-muted); }
 .device-text { font-weight: 600; font-variant-numeric: tabular-nums; }
-.device-ok .device-text { color: var(--c-text); }
-.device-inactive, .device-inactive .device-text { color: var(--c-inactive); }
-.device-low, .device-critical, .device-lost { color: var(--c-technical); }
-.device-critical .device-text, .device-lost .device-text { text-transform: uppercase; }
-.battery { flex: none; }
 .alarm-status { font-weight: 600; }
 
 /* When this screen is not receiving data, nothing on it may look live. */
 .app[data-link="stale"] .screen, .app[data-link="down"] .screen,
 .app[data-link="stale"] .devices, .app[data-link="down"] .devices { filter: grayscale(1); opacity: 0.55; }
 
+/* =======================================================================
+   Notification box and feed. The box is a fixed size wherever it sits; the
+   feed is an overlay. Neither can move or resize anything else.
+   ======================================================================= */
+.notif { display: flex; align-items: center; gap: 8px; padding: 0 10px; text-align: left; overflow: hidden;
+  color: var(--c-text-muted); background: var(--c-surface); min-height: var(--touch); }
+.notif-bar { flex: 0 0 clamp(230px, 27vw, 380px); border-right: 1px solid var(--c-border); }
+.notif-bar.notif-size-wide { flex-basis: clamp(300px, 36vw, 520px); }
+.topbar .notif-bar { align-self: stretch; border-left: 1px solid var(--c-border); }
+.notif-strip { flex: none; height: 44px; display: flex; border-bottom: 1px solid var(--c-border); }
+.notif-strip .notif { flex: 1 1 auto; min-height: 0; }
+.notif .icon { flex: none; }
+.notif-main { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 1px; line-height: 1.15; }
+.notif-none { font-weight: 600; }
+.notif-tag, .feed-tag { flex: none; align-self: flex-start; font-size: 0.62em; font-weight: 800; letter-spacing: 0.08em;
+  padding: 1px 5px; border: 1px solid currentColor; border-radius: 4px; }
+.notif-text { font-size: 0.82em; font-weight: 600; color: var(--c-text); overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.notif-strip .notif-main { flex-direction: row; align-items: center; gap: 8px; }
+.notif-strip .notif-tag { align-self: center; }
+.notif-strip .notif-text { -webkit-line-clamp: 1; }
+.notif-count { flex: none; font-weight: 800; font-size: 0.85em; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid currentColor; }
+.notif-paused { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  align-self: stretch; margin: 6px 0; padding: 0 8px; border-radius: 6px; font-size: 0.62em; font-weight: 800;
+  letter-spacing: 0.05em; line-height: 1.15; background: var(--c-silenced); color: var(--c-background); }
+.notif-paused strong { font-size: 1.7em; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.notif-strip .notif-paused { flex-direction: row; gap: 6px; margin: 5px 0; }
+/* Colour by what the headline is about and how serious it is. */
+.notif-monitor-low, .notif-monitor-medium { color: var(--c-technical); box-shadow: inset 0 0 0 2px var(--c-technical); }
+.notif-monitor-high { background: var(--c-technical); color: var(--c-background); }
+.notif-patient-low { color: var(--c-alarm-low); box-shadow: inset 0 0 0 2px var(--c-alarm-low); }
+.notif-patient-medium { background: var(--c-alarm-medium); color: var(--c-background); }
+.notif-patient-high { background: var(--c-alarm-high); color: var(--c-background); }
+.notif-monitor-high .notif-text, .notif-patient-medium .notif-text, .notif-patient-high .notif-text { color: inherit; }
+.notif.is-paused.notif-empty { box-shadow: inset 0 0 0 2px var(--c-silenced); color: var(--c-silenced); }
+
+/* The feed does not dim the monitor: values stay readable behind it. */
+.scrim.scrim-clear { background: transparent; }
+.feed { position: absolute; z-index: 45; width: min(560px, calc(100% - 16px)); max-height: 62%;
+  display: flex; flex-direction: column; background: var(--c-surface); border: 1px solid var(--c-border);
+  border-radius: var(--radius); box-shadow: 0 10px 30px color-mix(in srgb, var(--c-background) 70%, transparent); }
+.feed-above { bottom: calc(var(--tabbar-h, 72px) + 8px); }
+.feed-below { top: calc(var(--topbar-h, 64px) + 8px); }
+.feed-left { left: 8px; }
+.feed-right { right: 8px; }
+.feed-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 6px 6px 6px 14px;
+  border-bottom: 1px solid var(--c-border); }
+.feed-list { flex: 0 1 auto; min-height: 0; overflow: auto; list-style: none; margin: 0; padding: 0; }
+.feed-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; min-height: var(--touch);
+  border-bottom: 1px solid var(--c-border); border-left: 6px solid transparent; }
+.feed-item:last-child { border-bottom: 0; }
+.feed-text { flex: 1 1 0; color: var(--c-text); }
+.feed-age { flex: none; color: var(--c-text-muted); font-size: 0.8em; font-variant-numeric: tabular-nums; }
+.feed-tag { align-self: center; }
+.feed-none { color: var(--c-text-muted); justify-content: center; }
+.feed-paused { border-left-color: var(--c-silenced); color: var(--c-silenced); }
+.feed-monitor-low, .feed-monitor-medium, .feed-monitor-high { border-left-color: var(--c-technical); color: var(--c-technical); }
+.feed-patient-low { border-left-color: var(--c-alarm-low); color: var(--c-alarm-low); }
+.feed-patient-medium { border-left-color: var(--c-alarm-medium); color: var(--c-alarm-medium); }
+.feed-patient-high { border-left-color: var(--c-alarm-high); color: var(--c-alarm-high); }
+
 /* Flash rates: fast for high priority, slow for medium, steady for low. The rates
    sit inside the ranges IEC 60601-1-8 gives for alarm indicator lights as recalled
-   (high 1.4 to 2.8 Hz, medium 0.4 to 0.8 Hz); check against the standard. */
+   (high 1.4 to 2.8 Hz, medium 0.4 to 0.8 Hz); check against the standard. Only an
+   icon or a small mark flashes, never a size or a position. */
 @keyframes flash-high { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.35; } }
 @keyframes flash-medium { 0%, 59% { opacity: 1; } 60%, 100% { opacity: 0.45; } }
-.silence-banner.is-pulsing .silence-count, .tab-silence.is-silenced .icon { animation: flash-medium 1.6s steps(1) infinite; }
-.system-high .system-tag, .device-critical .battery, .device-lost .device-text { animation: flash-high 0.5s steps(1) infinite; }
-.system-medium .system-tag, .device-low .battery { animation: flash-medium 1.6s steps(1) infinite; }
+.tab-silence.is-silenced .icon, .notif-paused strong { animation: flash-medium 1.6s steps(1) infinite; }
+.notif.can-flash.notif-patient-high .icon, .notif.can-flash.notif-monitor-high .icon,
+.device-critical .battery, .device-lost .link { animation: flash-high 0.5s steps(1) infinite; }
+.notif.can-flash.notif-patient-medium .icon, .notif.can-flash.notif-monitor-medium .icon,
+.device-low .battery { animation: flash-medium 1.6s steps(1) infinite; }
 /* People who ask for less motion still get the state in words, colour and position. */
 @media (prefers-reduced-motion: reduce) {
-  .silence-banner *, .tab-silence *, .system-line *, .device * { animation: none !important; }
-}
-.row-numerics { flex: none; min-width: 24%; display: flex; align-items: center; justify-content: flex-end;
-  gap: 16px; padding: 0 16px; border-left: 1px solid var(--c-border); }
-.row-left .row-numerics { border-left: 0; border-right: 1px solid var(--c-border); justify-content: flex-start; }
-.num { display: flex; flex-direction: column; align-items: flex-end; line-height: 1; }
-/* Numbers shrink to fit short rows (cqh = % of the row's height). */
-.num-value { font-size: min(calc(1.6rem * var(--numeric-scale)), 34cqh); font-weight: 700; font-variant-numeric: tabular-nums; }
-.num-main .num-value { font-size: min(calc(2.6rem * var(--numeric-scale)), 50cqh); }
-.num-unit { font-size: 0.7em; opacity: 0.8; margin-top: 4px; white-space: nowrap; }
-@container (max-height: 72px) {
-  .num { flex-direction: row; align-items: baseline; gap: 6px; }
-  .num-unit { margin-top: 0; }
-  .num-value { font-size: min(calc(1.6rem * var(--numeric-scale)), 46cqh); }
-  .num-main .num-value { font-size: min(calc(2.6rem * var(--numeric-scale)), 62cqh); }
+  .tab-silence *, .notif *, .device-mark * { animation: none !important; }
 }
 
 /* ---- placeholders (scaffold only) ---- */
@@ -183,6 +251,9 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 /* The silence button is found by colour and position without reading. */
 .tab-silence { color: var(--c-silenced); box-shadow: inset 0 0 0 2px var(--c-silenced); }
 .tab-silence.is-silenced { background: var(--c-silenced); color: var(--c-background); }
+.topbtn.tab-silence { box-shadow: inset 0 0 0 2px var(--c-silenced); }
+/* The label stays in the text colour so it is readable on a light theme too. */
+.tab-silence:not(.is-silenced) .tab-label { color: var(--c-text); }
 
 /* ---- menus and sheets ---- */
 .scrim { position: absolute; inset: 0; background: color-mix(in srgb, var(--c-background) 55%, transparent); z-index: 10; }

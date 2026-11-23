@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 
 import { useDesign, useUi } from "@/app/store";
+import { NotificationBox } from "@/safety/NotificationBox";
+
+import { ActionButton } from "./ActionButton";
 import { useSilenceRemaining } from "@/alarms/SilenceButton";
 import type { Design } from "@/design/types";
 import { DeviceChips } from "@/safety/DeviceChips";
@@ -24,12 +27,12 @@ function AlarmStatus() {
   const sound = useSafety((s) => s.sound);
   const link = useSafety((s) => s.link);
   const active = useSafety((s) => s.alarms?.active.filter((a) => a.kind !== "technical").length ?? 0);
-  if (link !== "live") return <span className="alarm-status tone-stale" data-testid="alarm-status">Alarms: no data</span>;
-  if (left > 0) return <span className="alarm-status tone-silenced" data-testid="alarm-status">Sound paused {elapsed(left * 1000)}</span>;
-  if (sound === "blocked") return <span className="alarm-status tone-technical" data-testid="alarm-status">Sound off</span>;
+  if (link !== "live") return <span className="alarm-status tone-stale" data-testid="alarm-status">Alarms: No Data</span>;
+  if (left > 0) return <span className="alarm-status tone-silenced" data-testid="alarm-status">Sound Paused {elapsed(left * 1000)}</span>;
+  if (sound === "blocked") return <span className="alarm-status tone-technical" data-testid="alarm-status">Sound Off</span>;
   // Only claim alarms are audible once this screen has shown it can play sound.
-  if (sound !== "ready") return <span className="alarm-status tone-technical" data-testid="alarm-status">Sound not confirmed</span>;
-  return <span className="alarm-status" data-testid="alarm-status">{active ? `${active} alarm${active > 1 ? "s" : ""}` : "Alarms on"}</span>;
+  if (sound !== "ready") return <span className="alarm-status tone-technical" data-testid="alarm-status">Sound Not Confirmed</span>;
+  return <span className="alarm-status" data-testid="alarm-status">{active ? `${active} Alarm${active > 1 ? "s" : ""}` : "Alarms On"}</span>;
 }
 
 /**
@@ -43,16 +46,16 @@ export function TopBar() {
   const design = useDesign()!;
   const patientId = useUi((s) => s.patientId);
   const bar = design.top_bar;
-  const now = useNow(bar.show_seconds ?? true);
+  const now = useNow(bar.show_seconds);
 
   const clock = now.toLocaleTimeString("en-GB", {
-    hour: "2-digit", minute: "2-digit", second: (bar.show_seconds ?? true) ? "2-digit" : undefined,
+    hour: "2-digit", minute: "2-digit", second: bar.show_seconds ? "2-digit" : undefined,
     hour12: bar.clock_format === "12h",
   });
   const date = now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
   const PLACEHOLDER: Partial<Record<Field, string>> = {
-    name: "No patient feed", dob: "", age: "", sex: "", nhs_number: "", bed: "", ward: "",
+    name: "No Patient Feed", dob: "", age: "", sex: "", nhs_number: "", bed: "", ward: "",
     consultant: "", alarm_status: "", oxygen: "", news2: "", allergies: "", weight: "",
   };
 
@@ -68,14 +71,20 @@ export function TopBar() {
   };
 
   return (
-    <header className="topbar" style={{ height: bar.height_px ?? 56 }} data-patient={patientId}>
+    <header className="topbar" style={{ height: bar.height_px }} data-patient={patientId}>
       {bar.fields.map((f) => {
         const node = render(f);
         return node ? <div key={f} className={`tb-field tb-${f.replace(/_/g, "-")}`}>{node}</div> : null;
       })}
+      {design.notifications.position === "top-bar" && <NotificationBox placement="bar" />}
       <span className="badge badge-proto" title="Co-design prototype. Not a medical device.">
         PROTOTYPE
       </span>
+      <div className="topbtns" data-testid="top-buttons">
+        {bar.buttons.map((b) => (
+          <ActionButton key={b.id} button={b} where="top" showLabel={bar.show_button_labels} />
+        ))}
+      </div>
     </header>
   );
 }

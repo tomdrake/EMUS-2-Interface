@@ -70,7 +70,7 @@ backend/app/
 frontend/src/
   design/            generated types, theme to CSS variables, navigation
   layout/            top bar, bottom tabs, menus, sheets, split layouts
-  safety/            what shows instead of a number, sound-paused and MONITOR banners
+  safety/            tiles (a number or why there is none), the notification box
   widgets/           what goes in a pane: rows, NEWS2 chart, labs, forecast ...
   studio/            sheets: clinical panels and design-studio sections
 docs/
@@ -88,8 +88,8 @@ findings and forecasts are shown. Editing by touch, editing by chat and version
 history all act on that document. It refers to clinical items only by id; the
 items themselves live in the read-only registry, so a redesign cannot alter data
 structures. A few things cannot be designed away: the patient's name, the clock,
-the alarm-silence button (always two minutes), the settings button, and the
-warnings that say the monitoring itself has a problem.
+the alarm-silence button (always two minutes), the settings button, the
+notification box, and the warnings that say the monitoring itself has a problem.
 
 ## Data and standards
 

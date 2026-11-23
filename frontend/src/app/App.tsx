@@ -6,13 +6,11 @@ import { ScreenRenderer } from "@/layout/ScreenRenderer";
 import { Sheet } from "@/layout/Sheet";
 import { TabBar } from "@/layout/TabBar";
 import { TopBar } from "@/layout/TopBar";
-import { useSilenceActions, useSilenceRemaining } from "@/alarms/SilenceButton";
-import { SilenceBanner } from "@/safety/SilenceBanner";
+import { NotificationBox } from "@/safety/NotificationBox";
 import { startLinkWatchdog, useSafety } from "@/safety/store";
-import { SystemBanner } from "@/safety/SystemBanner";
 
 import { api } from "./api";
-import { useDesign, useUi } from "./store";
+import { useDesign, useTheme, useUi } from "./store";
 
 export function App() {
   const design = useDesign();
@@ -26,14 +24,13 @@ export function App() {
       .catch((e) => useUi.getState().fail(String(e?.message ?? e)));
   }, []);
 
-  useEffect(() => { if (design) applyTheme(design.theme); }, [design]);
+  const theme = useTheme();
+  useEffect(() => { if (theme) applyTheme(theme); }, [theme]);
 
   // A screen that has stopped receiving data must say so (see safety/store.ts).
   const staleAfter = useUi((s) => s.registry?.safety.display_stale_after_s);
   useEffect(() => (staleAfter ? startLinkWatchdog(staleAfter * 1000) : undefined), [staleAfter]);
   const link = useSafety((s) => s.link);
-  const silenceLeft = useSilenceRemaining();
-  const { resume } = useSilenceActions();
 
   useEffect(() => {
     if (!notice) return;
@@ -47,16 +44,21 @@ export function App() {
   const screen = design.screens.find((s) => s.id === screenId)
     ?? design.screens.find((s) => s.id === design.home_screen)!;
 
-  const banner = <SilenceBanner secondsLeft={silenceLeft} onResume={resume} />;
-  const bannerOnTop = design.safety.silence_banner === "top";
+  // The notification box is always present and never changes size, so nothing that
+  // arrives can move or resize the rest of the monitor. As a strip it reserves its
+  // own fixed row; otherwise it lives inside the tab bar or top bar.
+  const where = design.notifications.position;
+  const strip = <div className="notif-strip"><NotificationBox placement="strip" /></div>;
 
   return (
-    <div className="app" data-testid="app" data-design={design.name} data-link={link}>
+    <div className="app" data-testid="app" data-design={design.name} data-link={link}
+         data-mode={theme?.mode}
+         style={{ "--tabbar-h": `${design.tab_bar.height_px}px`,
+                  "--topbar-h": `${design.top_bar.height_px}px` } as React.CSSProperties}>
       <TopBar />
-      {bannerOnTop && banner}
-      <SystemBanner />
+      {where === "strip-top" && strip}
       <ScreenRenderer screen={screen} />
-      {!bannerOnTop && banner}
+      {where === "strip-above-tabs" && strip}
       <MenuSheet />
       <Sheet />
       {notice && <div className="notice" role="status" data-testid="notice">{notice}</div>}

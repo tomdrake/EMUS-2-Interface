@@ -3,7 +3,7 @@ import type { Design } from "@/design/types";
 
 import { deviceSummary } from "./DeviceChips";
 import { ago, displayFor, elapsed } from "./status";
-import { conditions } from "./SystemBanner";
+import { buildNotices } from "./notifications";
 
 const registry = {
   signal_states: {
@@ -89,44 +89,66 @@ describe("time wording", () => {
   });
 });
 
-describe("monitoring problems", () => {
-  const base = { link: "live", sound: "ready", technical: [], unmonitored: [],
-                 label: (p: string) => p.toUpperCase(), message: (id: string) => `msg:${id}` };
+describe("notifications", () => {
+  const T = Date.parse("2026-11-23T12:00:00Z");
+  const iso = (minsAgo: number) => new Date(T - minsAgo * 60_000).toISOString();
+  const alarm = (id: string, priority: string, minsAgo: number, extra: object = {}) =>
+    ({ id, kind: "high", priority, message: `${id} message.`, started_at: iso(minsAgo), ...extra }) as any;
+  const state = (active: any[], unmonitored: string[] = []) =>
+    ({ active, unmonitored, alarms_off: [], silenced_until: null, silence_seconds: 120 }) as any;
+  const base = {
+    link: "live" as const, sound: "ready" as const, alarms: state([]),
+    order: "severity-then-recent" as const,
+    registry: { parameters: { spo2: { short: "SpO2" }, pulse: { short: "PR" } },
+                technical_alarms: { "display-disconnected": { message: "Screen not updating." },
+                                    "sound-unavailable": { message: "Sound is off." } } } as any,
+  };
 
   it("is empty when all is well", () => {
-    expect(conditions(base)).toEqual([]);
+    expect(buildNotices(base)).toEqual([]);
   });
 
-  it("puts the most serious problem first", () => {
-    const list = conditions({ ...base, sound: "blocked",
-      technical: [
-        { id: "low", kind: "technical", technical: "battery-low", priority: "low", message: "Limb sensor: battery 18%." } as any,
-        { id: "lost", kind: "technical", technical: "connection-lost", priority: "medium", message: "x" } as any,
-      ] });
-    expect(list.map((c) => c.id)).toEqual(["sound-unavailable", "lost", "low"]);
+  it("orders by severity, then newest first", () => {
+    const list = buildNotices({ ...base, alarms: state([
+      alarm("old-high", "high", 30), alarm("low", "low", 1), alarm("new-high", "high", 2),
+      alarm("medium", "medium", 5)]) });
+    expect(list.map((n) => n.id)).toEqual(["new-high", "old-high", "medium", "low"]);
+  });
+
+  it("can order newest first instead", () => {
+    const list = buildNotices({ ...base, order: "recent-first", alarms: state([
+      alarm("old-high", "high", 30), alarm("low", "low", 1), alarm("medium", "medium", 5)]) });
+    expect(list.map((n) => n.id)).toEqual(["low", "medium", "old-high"]);
+  });
+
+  it("separates patient alarms from monitoring problems", () => {
+    const list = buildNotices({ ...base, alarms: state([
+      alarm("hr", "high", 1), alarm("batt", "low", 1, { kind: "technical", technical: "battery-low" })]) });
+    expect(list.map((n) => [n.id, n.about])).toEqual([["hr", "patient"], ["batt", "monitor"]]);
   });
 
   it("says only that the screen is not updating when it has no feed", () => {
-    const list = conditions({ ...base, link: "stale", unmonitored: ["spo2"],
-      technical: [{ id: "a1", kind: "technical", technical: "battery-low", priority: "low", message: "old" } as any] });
-    expect(list.map((c) => c.id)).toEqual(["display-disconnected"]);
-    expect(list[0]!.priority).toBe("high");
+    for (const link of ["stale", "down"] as const) {
+      const list = buildNotices({ ...base, link, alarms: state([alarm("hr", "high", 1)], ["spo2"]) });
+      expect(list.map((n) => n.id)).toEqual(["display-disconnected"]);
+      expect(list[0]).toMatchObject({ priority: "high", about: "monitor" });
+    }
   });
 
   it("says when alarm sound cannot play and offers to enable it", () => {
     const run = vi.fn();
-    const [c] = conditions({ ...base, sound: "blocked", enableSound: run });
-    expect(c!.action!.label).toBe("Enable sound");
-    c!.action!.run();
+    const [n] = buildNotices({ ...base, sound: "blocked", enableSound: run });
+    expect(n!.action!.label).toBe("Enable Sound");
+    n!.action!.run();
     expect(run).toHaveBeenCalled();
   });
 
   it("names unmonitored parameters unless a technical alarm already explains them", () => {
-    expect(conditions({ ...base, unmonitored: ["spo2", "pulse"] })[0]!.text).toBe("Not monitored: SPO2, PULSE");
-    const explained = conditions({ ...base, unmonitored: ["spo2"],
-      technical: [{ id: "a2", kind: "technical", technical: "connection-lost", priority: "medium",
-                    message: "Limb sensor: connection lost. Not monitoring SpO2." } as any] });
-    expect(explained.map((c) => c.id)).toEqual(["a2"]);
+    expect(buildNotices({ ...base, alarms: state([], ["spo2", "pulse"]) })[0]!.text)
+      .toBe("Not monitored: SpO2, PR.");
+    const explained = buildNotices({ ...base, alarms: state(
+      [alarm("lost", "medium", 1, { kind: "technical", technical: "connection-lost" })], ["spo2"]) });
+    expect(explained.map((n) => n.id)).toEqual(["lost"]);
   });
 });
 

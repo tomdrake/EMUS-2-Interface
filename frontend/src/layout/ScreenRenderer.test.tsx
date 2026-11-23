@@ -6,22 +6,31 @@ import type { Design, Screen } from "@/design/types";
 import { ScreenRenderer } from "./ScreenRenderer";
 
 const rows = [
-  { id: "ecg", kind: "parameter", parameter: "hr", trace: "waveform", waveform: "ecg", numerics: ["hr"] },
-  { id: "gap", kind: "spacer", trace: "none" },
-  { id: "hidden", kind: "parameter", parameter: "rr", visible: false },
+  { id: "ecg", kind: "parameter", parameter: "hr", trace: "waveform", waveform: "ecg", numerics: ["hr"],
+    visible: true, height: 1, label: null, method: null, colour: null },
+  { id: "bp", kind: "parameter", parameter: "bp_sys", trace: "trend", waveform: null, label: "blood pressure",
+    numerics: ["bp_sys", "bp_dia", "bp_mean"], visible: true, height: 1, method: null, colour: null },
+  { id: "gap", kind: "spacer", trace: "none", visible: true, height: 0.25, numerics: [] },
+  { id: "hidden", kind: "parameter", parameter: "rr", visible: false, numerics: [] },
 ];
 const split: Screen = {
   id: "split-h", name: "Split",
   layout: { kind: "split", direction: "horizontal", ratio: 0.4, children: [
     { kind: "widget", widget: { id: "news", type: "news2-chart", variant: "bands-dark" } },
-    { kind: "widget", widget: { id: "rows", type: "monitor-rows", row_ids: ["ecg", "gap", "hidden"] } },
+    { kind: "widget", widget: { id: "rows", type: "monitor-rows", numerics_side: "right",
+                                row_ids: ["ecg", "bp", "gap", "hidden"] } },
   ] },
 } as Screen;
 
 beforeEach(() => {
   useUi.setState({
-    stored: { document: { rows, safety: { standby_text: "STANDBY", show_advice: true } } as unknown as Design } as any,
-    registry: { parameters: { hr: { label: "Heart rate", short: "HR", unit: "bpm" } },
+    stored: { document: {
+      rows, safety: { standby_text: "STANDBY", show_advice: true, device_status: "tiles" },
+      labels: { auto_capitalise: true, show_method: true }, tiles: { width_px: 150, equal_row_heights: false },
+    } as unknown as Design } as any,
+    registry: { parameters: { hr: { label: "Heart Rate", short: "HR", unit: "bpm", method: "ECG" },
+                              bp_sys: { label: "Systolic Blood Pressure", short: "SYS", unit: "mmHg", method: "Cuff" } },
+                waveforms: { ecg: { label: "ECG" } },
                 signal_states: { standby: { text: "STANDBY", tone: "inactive" } }, signal_issues: {} } as any,
   });
 });
@@ -40,8 +49,22 @@ describe("ScreenRenderer", () => {
 
   it("lays out visible rows in design order and skips hidden ones", () => {
     render(<ScreenRenderer screen={split} />);
-    expect(dom.getByTestId("row-ecg").textContent).toContain("Heart rate");
     expect(dom.getByTestId("row-gap").className).toContain("row-spacer");
     expect(dom.queryByTestId("row-hidden")).toBeNull();
+  });
+
+  it("names each row with what is measured and how", () => {
+    render(<ScreenRenderer screen={split} />);
+    expect(dom.getByTestId("row-label-ecg").textContent).toBe("Heart Rate - ECG");
+    expect(dom.getByTestId("row-label-bp").textContent).toBe("Blood Pressure - Cuff");
+  });
+
+  it("gives every row the same tile column, with blood pressure in one tile", () => {
+    render(<ScreenRenderer screen={split} />);
+    expect(dom.getByTestId("row-bp").querySelectorAll(".tile")).toHaveLength(1);
+    expect(dom.getByTestId("row-ecg").querySelectorAll(".tile")).toHaveLength(1);
+    const rowsEl = dom.getByTestId("widget-rows").querySelector(".rows") as HTMLElement;
+    expect(rowsEl.style.getPropertyValue("--tile")).toBe("150px");
+    expect(rowsEl.style.getPropertyValue("--tile-slots")).toBe("1");
   });
 });

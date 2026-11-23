@@ -18,7 +18,8 @@ are ready to be implemented, one at a time, in order.
 | All other backend modules and routes | Stubs with docstrings; routes return 501 naming their milestone |
 | Frontend shell: top bar, tab bar, menus, sheets, split layouts, theme | Done |
 | Trace-quality check (noise, movement, flat line, clipping, weak signal) | Done (`backend/app/signal_quality.py`) |
-| Safety display: standby / searching / check sensor / connection lost / poor trace / no data, sound-paused banner, MONITOR banner, device battery and link | Done (`frontend/src/safety/`), driven by test data until M2 supplies live state |
+| Safety display: fixed-size tiles (standby / searching / check sensor / connection lost / poor trace / no data, with the device's battery and link in each), the notification box and feed, sound-paused state | Done (`frontend/src/safety/`), driven by test data until M2 supplies live state |
+| Top-bar buttons (new patient, discharge, dark / light, settings), light and dark theme pair, Title Case labels with method of collection | Done; new patient and discharge sheets are M2 |
 | Frontend widgets and sheets | Placeholders naming their milestone (`frontend/src/widgets`, `frontend/src/studio`) |
 | Generated TypeScript types | Done (`make types`) |
 
@@ -97,8 +98,12 @@ with, then commit. To use a different model for the agents, pass it as an argume
 10. **Safety states are not optional** (`docs/human-factors.md`). Every number goes
     through `<Numeric>`; never render a blank or `--`. Never show a value unless its
     signal state is `ok` or `poor-signal`. Never raise a patient alarm from missing
-    data. Do not add a way to hide the paused banner, technical alarms or device
-    warnings.
+    data. Do not add a way to hide the notification box, the paused state,
+    technical alarms or device warnings. Nothing that arrives may move or resize
+    the layout: no banners that push content, and tiles keep one size.
+11. **Names are Title Case; sentences are not.** Pass labels, buttons and headings
+    through `label()` from `frontend/src/design/text.ts`. Never pass prose (advice,
+    explanations, alarm messages) through it.
 
 ## Things that need a person
 

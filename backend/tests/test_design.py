@@ -71,11 +71,90 @@ def test_patient_name_and_clock_cannot_be_removed(icu_design):
 
 def test_silence_and_settings_buttons_cannot_be_removed_or_duplicated(icu_design):
     def drop(kind):
-        return lambda d: d.__setitem__("tabs", [t for t in d["tabs"] if t["action"]["type"] != kind])
+        def run(d):
+            d["tabs"] = [t for t in d["tabs"] if t["action"]["type"] != kind]
+            d["top_bar"]["buttons"] = [b for b in d["top_bar"]["buttons"]
+                                       if b["action"]["type"] != kind]
+        return run
     assert "silence-alarms" in _broken(icu_design, drop("silence-alarms"))
     assert "open-settings" in _broken(icu_design, drop("open-settings"))
     assert "silence-alarms" in _broken(icu_design, lambda d: d["tabs"].__setitem__(0, {
         "id": "silence-2", "label": "Silence", "action": {"type": "silence-alarms"}}))
+    # A second settings button in the tab bar duplicates the one in the top bar.
+    assert "open-settings" in _broken(icu_design, lambda d: d["tabs"].__setitem__(0, {
+        "id": "settings-2", "label": "Settings", "action": {"type": "open-settings"}}))
+
+
+def test_required_buttons_can_move_between_the_tab_bar_and_the_top_bar(icu_design):
+    doc = copy.deepcopy(icu_design)
+    settings = next(b for b in doc["top_bar"]["buttons"] if b["action"]["type"] == "open-settings")
+    doc["top_bar"]["buttons"].remove(settings)
+    doc["tabs"].append(settings)
+    silence = next(t for t in doc["tabs"] if t["action"]["type"] == "silence-alarms")
+    doc["tabs"].remove(silence)
+    doc["top_bar"]["buttons"].append(silence)
+    d = Design.model_validate(doc)
+    assert max_touch_depth(d) <= 2
+
+
+def test_default_top_bar_has_patient_theme_and_cog_buttons():
+    for slug, d in validated_defaults().items():
+        by_id = {b.id: b for b in d.top_bar.buttons}
+        assert list(by_id) == ["new-patient", "discharge", "theme", "settings"], slug
+        assert by_id["settings"].icon == "settings" and by_id["settings"].action.type == "open-settings"
+        assert by_id["theme"].action.type == "toggle-theme"
+        assert by_id["new-patient"].action.sheet == "new-patient"
+        assert by_id["discharge"].action.sheet == "discharge-patient"
+        assert not [t for t in d.tabs if t.action.type == "open-settings"], "settings left the tab bar"
+        assert d.top_bar.height_px >= 48
+
+
+def test_dark_and_light_themes_are_a_pair(icu_design):
+    for slug, d in validated_defaults().items():
+        assert {d.theme.mode, d.alt_theme.mode} == {"dark", "light"}, slug
+    assert "one dark and one light" in _broken(
+        icu_design, lambda d: d["alt_theme"].__setitem__("mode", "dark"))
+    red = icu_design["alt_theme"]["colours"]["alarm_high"]
+    assert "alt_theme" in _broken(
+        icu_design, lambda d: d["alt_theme"]["colours"].__setitem__("technical", red))
+
+
+def test_notification_box_can_move_but_not_be_removed(icu_design):
+    positions = json_schema()["$defs"]["NotificationsDisplay"]["properties"]["position"]["enum"]
+    assert set(positions) == {"tab-bar-left", "tab-bar-right", "top-bar", "strip-top",
+                              "strip-above-tabs"}
+    assert "none" not in positions and "hidden" not in positions
+    for position in positions:
+        doc = copy.deepcopy(icu_design)
+        doc["notifications"] = {"position": position, "order": "recent-first"}
+        Design.model_validate(doc)
+    _broken(icu_design, lambda d: d.__setitem__("notifications", {"position": "none"}))
+    _broken(icu_design, lambda d: d.__setitem__("notifications", {"empty_text": ""}))
+    assert validated_defaults()["icu-monitor"].notifications.empty_text == "No Notifications"
+
+
+def test_labels_methods_and_tiles(icu_design):
+    d = validated_defaults()["icu-monitor"]
+    assert d.labels.auto_capitalise and d.labels.show_method
+    assert d.safety.device_status == "tiles", "battery and link sit with the value they measure"
+    doc = copy.deepcopy(icu_design)
+    doc["rows"][2]["method"] = "Pleth"          # Respiratory Rate - Pleth
+    doc["rows"][0]["label"] = "Heart Rate"
+    assert d.tiles.equal_row_heights, "tiles are identical by default"
+    doc["tiles"] = {"width_px": 180, "equal_row_heights": False}
+    Design.model_validate(doc)
+    _broken(icu_design, lambda x: x.__setitem__("tiles", {"width_px": 40}))
+    _broken(icu_design, lambda x: x["rows"][0].__setitem__("method", ""))
+
+
+def test_registry_labels_are_title_case_with_a_method():
+    small = {"and", "of", "the", "or", "to", "in", "on", "for", "with", "by", "at", "a", "an"}
+    for p in registry.PARAMETERS.values():
+        for word in p.label.replace("(", " ").replace(")", " ").split():
+            assert word in small or word[0].isupper() or word[0].isdigit(), (p.id, p.label)
+    assert registry.PARAMETERS["hr"].method == "ECG"
+    assert registry.PARAMETERS["spo2"].method == "Pleth"
+    assert all(p.method for p in registry.PARAMETERS.values() if p.kind != "utility")
 
 
 def test_settings_menu_must_exist(icu_design):
@@ -124,18 +203,18 @@ def test_touch_target_cannot_go_below_48(icu_design):
 
 
 def test_safety_states_can_be_restyled_but_not_hidden_or_confused(icu_design):
-    from app.models.design import SafetyDisplay
-    fields = set(SafetyDisplay.model_fields)
-    assert not {f for f in fields if f.startswith(("hide", "show_silence", "show_technical"))}, \
-        "no switch may hide the paused banner or technical alarms"
+    from app.models.design import NotificationsDisplay, SafetyDisplay
+    fields = set(SafetyDisplay.model_fields) | set(NotificationsDisplay.model_fields)
+    assert not {f for f in fields if f.startswith(("hide", "enabled", "show_technical"))}, \
+        "no switch may hide the notification box, the paused state or technical alarms"
     doc = copy.deepcopy(icu_design)
-    doc["safety"] = {"silence_banner": "above-tabs", "standby_text": "NOT CONNECTED",
-                     "stale_values": "dim-with-age"}
+    doc["safety"] = {"standby_text": "NOT CONNECTED", "stale_values": "dim-with-age",
+                     "device_status": "tiles-and-top-bar"}
     Design.model_validate(doc)
     # Standby wording is a fixed choice: it cannot be set to something value-like.
     _broken(icu_design, lambda d: d.__setitem__("safety", {"standby_text": "--"}))
     _broken(icu_design, lambda d: d.__setitem__("safety", {"standby_text": "98"}))
-    _broken(icu_design, lambda d: d.__setitem__("safety", {"silence_banner": "none"}))
+    _broken(icu_design, lambda d: d.__setitem__("safety", {"device_status": "none"}))
 
 
 def test_state_colours_must_stay_distinct_and_visible(icu_design):

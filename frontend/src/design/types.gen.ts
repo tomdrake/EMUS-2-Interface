@@ -7,14 +7,17 @@ export interface Design {
     [k: string]: AlarmDefault;
   };
   alarm_presentation: AlarmPresentation;
+  alt_theme: Theme;
   description: string;
   forecast: Forecast;
   /**
    * Lowercase id: letters, digits, hyphens.
    */
   home_screen: string;
+  labels: LabelDisplay;
   menus: Menu[];
   name: string;
+  notifications: NotificationsDisplay;
   rows: Row[];
   safety: SafetyDisplay;
   schema_version: 1;
@@ -29,15 +32,16 @@ export interface Design {
    * @maxItems 9
    */
   tabs:
-    | [Tab, Tab]
-    | [Tab, Tab, Tab]
-    | [Tab, Tab, Tab, Tab]
-    | [Tab, Tab, Tab, Tab, Tab]
-    | [Tab, Tab, Tab, Tab, Tab, Tab]
-    | [Tab, Tab, Tab, Tab, Tab, Tab, Tab]
-    | [Tab, Tab, Tab, Tab, Tab, Tab, Tab, Tab]
-    | [Tab, Tab, Tab, Tab, Tab, Tab, Tab, Tab, Tab];
-  theme: Theme;
+    | [Button, Button]
+    | [Button, Button, Button]
+    | [Button, Button, Button, Button]
+    | [Button, Button, Button, Button, Button]
+    | [Button, Button, Button, Button, Button, Button]
+    | [Button, Button, Button, Button, Button, Button, Button]
+    | [Button, Button, Button, Button, Button, Button, Button, Button]
+    | [Button, Button, Button, Button, Button, Button, Button, Button, Button];
+  theme: Theme1;
+  tiles: TileDisplay;
   top_bar: TopBar;
 }
 /**
@@ -76,6 +80,140 @@ export interface AlarmPresentation {
   flash_numerics: boolean;
   show_silence_countdown: true;
   sound: "standard" | "soft" | "off-in-demo";
+}
+/**
+ * The other side of the dark / light switch.
+ */
+export interface Theme {
+  colours: ThemeColours;
+  corner_radius_px: number;
+  density: "compact" | "comfortable" | "large";
+  font_family: "system" | "inter" | "atkinson-hyperlegible" | "mono";
+  font_scale: number;
+  /**
+   * Which side of the dark / light switch this theme is.
+   */
+  mode: "dark" | "light";
+  news_bands: NewsBandColours;
+  /**
+   * Size of the big numbers.
+   */
+  numeric_scale: number;
+  /**
+   * Trace and numeric colour per parameter.
+   */
+  parameter_colours: {
+    /**
+     * Hex colour, #RRGGBB or #RRGGBBAA.
+     */
+    [k: string]: string;
+  };
+  preset: "icu-dark" | "news-paper" | "high-contrast" | "colour-blind-safe" | "custom";
+  /**
+   * Minimum height/width of anything tappable.
+   */
+  touch_target_px: number;
+  trace_width: number;
+}
+/**
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "ThemeColours".
+ */
+export interface ThemeColours {
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  accent: string;
+  /**
+   * Highlight behind AI interpretation text.
+   */
+  ai_highlight: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  alarm_high: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  alarm_low: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  alarm_medium: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  background: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  border: string;
+  /**
+   * Dashed forecast lines and bands. Keep distinct from the NEWS score colours.
+   */
+  forecast: string;
+  /**
+   * STANDBY and SEARCHING text: nothing is being measured.
+   */
+  inactive: string;
+  /**
+   * The alarm-sound-paused state: the silence button and its banner. Conventionally yellow.
+   */
+  silenced: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  surface: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  surface_alt: string;
+  /**
+   * Technical alarms and signal problems (connection, battery, sensor, poor trace). Must differ from the patient alarm colours.
+   */
+  technical: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  text: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  text_muted: string;
+}
+/**
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "NewsBandColours".
+ */
+export interface NewsBandColours {
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  grid: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  header: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  header_text: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  score_0: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  score_1: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  score_2: string;
+  /**
+   * Hex colour, #RRGGBB or #RRGGBBAA.
+   */
+  score_3: string;
 }
 /**
  * This interface was referenced by `Design`'s JSON-Schema
@@ -177,6 +315,16 @@ export interface CertaintyDisplay {
   show_metric_name: boolean;
 }
 /**
+ * How names are written on screen.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "LabelDisplay".
+ */
+export interface LabelDisplay {
+  auto_capitalise: boolean;
+  show_method: boolean;
+}
+/**
  * This interface was referenced by `Design`'s JSON-Schema
  * via the `definition` "Menu".
  */
@@ -222,7 +370,7 @@ export interface Menu {
  * via the `definition` "MenuItem".
  */
 export interface MenuItem {
-  action: ScreenAction | SheetAction | SilenceAction | SettingsAction;
+  action: ScreenAction | SheetAction | SilenceAction | SettingsAction | ThemeToggleAction;
   icon:
     | "monitor"
     | "chart"
@@ -249,6 +397,10 @@ export interface MenuItem {
     | "chat"
     | "history"
     | "info"
+    | "new-patient"
+    | "discharge"
+    | "theme"
+    | "bell"
     | "none";
   /**
    * Lowercase id: letters, digits, hyphens.
@@ -278,6 +430,8 @@ export interface SheetAction {
     | "alarm-limits"
     | "oxygen"
     | "patient"
+    | "new-patient"
+    | "discharge-patient"
     | "record-observations"
     | "finding-explain"
     | "forecast-horizon"
@@ -315,6 +469,38 @@ export interface SettingsAction {
   type: "open-settings";
 }
 /**
+ * Switches this screen between the design's dark and light themes. A local
+ * preference of the screen (day / night); it does not create a design version.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "ThemeToggleAction".
+ */
+export interface ThemeToggleAction {
+  type: "toggle-theme";
+}
+/**
+ * The notification box: the one place alarms and monitoring problems are listed.
+ *
+ * It is always on screen and always the same size. It says 'No Notifications' or
+ * shows the most important item with a count; touching it opens the full list
+ * over the screen. Nothing that arrives may move or resize the rest of the monitor.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "NotificationsDisplay".
+ */
+export interface NotificationsDisplay {
+  empty_text: "No Notifications" | "All Clear" | "No Alerts";
+  feed_max_items: number;
+  /**
+   * Flash at the item's priority rate.
+   */
+  flash: boolean;
+  order: "severity-then-recent" | "recent-first";
+  position: "tab-bar-left" | "tab-bar-right" | "top-bar" | "strip-top" | "strip-above-tabs";
+  show_count: boolean;
+  size: "standard" | "wide";
+}
+/**
  * One monitoring item with its trace and numbers.
  *
  * This interface was referenced by `Design`'s JSON-Schema
@@ -338,6 +524,10 @@ export interface Row {
    * Overrides the registry label.
    */
   label: string | null;
+  /**
+   * How it is measured, shown after the label as 'Heart Rate - ECG'. Overrides the default (the row's waveform, else the registry method).
+   */
+  method: string | null;
   /**
    * Numbers shown at the right of the row, largest first.
    *
@@ -587,18 +777,16 @@ export interface Row {
  *
  * Only presentation is adjustable here. That each state is shown, and shown
  * differently from every other state, is fixed: there is no option to hide the
- * alarm-paused banner, a technical alarm, a battery warning or a lost signal.
+ * alarm-paused state, a technical alarm, a battery warning or a lost signal.
  *
  * This interface was referenced by `Design`'s JSON-Schema
  * via the `definition` "SafetyDisplay".
  */
 export interface SafetyDisplay {
-  device_status: "top-bar" | "top-bar-and-rows";
+  device_status: "tiles" | "top-bar" | "tiles-and-top-bar";
   dim_poor_traces: boolean;
   show_advice: boolean;
   show_battery_percent: boolean;
-  silence_banner: "top" | "above-tabs";
-  silence_banner_pulse: boolean;
   stale_values: "hide" | "dim-with-age";
   standby_text: "STANDBY" | "NOT CONNECTED" | "OFF";
 }
@@ -849,11 +1037,13 @@ export interface TabBar {
   show_labels: boolean;
 }
 /**
+ * A button in the tab bar or the top bar. Where it sits is the designer's choice.
+ *
  * This interface was referenced by `Design`'s JSON-Schema
- * via the `definition` "Tab".
+ * via the `definition` "Button".
  */
-export interface Tab {
-  action: ScreenAction | MenuAction | SheetAction | SilenceAction | SettingsAction;
+export interface Button {
+  action: ScreenAction | MenuAction | SheetAction | SilenceAction | SettingsAction | ThemeToggleAction;
   colour: string | null;
   icon:
     | "monitor"
@@ -881,6 +1071,10 @@ export interface Tab {
     | "chat"
     | "history"
     | "info"
+    | "new-patient"
+    | "discharge"
+    | "theme"
+    | "bell"
     | "none";
   /**
    * Lowercase id: letters, digits, hyphens.
@@ -900,15 +1094,18 @@ export interface MenuAction {
   type: "menu";
 }
 /**
- * This interface was referenced by `Design`'s JSON-Schema
- * via the `definition` "Theme".
+ * The theme shown by default.
  */
-export interface Theme {
+export interface Theme1 {
   colours: ThemeColours;
   corner_radius_px: number;
   density: "compact" | "comfortable" | "large";
   font_family: "system" | "inter" | "atkinson-hyperlegible" | "mono";
   font_scale: number;
+  /**
+   * Which side of the dark / light switch this theme is.
+   */
+  mode: "dark" | "light";
   news_bands: NewsBandColours;
   /**
    * Size of the big numbers.
@@ -931,110 +1128,35 @@ export interface Theme {
   trace_width: number;
 }
 /**
+ * The square holding one number. Every tile on the monitor is the same width,
+ * and a tile never changes size whatever it shows: a number, STANDBY, CONNECTION
+ * LOST and a low-battery warning all fit the same box.
+ *
  * This interface was referenced by `Design`'s JSON-Schema
- * via the `definition` "ThemeColours".
+ * via the `definition` "TileDisplay".
  */
-export interface ThemeColours {
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  accent: string;
-  /**
-   * Highlight behind AI interpretation text.
-   */
-  ai_highlight: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  alarm_high: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  alarm_low: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  alarm_medium: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  background: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  border: string;
-  /**
-   * Dashed forecast lines and bands. Keep distinct from the NEWS score colours.
-   */
-  forecast: string;
-  /**
-   * STANDBY and SEARCHING text: nothing is being measured.
-   */
-  inactive: string;
-  /**
-   * The alarm-sound-paused state: the silence button and its banner. Conventionally yellow.
-   */
-  silenced: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  surface: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  surface_alt: string;
-  /**
-   * Technical alarms and signal problems (connection, battery, sensor, poor trace). Must differ from the patient alarm colours.
-   */
-  technical: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  text: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  text_muted: string;
-}
-/**
- * This interface was referenced by `Design`'s JSON-Schema
- * via the `definition` "NewsBandColours".
- */
-export interface NewsBandColours {
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  grid: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  header: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  header_text: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  score_0: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  score_1: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  score_2: string;
-  /**
-   * Hex colour, #RRGGBB or #RRGGBBAA.
-   */
-  score_3: string;
+export interface TileDisplay {
+  equal_row_heights: boolean;
+  width_px: number;
 }
 /**
  * This interface was referenced by `Design`'s JSON-Schema
  * via the `definition` "TopBar".
  */
 export interface TopBar {
+  /**
+   * Buttons at the right of the top bar, left to right (for example new patient, discharge, dark / light, settings).
+   *
+   * @maxItems 6
+   */
+  buttons:
+    | []
+    | [Button]
+    | [Button, Button]
+    | [Button, Button, Button]
+    | [Button, Button, Button, Button]
+    | [Button, Button, Button, Button, Button]
+    | [Button, Button, Button, Button, Button, Button];
   clock_format: "24h" | "12h";
   /**
    * Left to right. Must include 'name' and 'clock'.
@@ -1058,5 +1180,41 @@ export interface TopBar {
     | "weight"
   )[];
   height_px: number;
+  show_button_labels: boolean;
   show_seconds: boolean;
+}
+/**
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "Theme".
+ */
+export interface Theme2 {
+  colours: ThemeColours;
+  corner_radius_px: number;
+  density: "compact" | "comfortable" | "large";
+  font_family: "system" | "inter" | "atkinson-hyperlegible" | "mono";
+  font_scale: number;
+  /**
+   * Which side of the dark / light switch this theme is.
+   */
+  mode: "dark" | "light";
+  news_bands: NewsBandColours;
+  /**
+   * Size of the big numbers.
+   */
+  numeric_scale: number;
+  /**
+   * Trace and numeric colour per parameter.
+   */
+  parameter_colours: {
+    /**
+     * Hex colour, #RRGGBB or #RRGGBBAA.
+     */
+    [k: string]: string;
+  };
+  preset: "icu-dark" | "news-paper" | "high-contrast" | "colour-blind-safe" | "custom";
+  /**
+   * Minimum height/width of anything tappable.
+   */
+  touch_target_px: number;
+  trace_width: number;
 }

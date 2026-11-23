@@ -50,6 +50,7 @@ export interface Registry {
     id: string; label: string; short: string; unit: string; decimals: number;
     kind: string; default_low: number | null; default_high: number | null;
     min_value: number | null; max_value: number | null; waveforms: string[]; note: string;
+    method: string;
   }>;
   waveforms: Record<string, { label: string; hz: number; unit: string; parameter: string }>;
   o2_devices: Record<string, string>;

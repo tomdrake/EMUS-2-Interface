@@ -1,3 +1,5 @@
+import { useDesign } from "@/app/store";
+import { label } from "@/design/text";
 import type { LayoutNode, Screen } from "@/design/types";
 import { WIDGETS } from "@/widgets";
 
@@ -12,7 +14,7 @@ export function ScreenRenderer({ screen }: { screen: Screen }) {
 
 function Node({ node }: { node: LayoutNode }) {
   if (node.kind === "split") {
-    const ratio = node.ratio ?? 0.5;
+    const ratio = node.ratio;
     const [a, b] = node.children as [LayoutNode, LayoutNode];
     return (
       <div className={`split split-${node.direction}`} data-testid="split">
@@ -21,12 +23,13 @@ function Node({ node }: { node: LayoutNode }) {
       </div>
     );
   }
+  const design = useDesign()!;
   const widget = node.widget;
   const Component = WIDGETS[widget.type] as (p: { widget: typeof widget }) => JSX.Element;
   return (
     <section className={`widget widget-${widget.type}`} data-widget={widget.id}
              data-testid={`widget-${widget.id}`}>
-      {widget.title && <h2 className="widget-title">{widget.title}</h2>}
+      {widget.title && <h2 className="widget-title">{label(widget.title, design)}</h2>}
       <Component widget={widget} />
     </section>
   );

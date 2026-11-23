@@ -1,10 +1,12 @@
 // Hand-written conveniences over the generated design types. The generated file
 // (types.gen.ts) is the source of truth for shapes; add only aliases/unions here.
 import type {
-  Design, Menu, MenuItem, Row, Screen, SplitNode, Tab, Theme, WidgetNode,
+  Button, Design, Menu, MenuItem, Row, Screen, SplitNode, Theme, WidgetNode,
 } from "./types.gen";
 
-export type { Design, Menu, MenuItem, Row, Screen, SplitNode, Tab, Theme, WidgetNode };
+export type { Button, Design, Menu, MenuItem, Row, Screen, SplitNode, Theme, WidgetNode };
+/** A tab is a button in the tab bar. */
+export type Tab = Button;
 export type * from "./types.gen";
 
 export type LayoutNode = WidgetNode | SplitNode;
@@ -12,7 +14,8 @@ export type Widget = WidgetNode["widget"];
 export type WidgetType = Widget["type"];
 export type WidgetOf<T extends WidgetType> = Extract<Widget, { type: T }>;
 export type ParameterId = NonNullable<Row["parameter"]>;
-export type TabAction = Tab["action"];
+export type TabAction = Button["action"];
+export type ThemeMode = Theme["mode"];
 export type MenuItemAction = MenuItem["action"];
 export type Action = TabAction | MenuItemAction;
 export type SheetId = Extract<Action, { type: "sheet" }>["sheet"];

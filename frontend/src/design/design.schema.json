@@ -252,6 +252,118 @@
       "title": "AlarmsWidget",
       "type": "object"
     },
+    "Button": {
+      "additionalProperties": false,
+      "description": "A button in the tab bar or the top bar. Where it sits is the designer's choice.",
+      "properties": {
+        "action": {
+          "discriminator": {
+            "mapping": {
+              "menu": "#/$defs/MenuAction",
+              "open-settings": "#/$defs/SettingsAction",
+              "screen": "#/$defs/ScreenAction",
+              "sheet": "#/$defs/SheetAction",
+              "silence-alarms": "#/$defs/SilenceAction",
+              "toggle-theme": "#/$defs/ThemeToggleAction"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ScreenAction"
+            },
+            {
+              "$ref": "#/$defs/MenuAction"
+            },
+            {
+              "$ref": "#/$defs/SheetAction"
+            },
+            {
+              "$ref": "#/$defs/SilenceAction"
+            },
+            {
+              "$ref": "#/$defs/SettingsAction"
+            },
+            {
+              "$ref": "#/$defs/ThemeToggleAction"
+            }
+          ],
+          "title": "Action"
+        },
+        "colour": {
+          "anyOf": [
+            {
+              "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+              "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Colour"
+        },
+        "icon": {
+          "default": "none",
+          "enum": [
+            "monitor",
+            "chart",
+            "split",
+            "labs",
+            "imaging",
+            "ai",
+            "forecast",
+            "alarm",
+            "alarm-off",
+            "settings",
+            "patient",
+            "oxygen",
+            "timer",
+            "heart",
+            "lungs",
+            "drop",
+            "thermometer",
+            "activity",
+            "sleep",
+            "fall",
+            "palette",
+            "layout",
+            "chat",
+            "history",
+            "info",
+            "new-patient",
+            "discharge",
+            "theme",
+            "bell",
+            "none"
+          ],
+          "title": "Icon",
+          "type": "string"
+        },
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "icon",
+        "action",
+        "colour"
+      ],
+      "title": "Button",
+      "type": "object"
+    },
     "CertaintyDisplay": {
       "additionalProperties": false,
       "description": "Which certainty metric drives the display, and how it is shown.",
@@ -687,6 +799,28 @@
       "title": "ImagingWidget",
       "type": "object"
     },
+    "LabelDisplay": {
+      "additionalProperties": false,
+      "description": "How names are written on screen.",
+      "properties": {
+        "auto_capitalise": {
+          "default": true,
+          "title": "Auto Capitalise",
+          "type": "boolean"
+        },
+        "show_method": {
+          "default": true,
+          "title": "Show Method",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "auto_capitalise",
+        "show_method"
+      ],
+      "title": "LabelDisplay",
+      "type": "object"
+    },
     "LabsWidget": {
       "additionalProperties": false,
       "properties": {
@@ -837,7 +971,8 @@
               "open-settings": "#/$defs/SettingsAction",
               "screen": "#/$defs/ScreenAction",
               "sheet": "#/$defs/SheetAction",
-              "silence-alarms": "#/$defs/SilenceAction"
+              "silence-alarms": "#/$defs/SilenceAction",
+              "toggle-theme": "#/$defs/ThemeToggleAction"
             },
             "propertyName": "type"
           },
@@ -853,6 +988,9 @@
             },
             {
               "$ref": "#/$defs/SettingsAction"
+            },
+            {
+              "$ref": "#/$defs/ThemeToggleAction"
             }
           ],
           "title": "Action"
@@ -885,6 +1023,10 @@
             "chat",
             "history",
             "info",
+            "new-patient",
+            "discharge",
+            "theme",
+            "bell",
             "none"
           ],
           "title": "Icon",
@@ -1124,6 +1266,81 @@
       "title": "NewsBandColours",
       "type": "object"
     },
+    "NotificationsDisplay": {
+      "additionalProperties": false,
+      "description": "The notification box: the one place alarms and monitoring problems are listed.\n\nIt is always on screen and always the same size. It says 'No Notifications' or\nshows the most important item with a count; touching it opens the full list\nover the screen. Nothing that arrives may move or resize the rest of the monitor.",
+      "properties": {
+        "empty_text": {
+          "default": "No Notifications",
+          "enum": [
+            "No Notifications",
+            "All Clear",
+            "No Alerts"
+          ],
+          "title": "Empty Text",
+          "type": "string"
+        },
+        "feed_max_items": {
+          "default": 12,
+          "maximum": 40,
+          "minimum": 4,
+          "title": "Feed Max Items",
+          "type": "integer"
+        },
+        "flash": {
+          "default": true,
+          "description": "Flash at the item's priority rate.",
+          "title": "Flash",
+          "type": "boolean"
+        },
+        "order": {
+          "default": "severity-then-recent",
+          "enum": [
+            "severity-then-recent",
+            "recent-first"
+          ],
+          "title": "Order",
+          "type": "string"
+        },
+        "position": {
+          "default": "tab-bar-left",
+          "enum": [
+            "tab-bar-left",
+            "tab-bar-right",
+            "top-bar",
+            "strip-top",
+            "strip-above-tabs"
+          ],
+          "title": "Position",
+          "type": "string"
+        },
+        "show_count": {
+          "default": true,
+          "title": "Show Count",
+          "type": "boolean"
+        },
+        "size": {
+          "default": "standard",
+          "enum": [
+            "standard",
+            "wide"
+          ],
+          "title": "Size",
+          "type": "string"
+        }
+      },
+      "required": [
+        "position",
+        "order",
+        "empty_text",
+        "show_count",
+        "size",
+        "flash",
+        "feed_max_items"
+      ],
+      "title": "NotificationsDisplay",
+      "type": "object"
+    },
     "OxygenWidget": {
       "additionalProperties": false,
       "properties": {
@@ -1258,6 +1475,21 @@
           "description": "Overrides the registry label.",
           "title": "Label"
         },
+        "method": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How it is measured, shown after the label as 'Heart Rate - ECG'. Overrides the default (the row's waveform, else the registry method).",
+          "title": "Method"
+        },
         "numerics": {
           "description": "Numbers shown at the right of the row, largest first.",
           "items": {
@@ -1383,6 +1615,7 @@
         "kind",
         "parameter",
         "label",
+        "method",
         "colour",
         "trace",
         "waveform",
@@ -1399,13 +1632,14 @@
     },
     "SafetyDisplay": {
       "additionalProperties": false,
-      "description": "How monitoring problems are shown. See docs/human-factors.md.\n\nOnly presentation is adjustable here. That each state is shown, and shown\ndifferently from every other state, is fixed: there is no option to hide the\nalarm-paused banner, a technical alarm, a battery warning or a lost signal.",
+      "description": "How monitoring problems are shown. See docs/human-factors.md.\n\nOnly presentation is adjustable here. That each state is shown, and shown\ndifferently from every other state, is fixed: there is no option to hide the\nalarm-paused state, a technical alarm, a battery warning or a lost signal.",
       "properties": {
         "device_status": {
-          "default": "top-bar-and-rows",
+          "default": "tiles",
           "enum": [
+            "tiles",
             "top-bar",
-            "top-bar-and-rows"
+            "tiles-and-top-bar"
           ],
           "title": "Device Status",
           "type": "string"
@@ -1423,20 +1657,6 @@
         "show_battery_percent": {
           "default": true,
           "title": "Show Battery Percent",
-          "type": "boolean"
-        },
-        "silence_banner": {
-          "default": "top",
-          "enum": [
-            "top",
-            "above-tabs"
-          ],
-          "title": "Silence Banner",
-          "type": "string"
-        },
-        "silence_banner_pulse": {
-          "default": true,
-          "title": "Silence Banner Pulse",
           "type": "boolean"
         },
         "stale_values": {
@@ -1460,8 +1680,6 @@
         }
       },
       "required": [
-        "silence_banner",
-        "silence_banner_pulse",
         "standby_text",
         "stale_values",
         "show_advice",
@@ -1563,6 +1781,8 @@
             "alarm-limits",
             "oxygen",
             "patient",
+            "new-patient",
+            "discharge-patient",
             "record-observations",
             "finding-explain",
             "forecast-horizon",
@@ -1721,109 +1941,6 @@
       "title": "Sweep",
       "type": "object"
     },
-    "Tab": {
-      "additionalProperties": false,
-      "properties": {
-        "action": {
-          "discriminator": {
-            "mapping": {
-              "menu": "#/$defs/MenuAction",
-              "open-settings": "#/$defs/SettingsAction",
-              "screen": "#/$defs/ScreenAction",
-              "sheet": "#/$defs/SheetAction",
-              "silence-alarms": "#/$defs/SilenceAction"
-            },
-            "propertyName": "type"
-          },
-          "oneOf": [
-            {
-              "$ref": "#/$defs/ScreenAction"
-            },
-            {
-              "$ref": "#/$defs/MenuAction"
-            },
-            {
-              "$ref": "#/$defs/SheetAction"
-            },
-            {
-              "$ref": "#/$defs/SilenceAction"
-            },
-            {
-              "$ref": "#/$defs/SettingsAction"
-            }
-          ],
-          "title": "Action"
-        },
-        "colour": {
-          "anyOf": [
-            {
-              "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
-              "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Colour"
-        },
-        "icon": {
-          "default": "none",
-          "enum": [
-            "monitor",
-            "chart",
-            "split",
-            "labs",
-            "imaging",
-            "ai",
-            "forecast",
-            "alarm",
-            "alarm-off",
-            "settings",
-            "patient",
-            "oxygen",
-            "timer",
-            "heart",
-            "lungs",
-            "drop",
-            "thermometer",
-            "activity",
-            "sleep",
-            "fall",
-            "palette",
-            "layout",
-            "chat",
-            "history",
-            "info",
-            "none"
-          ],
-          "title": "Icon",
-          "type": "string"
-        },
-        "id": {
-          "description": "Lowercase id: letters, digits, hyphens.",
-          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
-          "title": "Id",
-          "type": "string"
-        },
-        "label": {
-          "maxLength": 40,
-          "minLength": 1,
-          "title": "Label",
-          "type": "string"
-        }
-      },
-      "required": [
-        "id",
-        "label",
-        "icon",
-        "action",
-        "colour"
-      ],
-      "title": "Tab",
-      "type": "object"
-    },
     "TabBar": {
       "additionalProperties": false,
       "properties": {
@@ -1941,6 +2058,15 @@
           "title": "Font Scale",
           "type": "number"
         },
+        "mode": {
+          "description": "Which side of the dark / light switch this theme is.",
+          "enum": [
+            "dark",
+            "light"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
         "news_bands": {
           "$ref": "#/$defs/NewsBandColours"
         },
@@ -2012,6 +2138,7 @@
       },
       "required": [
         "preset",
+        "mode",
         "colours",
         "parameter_colours",
         "news_bands",
@@ -2140,9 +2267,59 @@
       "title": "ThemeColours",
       "type": "object"
     },
+    "ThemeToggleAction": {
+      "additionalProperties": false,
+      "description": "Switches this screen between the design's dark and light themes. A local\npreference of the screen (day / night); it does not create a design version.",
+      "properties": {
+        "type": {
+          "const": "toggle-theme",
+          "default": "toggle-theme",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ThemeToggleAction",
+      "type": "object"
+    },
+    "TileDisplay": {
+      "additionalProperties": false,
+      "description": "The square holding one number. Every tile on the monitor is the same width,\nand a tile never changes size whatever it shows: a number, STANDBY, CONNECTION\nLOST and a low-battery warning all fit the same box.",
+      "properties": {
+        "equal_row_heights": {
+          "default": true,
+          "title": "Equal Row Heights",
+          "type": "boolean"
+        },
+        "width_px": {
+          "default": 150,
+          "maximum": 260,
+          "minimum": 110,
+          "title": "Width Px",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "width_px",
+        "equal_row_heights"
+      ],
+      "title": "TileDisplay",
+      "type": "object"
+    },
     "TopBar": {
       "additionalProperties": false,
       "properties": {
+        "buttons": {
+          "description": "Buttons at the right of the top bar, left to right (for example new patient, discharge, dark / light, settings).",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "maxItems": 6,
+          "title": "Buttons",
+          "type": "array"
+        },
         "clock_format": {
           "default": "24h",
           "enum": [
@@ -2179,11 +2356,16 @@
           "type": "array"
         },
         "height_px": {
-          "default": 56,
+          "default": 64,
           "maximum": 96,
-          "minimum": 40,
+          "minimum": 48,
           "title": "Height Px",
           "type": "integer"
+        },
+        "show_button_labels": {
+          "default": true,
+          "title": "Show Button Labels",
+          "type": "boolean"
         },
         "show_seconds": {
           "default": true,
@@ -2195,7 +2377,9 @@
         "fields",
         "clock_format",
         "show_seconds",
-        "height_px"
+        "height_px",
+        "buttons",
+        "show_button_labels"
       ],
       "title": "TopBar",
       "type": "object"
@@ -2308,6 +2492,10 @@
     "alarm_presentation": {
       "$ref": "#/$defs/AlarmPresentation"
     },
+    "alt_theme": {
+      "$ref": "#/$defs/Theme",
+      "description": "The other side of the dark / light switch."
+    },
     "description": {
       "default": "",
       "maxLength": 400,
@@ -2323,6 +2511,9 @@
       "title": "Home Screen",
       "type": "string"
     },
+    "labels": {
+      "$ref": "#/$defs/LabelDisplay"
+    },
     "menus": {
       "items": {
         "$ref": "#/$defs/Menu"
@@ -2335,6 +2526,9 @@
       "minLength": 1,
       "title": "Name",
       "type": "string"
+    },
+    "notifications": {
+      "$ref": "#/$defs/NotificationsDisplay"
     },
     "rows": {
       "items": {
@@ -2368,7 +2562,7 @@
     },
     "tabs": {
       "items": {
-        "$ref": "#/$defs/Tab"
+        "$ref": "#/$defs/Button"
       },
       "maxItems": 9,
       "minItems": 2,
@@ -2376,7 +2570,11 @@
       "type": "array"
     },
     "theme": {
-      "$ref": "#/$defs/Theme"
+      "$ref": "#/$defs/Theme",
+      "description": "The theme shown by default."
+    },
+    "tiles": {
+      "$ref": "#/$defs/TileDisplay"
     },
     "top_bar": {
       "$ref": "#/$defs/TopBar"
@@ -2387,6 +2585,7 @@
     "name",
     "description",
     "theme",
+    "alt_theme",
     "top_bar",
     "tab_bar",
     "tabs",
@@ -2398,6 +2597,9 @@
     "alarm_defaults",
     "alarm_presentation",
     "safety",
+    "labels",
+    "tiles",
+    "notifications",
     "ai",
     "forecast"
   ],

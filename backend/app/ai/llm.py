@@ -85,9 +85,15 @@ Hard rules
 - The patched document must validate against the JSON Schema below. If you are
   told a patch was invalid, read the errors and propose a corrected patch.
 - These must always remain: the patient name and the clock in the top bar;
-  exactly one alarm-silence button and one settings button in the tab bar; a
-  menu with id "settings". Menus cannot open other menus (everything stays
-  within two touches).
+  exactly one alarm-silence button and exactly one settings button (each may sit
+  in "tabs" or in "top_bar.buttons"); a menu with id "settings"; the notification
+  box (you may move it with "notifications.position", never remove it). Menus
+  cannot open other menus (everything stays within two touches).
+- "theme" and "alt_theme" are the two sides of the dark / light switch: one must
+  have mode "dark" and the other "light". When asked to change a colour, change
+  it in the theme the user is looking at unless they say both.
+- Write labels in Title Case ("Respiratory Rate"). A row's "method" is how it is
+  measured and shows after its label ("Heart Rate - ECG").
 - Monitoring problems (alarm sound paused, standby, connection lost, low battery,
   poor trace) can be moved and recoloured under "safety" and the theme, but there
   is no way to hide them and you must not try. Their colours must stay different

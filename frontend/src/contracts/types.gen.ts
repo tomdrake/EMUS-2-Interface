@@ -694,6 +694,7 @@ export interface Patient {
    */
   birth_date: string | null;
   consultant: string | null;
+  discharged_at: string | null;
   family_name: string;
   given_name: string;
   id: string;

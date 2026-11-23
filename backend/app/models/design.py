@@ -13,7 +13,10 @@ Safety invariants enforced by validators (see ``Design._check``):
   * the top bar always shows the patient name and the clock;
   * monitoring problems (alarm sound paused, standby, connection lost, low battery,
     poor trace) can be restyled but never hidden, and their colours stay distinct;
-  * the tab bar always has exactly one alarm-silence button and one settings button;
+  * there is always exactly one alarm-silence button and one settings button,
+    in the tab bar or among the top-bar buttons;
+  * the notification box is always on screen (its position is a choice, hiding it
+    is not), and it never changes the size of anything else;
   * every function is at most two touches from the tab bar (menus cannot nest);
   * ids are unique and every reference resolves.
 """
@@ -45,7 +48,7 @@ IconId = Literal[
     "monitor", "chart", "split", "labs", "imaging", "ai", "forecast", "alarm",
     "alarm-off", "settings", "patient", "oxygen", "timer", "heart", "lungs",
     "drop", "thermometer", "activity", "sleep", "fall", "palette", "layout",
-    "chat", "history", "info", "none",
+    "chat", "history", "info", "new-patient", "discharge", "theme", "bell", "none",
 ]
 
 
@@ -91,6 +94,8 @@ class NewsBandColours(_Model):
 
 class Theme(_Model):
     preset: Literal["icu-dark", "news-paper", "high-contrast", "colour-blind-safe", "custom"]
+    mode: Literal["dark", "light"] = Field(
+        description="Which side of the dark / light switch this theme is.")
     colours: ThemeColours
     parameter_colours: dict[ParameterId, Colour] = Field(
         description="Trace and numeric colour per parameter.")
@@ -114,6 +119,9 @@ class Row(_Model):
     kind: Literal["parameter", "spacer", "timer"] = "parameter"
     parameter: ParameterId | None = Field(None, description="Required when kind='parameter'.")
     label: Label | None = Field(None, description="Overrides the registry label.")
+    method: Label | None = Field(
+        None, description="How it is measured, shown after the label as 'Heart Rate - ECG'. "
+                          "Overrides the default (the row's waveform, else the registry method).")
     colour: Colour | None = Field(None, description="Overrides theme.parameter_colours.")
     trace: Literal["waveform", "trend", "bar", "events", "none"] = "trend"
     waveform: WaveformId | None = Field(None, description="Required when trace='waveform'.")
@@ -288,7 +296,8 @@ class MenuAction(_Model):
 
 SheetId = Literal[
     # clinical
-    "alarm-limits", "oxygen", "patient", "record-observations", "finding-explain",
+    "alarm-limits", "oxygen", "patient", "new-patient", "discharge-patient",
+    "record-observations", "finding-explain",
     "forecast-horizon", "news2-variant", "home-screen",
     # design studio sections (each one touch from the Settings menu)
     "studio-appearance", "studio-layout", "studio-rows", "studio-navigation",
@@ -317,23 +326,36 @@ class SettingsAction(_Model):
     type: Literal["open-settings"] = "open-settings"
 
 
-TabAction = Annotated[
-    Union[ScreenAction, MenuAction, SheetAction, SilenceAction, SettingsAction],
+class ThemeToggleAction(_Model):
+    """Switches this screen between the design's dark and light themes. A local
+    preference of the screen (day / night); it does not create a design version."""
+
+    type: Literal["toggle-theme"] = "toggle-theme"
+
+
+ButtonAction = Annotated[
+    Union[ScreenAction, MenuAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction],
     Field(discriminator="type"),
 ]
 # Menu items cannot open another menu: that is what keeps everything within two touches.
 MenuItemAction = Annotated[
-    Union[ScreenAction, SheetAction, SilenceAction, SettingsAction],
+    Union[ScreenAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction],
     Field(discriminator="type"),
 ]
 
 
-class Tab(_Model):
+class Button(_Model):
+    """A button in the tab bar or the top bar. Where it sits is the designer's choice."""
+
     id: Slug
     label: Label
     icon: IconId = "none"
-    action: TabAction
+    action: ButtonAction
     colour: Colour | None = None
+
+
+#: Kept as a name for readability: a tab is a button in the tab bar.
+Tab = Button
 
 
 class MenuItem(_Model):
@@ -362,7 +384,12 @@ class TopBar(_Model):
         description="Left to right. Must include 'name' and 'clock'.")
     clock_format: Literal["24h", "12h"] = "24h"
     show_seconds: bool = True
-    height_px: int = Field(56, ge=40, le=96)
+    height_px: int = Field(64, ge=48, le=96)
+    buttons: list[Button] = Field(
+        default_factory=list, max_length=6,
+        description="Buttons at the right of the top bar, left to right "
+                    "(for example new patient, discharge, dark / light, settings).")
+    show_button_labels: bool = True
 
 
 class TabBar(_Model):
@@ -402,12 +429,9 @@ class SafetyDisplay(_Model):
 
     Only presentation is adjustable here. That each state is shown, and shown
     differently from every other state, is fixed: there is no option to hide the
-    alarm-paused banner, a technical alarm, a battery warning or a lost signal.
+    alarm-paused state, a technical alarm, a battery warning or a lost signal.
     """
 
-    #: Where the "alarm sound paused" banner sits. It is always shown while paused.
-    silence_banner: Literal["top", "above-tabs"] = "top"
-    silence_banner_pulse: bool = True
     #: Words for a selected modality with no device. Choices only: free text could
     #: be set to something that reads like a value.
     standby_text: Literal["STANDBY", "NOT CONNECTED", "OFF"] = "STANDBY"
@@ -416,12 +440,56 @@ class SafetyDisplay(_Model):
     stale_values: Literal["hide", "dim-with-age"] = "hide"
     #: Show the "what to check" line under a poor trace or sensor problem.
     show_advice: bool = True
-    #: Where device battery and wireless state appear. Low battery and lost
-    #: connection are always raised as technical alarms regardless.
-    device_status: Literal["top-bar", "top-bar-and-rows"] = "top-bar-and-rows"
+    #: Where device battery and wireless state appear. 'tiles' puts them in the same
+    #: square as the value that device measures. Low battery and lost connection
+    #: are always raised as notifications regardless.
+    device_status: Literal["tiles", "top-bar", "tiles-and-top-bar"] = "tiles"
     show_battery_percent: bool = True
     #: Dim a trace while its quality is poor so it is not read as clean.
     dim_poor_traces: bool = True
+
+
+# ------------------------------------------------- labels, tiles, notifications
+
+class LabelDisplay(_Model):
+    """How names are written on screen."""
+
+    #: Title Case for labels, buttons and headings ("Respiratory Rate", "Pleth").
+    #: Sentences (advice, explanations, messages) are left as written.
+    auto_capitalise: bool = True
+    #: Show how each observation is measured after its name: "Heart Rate - ECG".
+    show_method: bool = True
+
+
+class TileDisplay(_Model):
+    """The square holding one number. Every tile on the monitor is the same width,
+    and a tile never changes size whatever it shows: a number, STANDBY, CONNECTION
+    LOST and a low-battery warning all fit the same box."""
+
+    width_px: int = Field(150, ge=110, le=260)
+    #: Rows that carry tiles share one height, so every tile is identical in both
+    #: dimensions. Rows without numbers (events, timer, spacer) keep their own height.
+    equal_row_heights: bool = True
+
+
+class NotificationsDisplay(_Model):
+    """The notification box: the one place alarms and monitoring problems are listed.
+
+    It is always on screen and always the same size. It says 'No Notifications' or
+    shows the most important item with a count; touching it opens the full list
+    over the screen. Nothing that arrives may move or resize the rest of the monitor.
+    """
+
+    position: Literal["tab-bar-left", "tab-bar-right", "top-bar", "strip-top",
+                      "strip-above-tabs"] = "tab-bar-left"
+    #: Most serious first, newest first within a priority; or simply newest first.
+    order: Literal["severity-then-recent", "recent-first"] = "severity-then-recent"
+    empty_text: Literal["No Notifications", "All Clear", "No Alerts"] = "No Notifications"
+    show_count: bool = True
+    #: Share of the bar the box takes when it sits in the tab bar or top bar.
+    size: Literal["standard", "wide"] = "standard"
+    flash: bool = Field(True, description="Flash at the item's priority rate.")
+    feed_max_items: int = Field(12, ge=4, le=40)
 
 
 # ---------------------------------------------------------- AI interpretation
@@ -504,10 +572,11 @@ class Design(_Model):
     schema_version: Literal[1] = SCHEMA_VERSION
     name: Label
     description: str = Field("", max_length=400)
-    theme: Theme
+    theme: Theme = Field(description="The theme shown by default.")
+    alt_theme: Theme = Field(description="The other side of the dark / light switch.")
     top_bar: TopBar
     tab_bar: TabBar = Field(default_factory=TabBar)
-    tabs: list[Tab] = Field(min_length=2, max_length=9)
+    tabs: list[Button] = Field(min_length=2, max_length=9)
     menus: list[Menu] = Field(default_factory=list)
     screens: list[Screen] = Field(min_length=1)
     home_screen: Slug
@@ -516,6 +585,9 @@ class Design(_Model):
     alarm_defaults: dict[ParameterId, AlarmDefault] = Field(default_factory=dict)
     alarm_presentation: AlarmPresentation = Field(default_factory=AlarmPresentation)
     safety: SafetyDisplay = Field(default_factory=SafetyDisplay)
+    labels: LabelDisplay = Field(default_factory=LabelDisplay)
+    tiles: TileDisplay = Field(default_factory=TileDisplay)
+    notifications: NotificationsDisplay = Field(default_factory=NotificationsDisplay)
     ai: AiDisplay = Field(default_factory=AiDisplay)
     forecast: Forecast = Field(default_factory=Forecast)
 
@@ -532,8 +604,6 @@ class Design(_Model):
         screen_ids = unique("screen", [s.id for s in self.screens])
         menu_ids = unique("menu", [m.id for m in self.menus])
         row_ids = unique("row", [r.id for r in self.rows])
-        unique("tab", [t.id for t in self.tabs])
-
         if self.home_screen not in screen_ids:
             raise ValueError(f"home_screen {self.home_screen!r} is not a screen id")
 
@@ -542,22 +612,32 @@ class Design(_Model):
             if required not in self.top_bar.fields:
                 raise ValueError(f"top_bar.fields must include {required!r}")
 
-        # Distinct states need distinct colours: a technical problem must not look like
-        # a patient alarm, and "alarm sound paused" must not look like nothing.
-        c = self.theme.colours
-        clash = {c.alarm_high.lower(), c.alarm_medium.lower()} & {c.technical.lower()}
-        if clash:
-            raise ValueError("theme.colours.technical must differ from the high and medium "
-                             "patient alarm colours")
-        for token in ("silenced", "technical", "inactive"):
-            if getattr(c, token).lower() in (c.background.lower(), c.surface.lower()):
-                raise ValueError(f"theme.colours.{token} must be visible against the background")
+        # Distinct states need distinct colours, in both the dark and the light theme:
+        # a technical problem must not look like a patient alarm, and "alarm sound
+        # paused" must not look like nothing.
+        for name, theme in (("theme", self.theme), ("alt_theme", self.alt_theme)):
+            c = theme.colours
+            if c.technical.lower() in (c.alarm_high.lower(), c.alarm_medium.lower()):
+                raise ValueError(f"{name}.colours.technical must differ from the high and "
+                                 "medium patient alarm colours")
+            for token in ("silenced", "technical", "inactive"):
+                if getattr(c, token).lower() in (c.background.lower(), c.surface.lower()):
+                    raise ValueError(
+                        f"{name}.colours.{token} must be visible against the background")
+        if self.theme.mode == self.alt_theme.mode:
+            raise ValueError("theme and alt_theme must be one dark and one light")
 
-        # Required controls: exactly one silence button and one settings button.
-        tab_actions = [t.action.type for t in self.tabs]
+        # Required controls: exactly one silence button and one settings button,
+        # wherever the designer puts them (tab bar or top bar).
+        buttons = [("tab", b) for b in self.tabs] + [("top-bar button", b)
+                                                     for b in self.top_bar.buttons]
+        unique("button", [b.id for _, b in buttons])
+        actions = [b.action.type for _, b in buttons]
         for required in ("silence-alarms", "open-settings"):
-            if tab_actions.count(required) != 1:
-                raise ValueError(f"tabs must contain exactly one {required!r} button")
+            if actions.count(required) != 1:
+                raise ValueError(
+                    f"there must be exactly one {required!r} button across the tab bar "
+                    f"and the top bar (found {actions.count(required)})")
 
         if SETTINGS_MENU_ID not in menu_ids:
             raise ValueError(f"menus must include one with id {SETTINGS_MENU_ID!r}")
@@ -568,8 +648,8 @@ class Design(_Model):
             if action.type == "menu" and action.menu_id not in menu_ids:
                 raise ValueError(f"{where}: unknown menu {action.menu_id!r}")
 
-        for t in self.tabs:
-            check_action(t.action, f"tab {t.id!r}")
+        for where, b in buttons:
+            check_action(b.action, f"{where} {b.id!r}")
         for m in self.menus:
             unique(f"menu {m.id!r} item", [i.id for i in m.items])
             for i in m.items:
@@ -607,17 +687,18 @@ class Design(_Model):
 
 
 def max_touch_depth(design: Design) -> int:
-    """Touches needed to reach the deepest function from the tab bar.
+    """Touches needed to reach the deepest function from the always-visible buttons
+    (tab bar and top bar).
 
-    Tab → screen/sheet/action = 1. Tab → menu → item = 2. Menus cannot nest
+    Button → screen/sheet/action = 1. Button → menu → item = 2. Menus cannot nest
     (enforced by the MenuItemAction type), so this can never exceed 2.
     """
     depth = 1
     menus = {m.id: m for m in design.menus}
-    for t in design.tabs:
-        if t.action.type == "menu" and menus[t.action.menu_id].items:
+    for b in [*design.tabs, *design.top_bar.buttons]:
+        if b.action.type == "menu" and menus[b.action.menu_id].items:
             depth = 2
-        if t.action.type == "open-settings" and menus[SETTINGS_MENU_ID].items:
+        if b.action.type == "open-settings" and menus[SETTINGS_MENU_ID].items:
             depth = 2
     return depth
 

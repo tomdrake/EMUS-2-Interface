@@ -50,7 +50,10 @@ class Patient(_Model):
     allergies: list[str] = Field(default_factory=list)
     weight_kg: float | None = None
     admitted_at: datetime | None = None
-    #: 'mimic-demo' | 'scenario' | 'fhir' | 'hl7v2'
+    #: Set when the patient is discharged from this monitor; monitoring stops and
+    #: the patient no longer appears as current.
+    discharged_at: datetime | None = None
+    #: 'mimic-demo' | 'scenario' | 'fhir' | 'hl7v2' | 'manual'
     origin: str = "scenario"
     #: True for anything not from a real device or record. Drives the SIMULATED badge.
     simulated: bool = True
