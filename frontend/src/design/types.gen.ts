@@ -43,6 +43,7 @@ export interface Design {
   theme: Theme1;
   tiles: TileDisplay;
   top_bar: TopBar;
+  traces: TraceDisplay;
 }
 /**
  * This interface was referenced by `Design`'s JSON-Schema
@@ -479,11 +480,13 @@ export interface ThemeToggleAction {
   type: "toggle-theme";
 }
 /**
- * The notification box: the one place alarms and monitoring problems are listed.
+ * The notification ticker: the one place alarms and monitoring problems are listed.
  *
  * It is always on screen and always the same size. It says 'No Notifications' or
- * shows the most important item with a count; touching it opens the full list
- * over the screen. Nothing that arrives may move or resize the rest of the monitor.
+ * rolls through the current items, most serious first. A high-priority patient alarm
+ * stops the ticker and is held on screen until it clears. Touching the ticker opens
+ * the full list; the list never opens by itself. Nothing that arrives may move or
+ * resize the rest of the monitor.
  *
  * This interface was referenced by `Design`'s JSON-Schema
  * via the `definition` "NotificationsDisplay".
@@ -499,6 +502,9 @@ export interface NotificationsDisplay {
   position: "tab-bar-left" | "tab-bar-right" | "top-bar" | "strip-top" | "strip-above-tabs";
   show_count: boolean;
   size: "standard" | "wide";
+  ticker: "vertical" | "horizontal";
+  ticker_dwell_s: number;
+  ticker_speed: "slow" | "medium" | "fast";
 }
 /**
  * One monitoring item with its trace and numbers.
@@ -1128,9 +1134,10 @@ export interface Theme1 {
   trace_width: number;
 }
 /**
- * The square holding one number. Every tile on the monitor is the same width,
- * and a tile never changes size whatever it shows: a number, STANDBY, CONNECTION
- * LOST and a low-battery warning all fit the same box.
+ * The box holding a row's numbers. There is one tile per row, holding all of
+ * that row's values (SpO2 and PR share one). Every tile is the same width, and a
+ * tile never changes size whatever it shows: numbers, STANDBY, CONNECTION LOST and
+ * a low-battery warning all fit the same box.
  *
  * This interface was referenced by `Design`'s JSON-Schema
  * via the `definition` "TileDisplay".
@@ -1182,6 +1189,19 @@ export interface TopBar {
   height_px: number;
   show_button_labels: boolean;
   show_seconds: boolean;
+}
+/**
+ * Reference marks drawn on every trace so it can be read, not just watched.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "TraceDisplay".
+ */
+export interface TraceDisplay {
+  ecg_gain_mm_per_mv: 5 | 10 | 20;
+  show_baseline: boolean;
+  show_calibration_bar: boolean;
+  show_scale: boolean;
+  show_time_scale: boolean;
 }
 /**
  * This interface was referenced by `Design`'s JSON-Schema

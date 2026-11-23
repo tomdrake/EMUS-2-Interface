@@ -62,25 +62,58 @@ def init_db(path: Path | None = None) -> None:
 
 
 def seed_designs(con: sqlite3.Connection) -> None:
-    """Insert built-in designs that are not there yet. Existing rows are untouched."""
+    """Make the built-in designs match the shipped defaults.
+
+    A missing built-in design is inserted. One whose stored document differs from
+    the shipped default gets a new ``seed`` version, so a database created by an
+    earlier build picks up changed defaults. Built-in designs are read-only, so
+    nothing a user made is touched; copies they made are separate designs.
+    """
     ts = now_iso()
     for slug, doc in DEFAULT_DESIGNS.items():
-        if con.execute("SELECT 1 FROM designs WHERE id = ?", (slug,)).fetchone():
-            continue
         design = Design.model_validate(doc)
-        con.execute(
-            "INSERT INTO designs (id, name, description, builtin, current_version, "
-            "created_at, updated_at) VALUES (?, ?, ?, 1, 1, ?, ?)",
-            (slug, design.name, design.description, ts, ts),
-        )
+        shipped = design.model_dump_json()
+        meta = con.execute("SELECT current_version FROM designs WHERE id = ?", (slug,)).fetchone()
+        if meta is None:
+            con.execute(
+                "INSERT INTO designs (id, name, description, builtin, current_version, "
+                "created_at, updated_at) VALUES (?, ?, ?, 1, 1, ?, ?)",
+                (slug, design.name, design.description, ts, ts),
+            )
+            con.execute(
+                "INSERT INTO design_versions (design_id, version, document, source, author, "
+                "note, created_at) VALUES (?, 1, ?, 'seed', 'system', 'Built-in design', ?)",
+                (slug, shipped, ts),
+            )
+            continue
+        current = con.execute(
+            "SELECT document FROM design_versions WHERE design_id = ? AND version = ?",
+            (slug, meta["current_version"])).fetchone()
+        if current is not None and _same_design(current["document"], shipped):
+            continue
+        version = meta["current_version"] + 1
         con.execute(
             "INSERT INTO design_versions (design_id, version, document, source, author, "
-            "note, created_at) VALUES (?, 1, ?, 'seed', 'system', 'Built-in design', ?)",
-            (slug, design.model_dump_json(), ts),
+            "note, created_at) VALUES (?, ?, ?, 'seed', 'system', "
+            "'Built-in design updated to the shipped defaults', ?)",
+            (slug, version, shipped, ts),
         )
+        con.execute(
+            "UPDATE designs SET name = ?, description = ?, current_version = ?, updated_at = ? "
+            "WHERE id = ?", (design.name, design.description, version, ts, slug))
     if not con.execute("SELECT 1 FROM settings WHERE key = 'active_design'").fetchone():
         con.execute("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
                     ("active_design", DEFAULT_ACTIVE_DESIGN, ts))
+
+
+def _same_design(stored_json: str, shipped_json: str) -> bool:
+    """Compare as validated documents, so an older document that is missing a field the
+    defaults now fill in is treated as the same only if filling it in changes nothing."""
+    try:
+        return Design.model_validate_json(stored_json).model_dump() == \
+            Design.model_validate_json(shipped_json).model_dump()
+    except Exception:
+        return False  # an old document that no longer validates is replaced
 
 
 # ---------------------------------------------------------------- design reads

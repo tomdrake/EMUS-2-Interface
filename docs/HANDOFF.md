@@ -18,7 +18,8 @@ are ready to be implemented, one at a time, in order.
 | All other backend modules and routes | Stubs with docstrings; routes return 501 naming their milestone |
 | Frontend shell: top bar, tab bar, menus, sheets, split layouts, theme | Done |
 | Trace-quality check (noise, movement, flat line, clipping, weak signal) | Done (`backend/app/signal_quality.py`) |
-| Safety display: fixed-size tiles (standby / searching / check sensor / connection lost / poor trace / no data, with the device's battery and link in each), the notification box and feed, sound-paused state | Done (`frontend/src/safety/`), driven by test data until M2 supplies live state |
+| Safety display: one fixed-size tile per row (standby / searching / check sensor / connection lost / poor trace / no data, with the device's battery and link in it), text in the row colour, the notification ticker and its list, sound-paused state | Done (`frontend/src/safety/`), driven by test data until M2 supplies live state |
+| Trace reference marks: dashed baseline, mV and unit axes, 1 mV bar, one-second bar | Done as a frame with no signal (`frontend/src/traces/`); M2 draws the signal inside it |
 | Top-bar buttons (new patient, discharge, dark / light, settings), light and dark theme pair, Title Case labels with method of collection | Done; new patient and discharge sheets are M2 |
 | Frontend widgets and sheets | Placeholders naming their milestone (`frontend/src/widgets`, `frontend/src/studio`) |
 | Generated TypeScript types | Done (`make types`) |
@@ -96,16 +97,19 @@ with, then commit. To use a different model for the agents, pass it as an argume
    left out, any contract or test that needed changing and why.
 
 10. **Safety states are not optional** (`docs/human-factors.md`). Every number goes
-    through `<Numeric>`; never render a blank or `--`. Never show a value unless its
+    through `<Tile>`; never render a blank or `--`. Never show a value unless its
     signal state is `ok` or `poor-signal`. Never raise a patient alarm from missing
     data. Do not add a way to hide the notification box, the paused state,
     technical alarms or device warnings. Nothing that arrives may move or resize
     the layout: no banners that push content, and tiles keep one size.
-11. **Names are Title Case; sentences are not.** Pass labels, buttons and headings
+11. **Text takes its row's colour; one tile per row; the ticker never opens the list.**
+    Do not colour tile, mark, trace or notification text with a status colour. Do not
+    open the notification list from code. See `docs/human-factors.md`.
+12. **Names are Title Case; sentences are not.** Pass labels, buttons and headings
     through `label()` from `frontend/src/design/text.ts`. Never pass prose (advice,
     explanations, alarm messages) through it.
 
-12. **Alignment is measured, not eyeballed.** Use the shared metrics in
+13. **Alignment is measured, not eyeballed.** Use the shared metrics in
     `frontend/src/styles.css`: `--edge` (the one left inset for text in bars, rows,
     menus, sheets and the feed), `--inset` (the same line from inside a bordered
     panel), `--line` (the first text line of a row and of a tile, so a row's name

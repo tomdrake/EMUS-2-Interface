@@ -1268,7 +1268,7 @@
     },
     "NotificationsDisplay": {
       "additionalProperties": false,
-      "description": "The notification box: the one place alarms and monitoring problems are listed.\n\nIt is always on screen and always the same size. It says 'No Notifications' or\nshows the most important item with a count; touching it opens the full list\nover the screen. Nothing that arrives may move or resize the rest of the monitor.",
+      "description": "The notification ticker: the one place alarms and monitoring problems are listed.\n\nIt is always on screen and always the same size. It says 'No Notifications' or\nrolls through the current items, most serious first. A high-priority patient alarm\nstops the ticker and is held on screen until it clears. Touching the ticker opens\nthe full list; the list never opens by itself. Nothing that arrives may move or\nresize the rest of the monitor.",
       "properties": {
         "empty_text": {
           "default": "No Notifications",
@@ -1327,12 +1327,41 @@
           ],
           "title": "Size",
           "type": "string"
+        },
+        "ticker": {
+          "default": "vertical",
+          "enum": [
+            "vertical",
+            "horizontal"
+          ],
+          "title": "Ticker",
+          "type": "string"
+        },
+        "ticker_dwell_s": {
+          "default": 4,
+          "maximum": 10,
+          "minimum": 2,
+          "title": "Ticker Dwell S",
+          "type": "integer"
+        },
+        "ticker_speed": {
+          "default": "medium",
+          "enum": [
+            "slow",
+            "medium",
+            "fast"
+          ],
+          "title": "Ticker Speed",
+          "type": "string"
         }
       },
       "required": [
         "position",
         "order",
         "empty_text",
+        "ticker",
+        "ticker_dwell_s",
+        "ticker_speed",
         "show_count",
         "size",
         "flash",
@@ -2286,7 +2315,7 @@
     },
     "TileDisplay": {
       "additionalProperties": false,
-      "description": "The square holding one number. Every tile on the monitor is the same width,\nand a tile never changes size whatever it shows: a number, STANDBY, CONNECTION\nLOST and a low-battery warning all fit the same box.",
+      "description": "The box holding a row's numbers. There is one tile per row, holding all of\nthat row's values (SpO2 and PR share one). Every tile is the same width, and a\ntile never changes size whatever it shows: numbers, STANDBY, CONNECTION LOST and\na low-battery warning all fit the same box.",
       "properties": {
         "equal_row_heights": {
           "default": true,
@@ -2294,7 +2323,7 @@
           "type": "boolean"
         },
         "width_px": {
-          "default": 150,
+          "default": 220,
           "maximum": 260,
           "minimum": 110,
           "title": "Width Px",
@@ -2382,6 +2411,51 @@
         "show_button_labels"
       ],
       "title": "TopBar",
+      "type": "object"
+    },
+    "TraceDisplay": {
+      "additionalProperties": false,
+      "description": "Reference marks drawn on every trace so it can be read, not just watched.",
+      "properties": {
+        "ecg_gain_mm_per_mv": {
+          "default": 10,
+          "enum": [
+            5,
+            10,
+            20
+          ],
+          "title": "Ecg Gain Mm Per Mv",
+          "type": "integer"
+        },
+        "show_baseline": {
+          "default": true,
+          "title": "Show Baseline",
+          "type": "boolean"
+        },
+        "show_calibration_bar": {
+          "default": true,
+          "title": "Show Calibration Bar",
+          "type": "boolean"
+        },
+        "show_scale": {
+          "default": true,
+          "title": "Show Scale",
+          "type": "boolean"
+        },
+        "show_time_scale": {
+          "default": true,
+          "title": "Show Time Scale",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "show_baseline",
+        "show_scale",
+        "show_calibration_bar",
+        "show_time_scale",
+        "ecg_gain_mm_per_mv"
+      ],
+      "title": "TraceDisplay",
       "type": "object"
     },
     "WidgetNode": {
@@ -2578,6 +2652,9 @@
     },
     "top_bar": {
       "$ref": "#/$defs/TopBar"
+    },
+    "traces": {
+      "$ref": "#/$defs/TraceDisplay"
     }
   },
   "required": [
@@ -2600,6 +2677,7 @@
     "labels",
     "tiles",
     "notifications",
+    "traces",
     "ai",
     "forecast"
   ],

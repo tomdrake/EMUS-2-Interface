@@ -22,8 +22,11 @@ It is not a usability-engineering file and nothing here has been validated.
 5. **Alarm state is always in words.** Sound paused, sound unavailable, an alarm
    switched off for one parameter, and "not monitored" are four different
    statements, each visible without opening a menu.
-6. **Monitoring problems never look like patient alarms.** They have their own
-   colour, a MONITOR tag and their own wording.
+6. **Monitoring problems never look like patient alarms.** They are tagged
+   MONITOR rather than PATIENT, carry no priority mark, are framed with a dashed
+   line, and use their own wording. Colour does not separate them: text takes the
+   colour of its row (see below), a choice made so the screen has one colour code,
+   not two. The word, mark and frame carry the difference.
 7. **Nothing that arrives may move the screen.** Alarms and problems go to one
    notification box that is always present and always the same size, and to
    tiles that never change size. A clinician's eye should never have to re-find a
@@ -39,9 +42,26 @@ It is not a usability-engineering file and nothing here has been validated.
 
 ## What appears in place of a number
 
-Every number sits in a **tile**. All tiles are the same width and height, and a
+Every row has **one tile**, holding all of that row's values (SpO2 and PR share one;
+blood pressure reads "120/80 (93)"). All tiles are the same width and height, and a
 tile never changes size whatever it holds. Each tile carries the battery and
-wireless state of the device that measures that value, in its bottom corner.
+wireless state of the device that measures its values, in its bottom corner.
+If every value in a tile is in the same state (a limb sensor that lost its link
+takes SpO2 and PR with it) the word is shown once across the tile; if they differ,
+each value shows its own.
+
+**Colour.** Everything in a row (its name, its trace marks, its tile, the device
+marks, the status words) is drawn in that row's colour, the same colour as its
+waveform. A problem is told apart from a healthy tile by its word, a frame and a
+"!" glyph, never by a different colour:
+
+- STANDBY, SEARCHING: thin frame, lighter weight.
+- CHECK SENSOR, CONNECTION LOST, -?-: bold frame and a "!" in a circle.
+- POOR TRACE: dashed frame and a "?" after the number.
+
+Because text takes its row colour, every row colour must be readable on the
+background: the design refuses any colour below 4.5:1 contrast in either the dark
+or the light theme. Alarm colours stay on small marks and frames, not on text.
 
 | State | Shown | Look | Means | Value shown? |
 |---|---|---|---|---|
@@ -57,20 +77,32 @@ wireless state of the device that measures that value, in its bottom corner.
 Standby wording can be changed in the design to NOT CONNECTED or OFF. It is a
 fixed list so it can never be set to something that reads like a value.
 
-## The notification box
+## The notification ticker
 
 One box lists everything that needs attention. It is always on screen and always
 the same size: bottom left of the tab bar by default, or the bottom right, the top
 bar, or a fixed strip (a design choice; removing it is not).
 
 - Nothing to report: **No Notifications**.
-- Otherwise the most important item, tagged **PATIENT** or **MONITOR**, and a
-  count of the rest ("+2"). Most serious first, newest first within a priority
-  (or simply newest first, as a design choice).
-- Touching it opens the full list as an overlay that does not dim or move the
-  monitor, with how long ago each item started.
-- Its colour follows its headline: red or yellow fill for a high or medium patient
-  alarm, the technical colour for monitoring problems.
+- Otherwise it is a **ticker**: items take turns, most serious first (newest
+  first within a priority, or simply newest first), each tagged **PATIENT** or
+  **MONITOR**, with "1/3" saying which of how many is showing. Vertical (the
+  default) rolls one item up at a time; horizontal scrolls the text sideways when it
+  does not fit.
+- A **high-priority patient alarm stops the ticker** and is held still until it
+  clears, so a serious alarm is never off screen between turns. Monitoring problems
+  and lower-priority alarms do not hold it.
+- **It never opens by itself.** Touching it opens the full list as an overlay that
+  does not dim or move the monitor, with how long ago each item started. The ticker
+  waits while the list is open.
+- Patient alarms carry their priority as marks, **!!!** high, **!!** medium, **!**
+  low (IEC 60601-1-8 as recalled; check the standard). A patient alarm also frames
+  the box in the alarm colour. Monitoring items have no mark and a dashed frame.
+- An item takes the colour of the row it is about. An item about several rows (a
+  sensor that feeds more than one) is neutral with a small dot in each row's colour.
+- New items are announced once to screen readers; the rotation is not.
+- With reduced motion set, items swap without sliding or scrolling and nothing
+  flashes.
 
 ## Alarm sound
 
@@ -80,7 +112,7 @@ bar, or a fixed strip (a design choice; removing it is not).
 | Sound paused (two minutes) | Button solid yellow with the time left; a solid yellow **SOUND PAUSED 1:45** mark inside the notification box beside its headline; top bar says "Sound Paused 1:45". The list says "Alarm sound paused for 1:45. Alarms still show on screen" with a Resume Sound button |
 | This screen cannot play sound | A MONITOR notification: "This screen cannot play alarm sounds. Tap to enable"; top bar says "Sound Off". Browsers block audio until someone touches the page, so this is a real failure mode for a tablet |
 | Sound not yet confirmed | Top bar says "Sound Not Confirmed" rather than claiming alarms are on |
-| Alarm switched off for one parameter | "ALARM OFF" in that tile |
+| Alarm switched off for one parameter | "ALARM OFF" in that value's tile heading (yellow, the one exception to row colour) |
 | Alarm enabled but no valid data | A MONITOR notification: "Not monitored: SpO2, PR" |
 
 The pause is always two minutes and affects sound only. It does not hide patient
@@ -135,7 +167,8 @@ before anyone relies on it.
 ## Fixed, whatever the design says
 
 - The notification box is always on screen and the same size; it can be moved,
-  not removed.
+  not removed. It never opens by itself and always holds a high-priority patient
+  alarm.
 - The sound-paused mark shows for as long as sound is paused.
 - Technical alarms, battery warnings and lost signals are always shown.
 - Tiles are one size and never resize; notifications never move the layout.
@@ -151,6 +184,24 @@ Scenario **Monitoring problems, patient well** (`scn-technical`) plays each fail
 in turn on a well patient: BP on standby throughout, then low battery, movement
 artefact, low perfusion, sensor off, connection lost, and critical battery. Demo
 controls can also inject any single failure on any scenario (milestone M2).
+
+## Traces
+
+Each waveform and trend carries the marks needed to read it (a design choice, all on
+by default; see `traces` in the design):
+
+- **ECG**: a dashed line at 0 mV (the isoelectric baseline), an axis in mV, and a
+  calibration bar exactly 1 mV tall at the gain drawn. The gain is 10 mm/mV where
+  the row is tall enough, and falls back to 5 or 2.5 mm/mV (labelled "fitted") where
+  it is not. A one-second bar shows the sweep speed.
+- **Pleth and respiration**: a dashed line at the mean and an axis in arbitrary
+  units. They have no absolute amplitude, so there is no calibration bar.
+- **Trends**: gridlines and labels in the parameter's own unit.
+
+Two honest limits. Millimetres are nominal: a CSS millimetre is not a physical one
+on any particular screen, so the label says "nominal" until a screen is calibrated.
+And the dashed ECG line is the display zero, not an estimate of the patient's
+isoelectric level: on a drifting trace it will show the drift.
 
 ## Questions to put to clinicians
 
@@ -169,7 +220,11 @@ controls can also inject any single failure on any scenario (milestone M2).
    banner?
 8. Battery and link now sit in each tile. Is that the right amount, or is a single
    summary in the top bar easier?
-9. Discharge clears the monitor for the next patient. What should the confirmation
+9. With all text in the row colour, is a problem tile easy enough to pick out by its
+   word, frame and "!"? (The alternative is a single accent colour for problems.)
+10. Should the ticker also hold a high-priority monitoring problem, or only patient
+    alarms? Should a held alarm show its row name as well as the message?
+11. Discharge clears the monitor for the next patient. What should the confirmation
    ask for so it cannot be done to the wrong patient by mistake?
 
 ## Sources and caveats

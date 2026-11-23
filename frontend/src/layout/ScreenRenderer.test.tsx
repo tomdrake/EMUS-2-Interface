@@ -26,11 +26,15 @@ beforeEach(() => {
   useUi.setState({
     stored: { document: {
       rows, safety: { standby_text: "STANDBY", show_advice: true, device_status: "tiles" },
-      labels: { auto_capitalise: true, show_method: true }, tiles: { width_px: 150, equal_row_heights: false },
+      labels: { auto_capitalise: true, show_method: true }, tiles: { width_px: 220, equal_row_heights: true },
+      traces: { show_baseline: true, show_scale: true, show_calibration_bar: true, show_time_scale: true,
+                ecg_gain_mm_per_mv: 10 },
+      sweep: { speed_mm_s: 25 },
     } as unknown as Design } as any,
     registry: { parameters: { hr: { label: "Heart Rate", short: "HR", unit: "bpm", method: "ECG" },
                               bp_sys: { label: "Systolic Blood Pressure", short: "SYS", unit: "mmHg", method: "Cuff" } },
-                waveforms: { ecg: { label: "ECG" } },
+                waveforms: { ecg: { label: "ECG", unit: "mV", scale: { unit: "mV", calibrated: true,
+                  gains_mm_per_unit: [5, 10, 20], default_gain: 10, tick: 0.5, baseline: "isoelectric", range: [-0.5, 1] } } },
                 signal_states: { standby: { text: "STANDBY", tone: "inactive" } }, signal_issues: {} } as any,
   });
 });
@@ -59,12 +63,21 @@ describe("ScreenRenderer", () => {
     expect(dom.getByTestId("row-label-bp").textContent).toBe("Blood Pressure - Cuff");
   });
 
-  it("gives every row the same tile column, with blood pressure in one tile", () => {
+  it("gives every row one tile of the design's width, with blood pressure in one tile", () => {
     render(<ScreenRenderer screen={split} />);
     expect(dom.getByTestId("row-bp").querySelectorAll(".tile:not(.tile-empty)")).toHaveLength(1);
     expect(dom.getByTestId("row-ecg").querySelectorAll(".tile:not(.tile-empty)")).toHaveLength(1);
+    // a row with no numbers keeps an empty cell, so the grid lines run straight down
+    expect(dom.getByTestId("row-gap").querySelectorAll(".tile")).toHaveLength(0);
     const rowsEl = dom.getByTestId("widget-rows").querySelector(".rows") as HTMLElement;
-    expect(rowsEl.style.getPropertyValue("--tile")).toBe("150px");
-    expect(rowsEl.style.getPropertyValue("--tile-slots")).toBe("1");
+    expect(rowsEl.style.getPropertyValue("--tile")).toBe("220px");
+    expect(rowsEl.style.getPropertyValue("--tile-slots")).toBe("");
+  });
+
+  it("gives each trace row a frame for its reference marks, and none for the spacer", () => {
+    render(<ScreenRenderer screen={split} />);
+    expect(dom.getByTestId("trace-ecg")).toBeTruthy();
+    expect(dom.getByTestId("trace-bp")).toBeTruthy();
+    expect(dom.queryByTestId("trace-gap")).toBeNull();
   });
 });

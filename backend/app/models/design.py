@@ -40,6 +40,28 @@ CertaintyMetricId = Literal[*registry.CERTAINTY_METRIC_IDS]  # type: ignore[vali
 
 Colour = Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
                               description="Hex colour, #RRGGBB or #RRGGBBAA.")]
+def _channel(v: int) -> float:
+    c = v / 255
+    return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def luminance(colour: str) -> float:
+    """WCAG relative luminance of #RRGGBB or #RRGGBBAA (alpha ignored)."""
+    h = colour.lstrip("#")
+    r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    return 0.2126 * _channel(r) + 0.7152 * _channel(g) + 0.0722 * _channel(b)
+
+
+def contrast_ratio(a: str, b: str) -> float:
+    """WCAG contrast ratio, 1 to 21."""
+    la, lb = luminance(a), luminance(b)
+    hi, lo = max(la, lb), min(la, lb)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+#: Text in a parameter's colour must be readable on the theme background and surface.
+MIN_TEXT_CONTRAST = 4.5
+
 Slug = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9-]{0,39}$",
                             description="Lowercase id: letters, digits, hyphens.")]
 Label = Annotated[str, Field(min_length=1, max_length=40)]
@@ -462,22 +484,25 @@ class LabelDisplay(_Model):
 
 
 class TileDisplay(_Model):
-    """The square holding one number. Every tile on the monitor is the same width,
-    and a tile never changes size whatever it shows: a number, STANDBY, CONNECTION
-    LOST and a low-battery warning all fit the same box."""
+    """The box holding a row's numbers. There is one tile per row, holding all of
+    that row's values (SpO2 and PR share one). Every tile is the same width, and a
+    tile never changes size whatever it shows: numbers, STANDBY, CONNECTION LOST and
+    a low-battery warning all fit the same box."""
 
-    width_px: int = Field(150, ge=110, le=260)
+    width_px: int = Field(220, ge=110, le=260)
     #: Rows that carry tiles share one height, so every tile is identical in both
     #: dimensions. Rows without numbers (events, timer, spacer) keep their own height.
     equal_row_heights: bool = True
 
 
 class NotificationsDisplay(_Model):
-    """The notification box: the one place alarms and monitoring problems are listed.
+    """The notification ticker: the one place alarms and monitoring problems are listed.
 
     It is always on screen and always the same size. It says 'No Notifications' or
-    shows the most important item with a count; touching it opens the full list
-    over the screen. Nothing that arrives may move or resize the rest of the monitor.
+    rolls through the current items, most serious first. A high-priority patient alarm
+    stops the ticker and is held on screen until it clears. Touching the ticker opens
+    the full list; the list never opens by itself. Nothing that arrives may move or
+    resize the rest of the monitor.
     """
 
     position: Literal["tab-bar-left", "tab-bar-right", "top-bar", "strip-top",
@@ -485,11 +510,34 @@ class NotificationsDisplay(_Model):
     #: Most serious first, newest first within a priority; or simply newest first.
     order: Literal["severity-then-recent", "recent-first"] = "severity-then-recent"
     empty_text: Literal["No Notifications", "All Clear", "No Alerts"] = "No Notifications"
+    #: 'vertical': items roll up one at a time. 'horizontal': text scrolls sideways
+    #: when it does not fit.
+    ticker: Literal["vertical", "horizontal"] = "vertical"
+    #: Seconds each item stays before the next rolls in (vertical).
+    ticker_dwell_s: int = Field(4, ge=2, le=10)
+    ticker_speed: Literal["slow", "medium", "fast"] = "medium"
+    #: Show 'n/total' while there is more than one item.
     show_count: bool = True
     #: Share of the bar the box takes when it sits in the tab bar or top bar.
     size: Literal["standard", "wide"] = "standard"
     flash: bool = Field(True, description="Flash at the item's priority rate.")
     feed_max_items: int = Field(12, ge=4, le=40)
+
+
+class TraceDisplay(_Model):
+    """Reference marks drawn on every trace so it can be read, not just watched."""
+
+    #: Dashed line at the baseline: 0 mV (the isoelectric line) on the ECG, the
+    #: mean level on pleth and respiration.
+    show_baseline: bool = True
+    #: Axis labels in the trace's units (mV, a.u., or the parameter's own unit).
+    show_scale: bool = True
+    #: A bar exactly 1 mV tall at the current gain, beside the ECG.
+    show_calibration_bar: bool = True
+    #: A bar one second long at the current sweep speed.
+    show_time_scale: bool = True
+    #: ECG gain. 10 mm/mV is the standard; the others are the usual alternatives.
+    ecg_gain_mm_per_mv: Literal[5, 10, 20] = 10
 
 
 # ---------------------------------------------------------- AI interpretation
@@ -588,6 +636,7 @@ class Design(_Model):
     labels: LabelDisplay = Field(default_factory=LabelDisplay)
     tiles: TileDisplay = Field(default_factory=TileDisplay)
     notifications: NotificationsDisplay = Field(default_factory=NotificationsDisplay)
+    traces: TraceDisplay = Field(default_factory=TraceDisplay)
     ai: AiDisplay = Field(default_factory=AiDisplay)
     forecast: Forecast = Field(default_factory=Forecast)
 
@@ -626,6 +675,25 @@ class Design(_Model):
                         f"{name}.colours.{token} must be visible against the background")
         if self.theme.mode == self.alt_theme.mode:
             raise ValueError("theme and alt_theme must be one dark and one light")
+
+        # Text takes the colour of its row, so every row colour must be readable on
+        # both sides of the dark / light switch.
+        for name, theme in (("theme", self.theme), ("alt_theme", self.alt_theme)):
+            grounds = (theme.colours.background, theme.colours.surface)
+            for pid, colour in theme.parameter_colours.items():
+                worst = min(contrast_ratio(colour, g) for g in grounds)
+                if worst < MIN_TEXT_CONTRAST:
+                    raise ValueError(
+                        f"{name}.parameter_colours.{pid} ({colour}) has contrast {worst:.1f}:1 "
+                        f"against the background; text in this colour needs "
+                        f"{MIN_TEXT_CONTRAST}:1")
+            for row in self.rows:
+                if row.colour:
+                    worst = min(contrast_ratio(row.colour, g) for g in grounds)
+                    if worst < MIN_TEXT_CONTRAST:
+                        raise ValueError(
+                            f"row {row.id!r} colour {row.colour} has contrast {worst:.1f}:1 "
+                            f"in {name}; text in this colour needs {MIN_TEXT_CONTRAST}:1")
 
         # Required controls: exactly one silence button and one settings button,
         # wherever the designer puts them (tab bar or top bar).

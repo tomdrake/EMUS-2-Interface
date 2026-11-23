@@ -91,6 +91,11 @@ for (const vp of VIEWPORTS) {
   const columns = new Set(await page.locator(".row-tiles").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width))));
   check(columns.size === 1, `${vp.name}: the tile column is the same width on every row`);
   check(await page.locator('[data-testid="row-bp"] .tile:not(.tile-empty)').count() === 1, `${vp.name}: blood pressure is one tile`);
+  const spo2Tile = await page.locator('[data-testid="row-spo2"] .tile:not(.tile-empty)').allInnerTexts();
+  check(spo2Tile.length === 1 && /SpO2/.test(spo2Tile[0]) && /PR/.test(spo2Tile[0]),
+        `${vp.name}: SpO2 and PR are together in one tile, not two`);
+  const tileW = await page.locator(".tile:not(.tile-empty)").first().evaluate((e) => Math.round(e.getBoundingClientRect().width));
+  check(tileW === 220, `${vp.name}: the tile is the design's width (${tileW}px)`);
 
   // --- alignment: things that belong on one line are on one line
   const align = await page.evaluate(() => {
@@ -130,9 +135,10 @@ for (const vp of VIEWPORTS) {
         .map((e) => parseFloat(getComputedStyle(e).fontSize))),
       smallestState: Math.min(...all(".tile-state, .tile-value").map((e) => parseFloat(getComputedStyle(e).fontSize))),
       // the same cells on every row, so the grid lines run straight down
-      cellsPerRow: new Set(all(".row:not(.row-spacer)").map((r) => r.querySelectorAll(".tile").length)).size,
-      columns: new Set(all(".tile").map((t) => Math.round(rect(t).left))).size,
-      slots: Number(getComputedStyle(q(".rows")).getPropertyValue("--tile-slots")),
+      tilesPerRow: new Set(all(".row:not(.row-spacer)").map((r) => r.querySelectorAll(".tile:not(.tile-empty)").length)).size,
+      maxTilesPerRow: Math.max(...all(".row:not(.row-spacer)").map((r) => r.querySelectorAll(".tile:not(.tile-empty)").length)),
+      tileLeft: spread(all(".row-tiles").map((e) => rect(e).left)),
+      tileWidth: spread(all(".row-tiles").map((e) => rect(e).width)),
       tileRight: spread(all(".row-tiles").map((e) => rect(e).right)),
       // buttons: icons on one level and labels on one baseline, in each bar
       tabIcons: spread(all(".tabbar .tab .icon").map((e) => mid(rect(e)))),
@@ -152,8 +158,8 @@ for (const vp of VIEWPORTS) {
   check(align.bodyLevel <= 0.5 && align.bodyCentred <= 1, `${vp.name}: values sit on one level in every tile, centred in their band`);
   check(align.smallestState >= 12 && align.smallestText >= 10.5,
         `${vp.name}: tile text is large enough to read (words ${align.smallestState}px, smallest label ${align.smallestText}px)`);
-  check(align.cellsPerRow === 1 && align.columns === align.slots && align.tileRight <= 0.5,
-        `${vp.name}: every row has the same tile cells, in straight columns`);
+  check(align.maxTilesPerRow === 1 && align.tileLeft <= 0.5 && align.tileRight <= 0.5 && align.tileWidth <= 0.5,
+        `${vp.name}: one tile per row, in one straight column`);
   check(align.tabIcons <= 0.5 && align.tabLabels <= 0.5, `${vp.name}: tab icons share a level and tab labels a baseline`);
   check(align.topIcons <= 0.5 && align.topLabels <= 0.5, `${vp.name}: top-bar icons share a level and labels a baseline`);
   check(align.barsFlush <= 1, `${vp.name}: both bars end flush with the screen edge`);
@@ -167,6 +173,58 @@ for (const vp of VIEWPORTS) {
   const texts = () => page.locator(".tile-body").allInnerTexts();
   check(!(await texts()).some((t) => /--/.test(t)), `${vp.name}: no tile ever shows dashes`);
   await shot("home");
+
+  // --- reference marks on traces: dashed baseline, scale, calibration bar
+  await page.waitForSelector('[data-testid="trace-frame-ecg"]');
+  const marks = await page.evaluate(() => {
+    const out = {};
+    const pxPerMm = 96 / 25.4;
+    for (const id of ["ecg", "spo2", "resp", "bp", "temp"]) {
+      const svg = document.querySelector(`[data-testid="trace-frame-${id}"]`);
+      const row = document.querySelector(`[data-testid="row-${id}"]`);
+      if (!svg) { out[id] = null; continue; }
+      const rowColour = getComputedStyle(row).color;
+      const base = svg.querySelector(".trace-baseline");
+      const bar = svg.querySelector(".trace-bar[data-testid^='trace-bar']");
+      const time = svg.querySelector(".trace-bar[data-testid^='trace-time']");
+      const labels = [...svg.querySelectorAll(".trace-label")];
+      const frame = svg.getBoundingClientRect(), name = row.querySelector(".row-label").getBoundingClientRect();
+      out[id] = {
+        dashed: base ? getComputedStyle(base).strokeDasharray !== "none" : null,
+        baselineY: base ? Number(base.getAttribute("y1")) : null, expectedY: Number(svg.dataset.baselineY || NaN),
+        baselineSpan: base ? Number(base.getAttribute("x2")) - Number(base.getAttribute("x1")) : null,
+        inside: base ? Number(base.getAttribute("y1")) > 0 && Number(base.getAttribute("y1")) < frame.height : null,
+        gain: svg.dataset.gain, pxPerUnit: Number(svg.dataset.pxPerUnit), fitted: svg.dataset.fitted,
+        barPx: bar ? Number(bar.dataset.px) : null,
+        barDrawn: bar ? Math.abs(Number(bar.querySelector("line").getAttribute("y1")) - Number(bar.querySelector("line").getAttribute("y2"))) : null,
+        timePx: time ? Number(time.dataset.px) : null,
+        timeDrawn: time ? Math.abs(Number(time.querySelector("line").getAttribute("x2")) - Number(time.querySelector("line").getAttribute("x1"))) : null,
+        labels: labels.map((l) => l.textContent), labelSize: Math.min(...labels.map((l) => parseFloat(getComputedStyle(l).fontSize))),
+        labelColour: labels.every((l) => getComputedStyle(l).fill === rowColour),
+        clearOfName: frame.top >= name.bottom - 1,
+      };
+    }
+    return { out, pxPerMm };
+  });
+  const m = marks.out;
+  check(m.ecg && m.spo2 && m.resp && m.bp && m.temp && !(await page.locator('[data-testid="trace-frame-oxygen"]').count()),
+        `${vp.name}: waveform and trend rows have a trace frame; bar rows do not`);
+  for (const id of ["ecg", "spo2", "resp"]) {
+    check(m[id].dashed && m[id].inside && Math.abs(m[id].baselineY - m[id].expectedY) < 0.1 && m[id].baselineSpan > 100,
+          `${vp.name}: the ${id} trace has a dashed baseline inside its frame`);
+  }
+  check(m.ecg.labels.includes("mV") && m.ecg.labels.includes("1 mV") && m.ecg.labels.some((l) => /mm\/mV/.test(l) && /nominal/.test(l)),
+        `${vp.name}: the ECG has an mV axis, a 1 mV bar and an honest gain label (${m.ecg.labels.join(" ")})`);
+  check(Math.abs(m.ecg.barDrawn - m.ecg.barPx) < 0.05 && Math.abs(m.ecg.barPx - m.ecg.pxPerUnit) < 0.01 &&
+        Math.abs(m.ecg.barPx - Number(m.ecg.gain) * marks.pxPerMm) < 0.05,
+        `${vp.name}: the 1 mV bar is exactly the trace's scale (${m.ecg.barPx}px = ${m.ecg.gain} mm/mV, fitted=${m.ecg.fitted})`);
+  check(Math.abs(m.ecg.timeDrawn - 25 * marks.pxPerMm) < 0.05, `${vp.name}: the one-second bar is 25 mm/s long`);
+  check(m.spo2.labels.includes("a.u.") && m.resp.labels.includes("a.u.") && m.spo2.barPx === null,
+        `${vp.name}: pleth and resp have an arbitrary-unit scale and no calibration bar`);
+  check(m.bp.labels.includes("mmHg") && m.temp.labels.includes("°C") && m.bp.dashed === null,
+        `${vp.name}: trend rows are labelled in their own units`);
+  check(Object.values(m).every((x) => x.clearOfName && x.labelSize >= 10.5 && x.labelColour),
+        `${vp.name}: trace marks sit under the row name, are readable, and use the row colour`);
 
   // Everything below must leave these exactly where they are.
   const layout = async () => JSON.stringify({
@@ -243,12 +301,112 @@ for (const vp of VIEWPORTS) {
   }).filter((x) => x.size < 12 || x.h < 10 || x.w < 20).length);
   check(await legible() === 0, `${vp.name}: every state word is large enough to read`);
 
+  // When the two values in a tile are in different states, each shows its own, still in one tile.
+  await page.evaluate(() => {
+    const st = window.__emus.safety, cur = st.getState().signals;
+    window.__signals = cur;
+    st.getState().setDevices(st.getState().devices, { ...cur,
+      pulse: { ...cur.pulse, state: "sensor-off", advice: "Check the sensor is attached" } });
+  });
+  const mixedTile = await page.evaluate(() => {
+    const tile = document.querySelector('[data-testid="row-spo2"] .tile');
+    return { tiles: document.querySelectorAll('[data-testid="row-spo2"] .tile:not(.tile-empty)').length,
+             cells: [...tile.querySelectorAll(".tile-cell")].map((c) => c.querySelector(".tile-body").innerText.replace(/\s+/g, " ").trim()) };
+  });
+  check(mixedTile.tiles === 1 && mixedTile.cells.length === 2 && /CONNECTION\s+LOST/.test(mixedTile.cells[0]) && /CHECK\s+SENSOR/.test(mixedTile.cells[1]),
+        `${vp.name}: values in different states each show their own, in the same tile (${mixedTile.cells.join(" | ")})`);
+  check(await layout() === before, `${vp.name}: two states in one tile did not move or resize anything`);
+  await shot("tile-mixed");
+  await page.evaluate(() => { const st = window.__emus.safety; st.getState().setDevices(st.getState().devices, window.__signals); });
+
   // The box headlines the most serious problem and counts the rest.
   check(/connection lost/i.test(await T("notif-text").innerText()), `${vp.name}: the box headlines the most serious problem`);
-  check(await T("notif-count").innerText() === "+1", `${vp.name}: the box counts the others`);
+  check(await T("notif-count").innerText() === "1/2", `${vp.name}: the box says which of how many is showing`);
   check(/MONITOR/.test(await T("notifications").innerText()), `${vp.name}: monitoring problems are tagged MONITOR`);
   check(await layout() === before, `${vp.name}: problems appearing did not move or resize anything`);
   await shot("failure-modes");
+
+  // --- text takes the colour of its row; turquoise is not used for status
+  const colours = await page.evaluate(() => {
+    const toRgb = (c) => c.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
+    const lum = (c) => { const [r, g, b] = toRgb(c).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+                         return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+    const root = getComputedStyle(document.documentElement);
+    const technical = (() => { const el = document.createElement("i"); el.style.color = root.getPropertyValue("--c-technical"); document.body.append(el);
+                               const v = getComputedStyle(el).color; el.remove(); return v; })();
+    const ground = getComputedStyle(document.body).backgroundColor;
+    const bad = [], faint = [], turquoise = [];
+    for (const row of document.querySelectorAll(".row:not(.row-spacer)")) {
+      const rowColour = getComputedStyle(row).color;
+      if (ratio(rowColour, ground) < 4.5) faint.push(`${row.dataset.testid} ${rowColour}`);
+      for (const el of row.querySelectorAll(".tile *, .row-status, .row-status *, .trace-label")) {
+        if (el.matches(".tile-alarm-off")) continue;            // the one deliberate exception: alarm off is yellow
+        const cs = getComputedStyle(el);
+        const own = el.tagName.toLowerCase() === "text" ? cs.fill : cs.color;
+        if (el.textContent.trim() && own !== rowColour) bad.push(`${row.dataset.testid} ${el.className.baseVal ?? el.className}: ${own}`);
+      }
+      for (const tile of row.querySelectorAll(".tile")) {
+        const after = getComputedStyle(tile, "::after");
+        if (after.content !== "none" && after.borderTopColor !== rowColour) bad.push(`${row.dataset.testid} frame ${after.borderTopColor}`);
+      }
+      if (rowColour !== technical) {
+        for (const el of row.querySelectorAll("*")) {
+          const cs = getComputedStyle(el);
+          if ([cs.color, cs.borderTopColor, cs.backgroundColor].includes(technical)) turquoise.push(`${row.dataset.testid} ${el.className.baseVal ?? el.className}`);
+        }
+      }
+    }
+    return { bad, faint, turquoise };
+  });
+  check(colours.bad.length === 0, `${vp.name}: all text, marks and frames in a row use that row's colour ${colours.bad.slice(0, 3).join(" | ")}`);
+  check(colours.turquoise.length === 0, `${vp.name}: no turquoise outside the turquoise row ${colours.turquoise.slice(0, 3).join(" | ")}`);
+  check(colours.faint.length === 0, `${vp.name}: every row colour is readable on the background (4.5:1) ${colours.faint.join(" | ")}`);
+
+  // --- the ticker rolls through the items, never opens the list, and holds a serious alarm
+  const text = () => T("notif-text").innerText();
+  check(/connection lost/i.test(await text()), `${vp.name}: the ticker starts on the most serious item`);
+  await page.waitForTimeout(4600);
+  check(/battery 18%/i.test(await text()) && await T("notif-count").innerText() === "2/2",
+        `${vp.name}: after a few seconds the ticker rolls to the next item (2/2)`);
+  check(await layout() === before, `${vp.name}: the ticker rolling did not move or resize anything`);
+  const t0 = new Date().toISOString();
+  await page.evaluate((t) => {
+    const s = window.__emus.safety;
+    const cur = s.getState().alarms;
+    window.__calm = cur;
+    s.getState().setAlarms({ ...cur, active: [...cur.active,
+      { id: "hr1", kind: "high", priority: "high", parameter: "hr", device_id: null,
+        message: "Heart rate 142, above 120.", started_at: t }] });
+  }, t0);
+  check(/Heart rate 142/.test(await text()), `${vp.name}: a high-priority patient alarm takes over the ticker`);
+  check(await T("notif-mark").innerText() === "!!!", `${vp.name}: it carries its priority mark (!!!)`);
+  check(await T("feed").count() === 0 && await T("notifications").getAttribute("aria-expanded") === "false",
+        `${vp.name}: the list does not open by itself, even for a high-priority alarm`);
+  await page.waitForTimeout(4600);
+  check(/Heart rate 142/.test(await text()) && await T("notifications").getAttribute("data-held") === "true",
+        `${vp.name}: the alarm is held still while others wait`);
+  check(await layout() === before, `${vp.name}: a high-priority alarm arriving did not move or resize anything`);
+  await shot("alarm-held");
+  await page.evaluate(() => window.__emus.safety.getState().setAlarms(window.__calm));
+  check(/connection lost/i.test(await text()) && await T("notifications").getAttribute("data-held") === "false",
+        `${vp.name}: when the alarm clears the ticker goes back to turns`);
+
+  // --- horizontal ticker: scrolls sideways when the text does not fit
+  await page.evaluate(() => { const ui = window.__emus.ui, d = ui.getState().stored.document;
+    ui.getState().setDraft({ ...d, notifications: { ...d.notifications, ticker: "horizontal" } }); });
+  const track = page.locator(".ticker-track");
+  await track.waitFor();
+  check(await T("notifications").getAttribute("data-ticker") === "horizontal", `${vp.name}: the ticker can be set to horizontal`);
+  const moving = await page.evaluate(async () => {
+    const t = document.querySelector(".ticker-track");
+    const x = () => new DOMMatrix(getComputedStyle(t).transform).m41;
+    const a = x(); await new Promise((r) => setTimeout(r, 400)); return { scrolling: t.classList.contains("is-scrolling"), moved: Math.abs(x() - a) };
+  });
+  check(moving.scrolling && moving.moved > 1, `${vp.name}: text too long for the box scrolls sideways`);
+  check(await layout() === before, `${vp.name}: a horizontal ticker did not move or resize anything`);
+  await shot("ticker-horizontal");
+  await page.evaluate(() => window.__emus.ui.getState().setDraft(null));
 
   // --- the feed is an overlay, most serious first
   await T("notifications").click();

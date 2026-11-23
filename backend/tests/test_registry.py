@@ -43,6 +43,25 @@ def test_technical_alarms_and_safety_constants():
     assert r.DISPLAY_STALE_AFTER_S <= r.CONNECTION_LOST_AFTER_S
 
 
+def test_waveform_scales():
+    ecg = r.WAVEFORMS["ecg"]["scale"]
+    assert ecg["unit"] == "mV" and ecg["calibrated"] and ecg["baseline"] == "isoelectric"
+    assert ecg["default_gain"] == 10 and set(ecg["gains_mm_per_unit"]) == {5, 10, 20}
+    for wid in ("pleth", "resp"):
+        sc = r.WAVEFORMS[wid]["scale"]
+        assert sc["unit"] == "a.u." and not sc["calibrated"] and sc["baseline"] == "mean", wid
+        assert sc["default_gain"] is None, "no absolute amplitude, so no mm per unit"
+    for w in r.WAVEFORMS.values():
+        lo, hi = w["scale"]["range"]
+        assert lo < 0 < hi and w["scale"]["tick"] > 0
+    assert r.WAVEFORMS["ecg"]["unit"] == "mV"
+
+
+def test_alarm_priority_marks_use_one_to_three_exclamation_marks():
+    assert r.ALARM_PRIORITY_MARKS == {"high": "!!!", "medium": "!!", "low": "!"}
+    assert r.as_public_dict()["alarm_priority_marks"] == r.ALARM_PRIORITY_MARKS
+
+
 def test_alarm_silence_is_two_minutes():
     assert r.ALARM_SILENCE_SECONDS == 120
 

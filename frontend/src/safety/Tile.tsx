@@ -68,59 +68,100 @@ export function DeviceMark({ device }: { device: DeviceStatus }) {
   );
 }
 
-interface TileProps {
+/** One value in a tile. The first is the primary and is drawn largest. */
+export interface TileValue {
   parameter: string;
   value?: number | string | null;
-  main?: boolean;
-  /** Second and third values for a combined tile, e.g. blood pressure "120/80 (93)". */
-  extra?: { separator: string; value?: number | string | null; wrap?: [string, string] }[];
   /** Overrides the registry's short name, e.g. "BP". */
   name?: string;
+  /** More values written as one, e.g. blood pressure "120/80 (93)". */
+  extra?: { separator: string; value?: number | string | null; wrap?: [string, string] }[];
 }
 
+/** How serious a display state is, for choosing the frame of a tile whose values differ. */
+const SEVERITY = ["connection-lost", "sensor-off", "invalid", "poor-signal", "acquiring", "standby", "ok"];
+const PROBLEM = new Set(["connection-lost", "sensor-off", "invalid"]);
+const worst = (kinds: string[]) => kinds.sort((a, b) => SEVERITY.indexOf(a) - SEVERITY.indexOf(b))[0]!;
+
 /**
- * One tile: a square holding one number, or the word that explains why there is
- * no number, with the supplying device's battery and link in its corner.
+ * One tile: the box holding all of a row's values (SpO2 and PR share one), or the
+ * word that explains why there is no number, with the battery and link of the
+ * device that measures them at the bottom.
  *
- * Every tile on the monitor is the same width and fills its row; nothing it can
- * show changes its size. Every numeric goes through this component so the rules
- * in status.ts apply everywhere. M2 passes the live value.
+ * Every tile on the monitor is the same size and nothing it can show changes that.
+ * Text takes the colour of its row (inherited from the row), so a tile is read as
+ * part of its row; states are told apart by word, frame and glyph, not colour.
+ *
+ * If every value in the tile is in the same state with no number (a limb sensor
+ * that lost its link takes SpO2 and PR with it) the word is shown once across the
+ * tile. If they differ, each value shows its own. A value is shown only while its
+ * signal is ok or poor. Every numeric goes through here so the rules in status.ts
+ * apply everywhere. M2 passes the live values.
  */
-export function Numeric({ parameter, value, main = false, extra, name }: TileProps) {
+export function Tile({ values }: { values: TileValue[] }) {
   const design = useDesign()!;
   const registry = useUi((s) => s.registry)!;
-  const signal = useSafety((s) => s.signals[parameter]);
+  const signals = useSafety((s) => s.signals);
+  const devices = useSafety((s) => s.devices);
+  const alarms = useSafety((s) => s.alarms);
   const link = useSafety((s) => s.link);
-  const device = useSafety((s) => deviceFor(s.devices, parameter));
-  const alarmOff = useSafety((s) => s.alarms?.alarms_off.includes(parameter as never) ?? false);
   const now = useTick(1000);
-  const p = registry.parameters[parameter];
-  const d = displayFor({ signal, value, link, now, safety: design.safety, registry });
-  const fmt = (v: number | string | null | undefined) =>
-    (typeof v === "number" ? v.toFixed(p?.decimals ?? 0) : v ?? "");
-  const showDevice = device && link === "live" && design.safety.device_status !== "top-bar";
+
+  const cells = values.map((v) => ({
+    v,
+    p: registry.parameters[v.parameter],
+    d: displayFor({ signal: signals[v.parameter], value: v.value, link, now, safety: design.safety, registry }),
+    alarmOff: alarms?.alarms_off.includes(v.parameter as never) ?? false,
+  }));
+  const first = cells[0]!;
+  const shared = cells.length > 1 && cells.every((c) => !c.d.showValue && c.d.kind === first.d.kind);
+  const shown = shared ? [first] : cells;
+  const kind = worst(cells.map((c) => c.d.kind));
+
+  const showDevice = link === "live" && design.safety.device_status !== "top-bar";
+  const marks: DeviceStatus[] = [];
+  if (showDevice) {
+    for (const c of cells) {
+      const d = deviceFor(devices, c.v.parameter);
+      if (d && !marks.some((m) => m.id === d.id)) marks.push(d);
+    }
+  }
+  const fmt = (c: (typeof cells)[number], v: number | string | null | undefined) =>
+    (typeof v === "number" ? v.toFixed(c.p?.decimals ?? 0) : v ?? "");
 
   return (
-    <span className={`tile${main ? " tile-main" : ""} tile-${d.kind} tone-${d.tone}`}
-          data-testid={`num-${parameter}`} data-state={d.kind}>
-      <span className="tile-head">
-        <span className="tile-name">{name ?? p?.short} <small>{p?.unit}</small></span>
-        {alarmOff && <span className="tile-alarm-off" title="Alarm off for this parameter">ALARM OFF</span>}
-      </span>
-      <span className="tile-body">
-        {d.showValue ? (
-          <span className="tile-value">
-            {fmt(value)}
-            {extra?.map((e, i) => (
-              <span key={i} className="tile-extra">{e.wrap?.[0] ?? e.separator}{fmt(e.value)}{e.wrap?.[1]}</span>
-            ))}
-            {d.flagged && <span className="tile-flag" aria-label="poor trace">?</span>}
-          </span>
-        ) : <span className="tile-state">{d.text}</span>}
+    <span className={`tile tile-${kind}${cells.length > 1 ? " tile-multi" : ""}`}
+          data-testid={`num-${first.v.parameter}`} data-state={kind}>
+      <span className="tile-cells">
+        {shown.map((c, i) => {
+          const names = shared ? cells.map((x) => x.v.name ?? x.p?.short).join(" · ") : (c.v.name ?? c.p?.short);
+          const unit = shared ? "" : c.p?.unit;
+          return (
+            <span key={c.v.parameter} className={`tile-cell tile-cell-${c.d.kind}${i === 0 ? " tile-primary" : ""}`}
+                  data-testid={`cell-${c.v.parameter}`} data-state={c.d.kind}>
+              <span className="tile-head">
+                <span className="tile-name">{names} {unit && <small>{unit}</small>}</span>
+                {PROBLEM.has(c.d.kind) && <span className="tile-glyph" aria-hidden="true">!</span>}
+                {c.alarmOff && <span className="tile-alarm-off" title="Alarm off for this parameter">ALARM OFF</span>}
+              </span>
+              <span className="tile-body">
+                {c.d.showValue ? (
+                  <span className="tile-value">
+                    {fmt(c, c.v.value)}
+                    {c.v.extra?.map((e, j) => (
+                      <span key={j} className="tile-extra">{e.wrap?.[0] ?? e.separator}{fmt(c, e.value)}{e.wrap?.[1]}</span>
+                    ))}
+                    {c.d.flagged && <span className="tile-flag" aria-label="poor trace">?</span>}
+                  </span>
+                ) : <span className="tile-state">{c.d.text}</span>}
+                {c.d.last && <span className="tile-last">last {c.d.last.value} · {c.d.last.age}</span>}
+              </span>
+            </span>
+          );
+        })}
       </span>
       <span className="tile-foot">
-        {d.last && <span className="tile-last">last {d.last.value} · {d.last.age}</span>}
-        {showDevice && <DeviceMark device={device} />}
+        {marks.slice(0, 2).map((d) => <DeviceMark key={d.id} device={d} />)}
       </span>
     </span>
   );

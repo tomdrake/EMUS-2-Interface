@@ -70,7 +70,8 @@ backend/app/
 frontend/src/
   design/            generated types, theme to CSS variables, navigation
   layout/            top bar, bottom tabs, menus, sheets, split layouts
-  safety/            tiles (a number or why there is none), the notification box
+  safety/            tiles (a number or why there is none), the notification ticker
+  traces/            baseline, scale and calibration marks drawn on every trace
   widgets/           what goes in a pane: rows, NEWS2 chart, labs, forecast ...
   studio/            sheets: clinical panels and design-studio sections
 docs/

@@ -69,23 +69,31 @@ alarms), the thresholds in `registry.py`, and `app/signal_quality.py`.
 
 ## Frontend
 
-The safety layer in `frontend/src/safety/` is already built and tested: `Numeric`
-(the tile: a number or the word explaining its absence, with the device's battery
-and link) and `RowStatus`, `NotificationBox` (the one fixed-size box and its
+The safety layer in `frontend/src/safety/` is already built and tested: `Tile`
+(one per row: its numbers or the word explaining their absence, with the device's
+battery and link) and `RowStatus`, `NotificationBox` (the one fixed-size box and its
 overlay feed), the link watchdog, and the rules in `status.ts` and
 `notifications.ts`. **Use it; do not replace it.** Every number on the monitor
-goes through `<Numeric>`; every alarm and problem reaches the user through the
+goes through `<Tile>`; every alarm and problem reaches the user through the
 notification box. Two layout rules are tested in the browser check and must keep
 passing: every tile is the same size, and nothing that arrives (an alarm, a fault,
-the sound pause, the feed opening) moves or resizes anything. A tile has three
-fixed bands (name, value, device state) and a compact form for short rows; the
+the sound pause, the feed opening) moves or resizes anything.
+
+Three more rules, also in the browser check:
+- **One tile per row.** Pass a row's values to `<Tile values={...}>` (`tileValues(row)` in
+  `MonitorRows.tsx` builds them). Do not add tiles.
+- **Text takes the row's colour.** Never style tile, mark or trace text with a status
+  colour; use the row colour (inherited) and the word, frame and glyph already there.
+- **Nothing opens the notification list by itself**, and the ticker holds a
+  high-priority patient alarm (`safety/ticker.ts`). Feed `useSafety` and the ticker
+  does the rest. A tile has fixed bands (name, value, device state) and a compact form for short rows; the
 trace must start below the row's name line (`--row-pad` + `--line`) so names and
 tile headers stay level and legible over a moving trace.
 
 | File | Build |
 |---|---|
 | new `src/app/live.ts` | Zustand store for numerics and waveform ring buffers. WebSocket client with reconnect. Feed `useSafety`: `heartbeat()` on every message, `setDevices()` for `DevicesMessage`, `setAlarms()` for `AlarmMessage`, `setLink("down")` on close. |
-| `src/widgets/MonitorRows.tsx` (pass live values to `<Numeric>`, including the `extra` values for the combined blood pressure tile) + new `WaveCanvas.tsx`, `TrendTrace.tsx`, `BarTrace.tsx`, `EventsTrace.tsx`, `TimerRow.tsx` | Real traces and live numbers. Canvas sweep with the erase-bar gap (`design.sweep`), or scrolling. Speed in mm/s converted with CSS px per mm. Draw at device pixel ratio; one `requestAnimationFrame` loop for all canvases. |
+| `src/widgets/MonitorRows.tsx` (pass live values to `<Tile>` via `tileValues(row)`, including the `extra` values for the combined blood pressure tile) + new `WaveCanvas.tsx`, `TrendTrace.tsx`, `BarTrace.tsx`, `EventsTrace.tsx`, `TimerRow.tsx` | Real traces and live numbers. Canvas sweep with the erase-bar gap (`design.sweep`), or scrolling. Speed in mm/s converted with CSS px per mm. Draw at device pixel ratio; one `requestAnimationFrame` loop for all canvases. |
 | `src/layout/TopBar.tsx` | Real patient fields, oxygen, alarm status, SIMULATED badge. |
 | `src/alarms/` | `audio.ts`: Web Audio tones by priority. Browsers block sound until a touch, so set `useSafety.sound` to `blocked` until audio is unlocked, register `enableSound`, and set `ready` once a test tone has played; the notification box then offers "Enable Sound". Patient alarms appear in the notification box (already styled red or yellow by priority) and as a flashing tile for the parameter concerned; do not add a banner that changes the layout. `SilenceButton` exists; drive it and the box from the server's `AlarmState`. |
 | traces | Dim a trace while its quality is poor when `design.safety.dim_poor_traces` is on; freeze and grey traces when the link is not live. |

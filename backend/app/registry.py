@@ -27,6 +27,11 @@ SNOMED = "http://snomed.info/sct"
 UCUM = "http://unitsofmeasure.org"
 NHS_NUMBER_SYSTEM = "https://fhir.nhs.uk/Id/nhs-number"
 
+#: Alarm priority marks shown beside patient alarm text (IEC 60601-1-8 as recalled:
+#: three, two and one exclamation marks; check against the standard). They carry
+#: priority in shape, so text can stay the row colour.
+ALARM_PRIORITY_MARKS: dict[str, str] = {"high": "!!!", "medium": "!!", "low": "!"}
+
 #: Alarm audio is silenced for exactly this long. Deliberately not design-editable.
 ALARM_SILENCE_SECONDS = 120
 
@@ -184,10 +189,27 @@ PARAMETER_IDS: tuple[str, ...] = tuple(PARAMETERS)
 BP_PANEL = Coding(LOINC, "85354-9", "Blood pressure panel with all children optional")
 
 WAVEFORMS: dict[str, dict] = {
-    # id -> nominal sample rate (Hz) and display defaults; device adapters may differ.
-    "ecg": {"label": "ECG", "hz": 250, "unit": "mV", "parameter": "hr"},
-    "pleth": {"label": "Pleth", "hz": 62.5, "unit": "", "parameter": "spo2"},
-    "resp": {"label": "Resp", "hz": 25, "unit": "", "parameter": "rr"},
+    # id -> nominal sample rate (Hz), display defaults and the scale drawn on the trace;
+    # device adapters may differ.
+    #
+    # `scale.calibrated` is true only where the signal has a physical amplitude. The
+    # ECG is in millivolts, so a 1 mV bar means something. Pleth and respiration have
+    # no absolute amplitude: they are normalised and auto-gained, so their scale is
+    # arbitrary units and says nothing about size, only shape.
+    "ecg": {"label": "ECG", "hz": 250, "unit": "mV", "parameter": "hr",
+            "scale": {"unit": "mV", "calibrated": True, "gains_mm_per_unit": [5, 10, 20],
+                      "default_gain": 10, "tick": 0.5, "baseline": "isoelectric",
+                      #: The visible window: a normal R wave is about 1 mV and an S
+                      #: wave about -0.5 mV. Larger signals are clipped at the edge.
+                      "range": [-0.5, 1.0]}},
+    "pleth": {"label": "Pleth", "hz": 62.5, "unit": "a.u.", "parameter": "spo2",
+              "scale": {"unit": "a.u.", "calibrated": False, "gains_mm_per_unit": [],
+                        "default_gain": None, "tick": 0.5, "baseline": "mean",
+                        "range": [-1.0, 1.0]}},
+    "resp": {"label": "Resp", "hz": 25, "unit": "a.u.", "parameter": "rr",
+             "scale": {"unit": "a.u.", "calibrated": False, "gains_mm_per_unit": [],
+                       "default_gain": None, "tick": 0.5, "baseline": "mean",
+                       "range": [-1.0, 1.0]}},
 }
 WAVEFORM_IDS: tuple[str, ...] = tuple(WAVEFORMS)
 
@@ -539,6 +561,7 @@ def as_public_dict() -> dict:
         "demo_faults": DEMO_FAULTS,
         "parameters": {k: asdict(v) for k, v in PARAMETERS.items()},
         "waveforms": WAVEFORMS,
+        "alarm_priority_marks": ALARM_PRIORITY_MARKS,
         "o2_devices": O2_DEVICES,
         "acvpu_levels": list(ACVPU_LEVELS),
         "lab_groups": LAB_GROUPS,

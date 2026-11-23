@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+import { NOMINAL_PX_PER_MM } from "@/traces/traceScale";
+
 import type { Registry } from "./api";
 import type { Design, Menu, SheetId, StoredDesign, Theme, ThemeMode } from "@/design/types";
 
@@ -21,6 +23,9 @@ interface UiState {
   editMode: boolean;
   /** Dark / light choice for this screen; null = the design's default theme. */
   mode: ThemeMode | null;
+  /** CSS pixels per millimetre used for trace gain and sweep speed. Nominal unless
+   *  this screen has been calibrated (the calibration sheet is milestone M4). */
+  pxPerMm: number;
   patientId: string;
   notice: string | null;
 
@@ -54,7 +59,7 @@ function writeMode(mode: ThemeMode): void {
 export const useUi = create<UiState>((set) => ({
   stored: null, draft: null, registry: null, error: null,
   screenId: null, openMenu: null, openSheet: null, sheetContext: null,
-  editMode: false, mode: readMode(), patientId: DEFAULT_PATIENT, notice: null,
+  editMode: false, mode: readMode(), pxPerMm: NOMINAL_PX_PER_MM, patientId: DEFAULT_PATIENT, notice: null,
 
   load: (stored, registry) =>
     set((s) => ({ stored, registry, error: null,

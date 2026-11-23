@@ -27,11 +27,11 @@ function AlarmStatus() {
   const sound = useSafety((s) => s.sound);
   const link = useSafety((s) => s.link);
   const active = useSafety((s) => s.alarms?.active.filter((a) => a.kind !== "technical").length ?? 0);
-  if (link !== "live") return <span className="alarm-status tone-stale" data-testid="alarm-status">Alarms: No Data</span>;
+  if (link !== "live") return <span className="alarm-status status-strong" data-testid="alarm-status">Alarms: No Data</span>;
   if (left > 0) return <span className="alarm-status tone-silenced" data-testid="alarm-status">Sound Paused {elapsed(left * 1000)}</span>;
-  if (sound === "blocked") return <span className="alarm-status tone-technical" data-testid="alarm-status">Sound Off</span>;
+  if (sound === "blocked") return <span className="alarm-status status-strong" data-testid="alarm-status">Sound Off</span>;
   // Only claim alarms are audible once this screen has shown it can play sound.
-  if (sound !== "ready") return <span className="alarm-status tone-technical" data-testid="alarm-status">Sound Not Confirmed</span>;
+  if (sound !== "ready") return <span className="alarm-status status-strong" data-testid="alarm-status">Sound Not Confirmed</span>;
   return <span className="alarm-status" data-testid="alarm-status">{active ? `${active} Alarm${active > 1 ? "s" : ""}` : "Alarms On"}</span>;
 }
 

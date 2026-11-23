@@ -93,95 +93,107 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .row:last-child { border-bottom: 0; }
 .rows-left .row { flex-direction: row-reverse; }
 .row-spacer { border-bottom: 1px dashed var(--c-border); }
-.row-trace { flex: 1 1 0; min-width: 0; display: flex; gap: 12px; align-items: baseline;
-  padding: var(--row-pad) var(--inset); line-height: var(--line); white-space: nowrap; overflow: hidden; }
+/* The trace column: the name line on top, the trace area below it. Text in the row
+   (the name, the tile, the marks on the trace) all take the row's colour. */
+.row-trace { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden;
+  padding: var(--row-pad) var(--inset) var(--row-pad); }
+.row-head { flex: none; display: flex; gap: 12px; align-items: baseline; line-height: var(--line);
+  white-space: nowrap; overflow: hidden; }
 .row-label { font-weight: 700; flex: none; }
 .row-method { font-weight: 500; opacity: 0.8; }
 
-/* The tile column is the same width on every row: as many slots as the busiest
-   row needs, each exactly --tile wide. Tiles fill from the outer edge. */
-.row-tiles { flex: none; width: calc(var(--tile) * var(--tile-slots)); display: flex; }
+/* ---- trace reference marks (no signal; M2 draws the signal inside) ---- */
+.trace-area { position: relative; flex: 1 1 0; min-height: 0; margin-top: 2px; }
+.trace-frame { position: absolute; inset: 0; display: block; overflow: visible; }
+.trace-label { font-size: 10.5px; font-weight: 600; fill: currentColor; font-variant-numeric: tabular-nums; }
+.trace-unit { font-weight: 700; }
+.trace-baseline { stroke: currentColor; stroke-width: 1; stroke-dasharray: 6 5; opacity: 0.7; }
+.trace-grid { stroke: currentColor; stroke-width: 1; stroke-dasharray: 2 5; opacity: 0.28; }
+.trace-tick { stroke: currentColor; stroke-width: 1; opacity: 0.7; }
+.trace-bar line { stroke: currentColor; stroke-width: 1.5; stroke-linecap: square; }
+
+.row-tiles { flex: none; width: var(--tile); display: flex; }
 .rows-left .row-tiles { flex-direction: row-reverse; }
 
 /* =======================================================================
-   Tiles. One number per tile, or the word that explains why there is none.
-   A tile is always --tile wide and as tall as its row. Nothing it shows can
-   change that: content scales to the tile (cqw / cqh), the tile never to it.
+   Tiles. One tile per row, holding every value in that row, or the word that
+   explains why there is none. A tile is always --tile wide and as tall as its
+   row. Nothing it shows can change that: content scales to the tile.
+   Text takes the colour of its row (inherited), never a status colour.
    ======================================================================= */
 .tile { position: relative; flex: none; width: var(--tile); min-width: 0; display: grid;
-  /* Name on the first line (level with the row's name), value in the middle,
-     device state on the last line. The three bands are the same in every tile, so
-     values sit on one level across the screen. */
+  /* Values on top, device state on the last line. The two bands are the same in
+     every tile, so values sit on one level across the screen. */
   --tile-foot: 14px;
   --tile-pad-b: 3px;
-  grid-template: "head" var(--line) "body" minmax(0, 1fr) "foot" var(--tile-foot) / minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) var(--tile-foot);
   padding: var(--row-pad) 8px var(--tile-pad-b); container-type: size; overflow: hidden;
   border-left: 1px solid var(--c-border);
-  /* Height left for the value: the tile's content box less the two bands. */
+  /* Height left for a value: the tile's content box less the name line and the foot. */
   --body-h: calc(100cqh - var(--line) - var(--tile-foot)); }
 .rows-left .tile { border-left: 0; border-right: 1px solid var(--c-border); }
-.tile-head { grid-area: head; display: flex; align-items: center; justify-content: space-between; gap: 4px;
-  min-width: 0; font-size: 0.72rem; line-height: var(--line); white-space: nowrap; }
+.tile-cells { display: flex; min-height: 0; min-width: 0; }
+/* The primary value is wider; further values share the rest. Each cell measures
+   its own width (cqw) so three digits always fit it. */
+.tile-cell { flex: 1 1 0; min-width: 0; display: grid; grid-template-rows: var(--line) minmax(0, 1fr);
+  container-type: inline-size; }
+.tile-multi .tile-primary { flex: 1.35 1 0; }
+.tile-cell + .tile-cell { padding-left: 8px; }
+.tile-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-width: 0;
+  font-size: 0.72rem; line-height: var(--line); white-space: nowrap; }
 .tile-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
 .tile-name small { font-weight: 500; opacity: 0.8; font-size: 1em; }
-.tile-body { grid-area: body; display: flex; align-items: center; justify-content: center; min-height: 0;
+.tile-body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0;
   line-height: 1; text-align: center; }
 .tile-value { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
-  font-size: min(calc(2.1rem * var(--numeric-scale)), var(--body-h), 30cqw); }
-.tile-main .tile-value { font-size: min(calc(2.8rem * var(--numeric-scale)), var(--body-h), 36cqw); }
+  font-size: min(calc(2.1rem * var(--numeric-scale)), var(--body-h), 34cqw); }
+.tile-primary .tile-value { font-size: min(calc(2.8rem * var(--numeric-scale)), var(--body-h), 40cqw); }
 .tile-extra { font-size: 0.62em; }
-.tile-main:has(.tile-extra) .tile-value { font-size: min(calc(2.2rem * var(--numeric-scale)), var(--body-h), 22cqw); }
-.tile-foot { grid-area: foot; display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0;
+.tile-primary:has(.tile-extra) .tile-value { font-size: min(calc(2.2rem * var(--numeric-scale)), var(--body-h), 21cqw); }
+.tile-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0;
   font-size: 0.66rem; line-height: var(--tile-foot); white-space: nowrap; overflow: hidden; }
 
-/* A short tile (a split screen, a small tablet) has no room for three bands: the
-   device state moves up beside the name and the unit is dropped, leaving the
-   height to the value. Still one size, still nothing moves. */
+/* A short tile (a split screen, a small tablet) has no room for two bands: the
+   device state moves up beside the names and the unit is dropped, leaving the height
+   to the value. Still one size, still nothing moves. */
 @container (max-height: 62px) {
-  .tile-head { grid-area: head; }
-  .tile-foot { grid-area: head; justify-self: end; line-height: var(--line); }
+  .tile-foot { position: absolute; top: var(--row-pad); right: 8px; height: var(--line); line-height: var(--line); }
+  .tile { grid-template-rows: minmax(0, 1fr); --body-h: calc(100cqh - var(--line)); }
   .tile-name small { display: none; }
-  .tile-body { grid-row: body / foot; }
-  .tile-value, .tile-main .tile-value, .tile-main:has(.tile-extra) .tile-value { --body-h: calc(100cqh - var(--line)); }
-  /* One line only here, sized so the longest word (CONNECTION LOST) fits the width. */
   .tile-state { --body-h: calc(100cqh - var(--line)); white-space: nowrap;
     font-size: clamp(12px, min(calc(1rem * var(--numeric-scale)), var(--body-h) * 0.9, 9.2cqw), 2rem); }
 }
 
-/* Safety states. Each differs from every other in WORD, colour and outline, never
-   colour alone. See docs/human-factors.md. */
-.tone-inactive { color: var(--c-inactive); }
-.tone-technical { color: var(--c-technical); }
-.tone-stale { color: var(--c-text-muted); }
-.tone-silenced { color: var(--c-silenced); }
-/* The word sits inside the tile, wraps to two lines at most, and is sized to fit. */
+/* ---- states. Word first; then frame and glyph. Never a status colour. ---- */
 /* The word wraps to two lines at most and is sized so two lines fit the value band. */
 .tile-state { display: block; max-width: 100%; font-weight: 800; letter-spacing: 0.03em; line-height: 1.1;
   text-wrap: balance; font-size: clamp(12px, min(calc(1rem * var(--numeric-scale)), var(--body-h) / 2.3, 13.5cqw), 2rem); }
-.tile-standby .tile-state, .tile-acquiring .tile-state, .tile-no-data .tile-state { font-weight: 700; }
-/* A problem is marked by a frame set just inside the tile, clear of the grid
-   lines, so the grid stays even whatever state a tile is in. */
+/* Nothing is being measured: lighter weight, a thin solid frame. */
+.tile-standby .tile-state, .tile-acquiring .tile-state, .tile-no-data .tile-state { font-weight: 600; }
+.tile-standby::after, .tile-acquiring::after, .tile-no-data::after,
 .tile-sensor-off::after, .tile-connection-lost::after, .tile-invalid::after, .tile-poor-signal::after {
-  content: ""; position: absolute; inset: 2px; border: 2px solid var(--c-technical); border-radius: 5px;
-  pointer-events: none; }
-.tile-poor-signal::after { border-width: 1px; border-style: dashed; }
-.tile-poor-signal .tile-value { opacity: 0.75; }
-.tile-flag { color: var(--c-technical); margin-left: 2px; }
-.tile-last { color: var(--c-text-muted); text-decoration: line-through; margin-right: auto;
-  overflow: hidden; text-overflow: ellipsis; }
+  content: ""; position: absolute; inset: 2px; border: 1px solid currentColor; border-radius: 5px;
+  pointer-events: none; opacity: 0.45; }
+/* Something is wrong with the monitoring: a bold frame and a "!" glyph. */
+.tile-sensor-off::after, .tile-connection-lost::after, .tile-invalid::after { border-width: 2px; opacity: 1; }
+/* A number is shown but not to be trusted: a dashed frame and a "?" after it. */
+.tile-poor-signal::after { border-style: dashed; opacity: 0.9; }
+.tile-glyph { flex: none; display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%;
+  border: 1.5px solid currentColor; font-size: 10px; font-weight: 900; line-height: 1; }
+.tile-flag { margin-left: 2px; }
+.tile-last { font-size: 0.66rem; opacity: 0.85; text-decoration: line-through; margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .tile-alarm-off { flex: none; color: var(--c-silenced); font-weight: 800; }
-.tone-stale .tile-name, .tone-inactive .tile-name { color: var(--c-text-muted); }
 
-/* Battery and link of the device behind the value, in the tile's corner. */
-.device-mark { flex: none; display: inline-flex; align-items: center; gap: 4px; color: var(--c-text-muted); }
+/* Battery and link of the device behind the values, in the tile's foot. */
+.device-mark { flex: none; display: inline-flex; align-items: center; gap: 4px; }
 .device-word { font-weight: 800; letter-spacing: 0.02em; }
-.device-low, .device-critical, .device-lost { color: var(--c-technical); }
-.device-inactive { color: var(--c-inactive); }
+.device-inactive { opacity: 0.7; }
 .battery, .link { flex: none; }
 
 .row-status { display: inline-flex; align-items: baseline; gap: 8px; font-size: 0.85em; min-width: 0; overflow: hidden; }
 .row-status strong { letter-spacing: 0.03em; flex: none; }
-.row-advice { color: var(--c-text); opacity: 0.85; overflow: hidden; text-overflow: ellipsis; }
+.row-advice { opacity: 0.9; overflow: hidden; text-overflow: ellipsis; }
 
 /* Optional device summary in the top bar. */
 .devices { display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 40px; align-items: center; height: 1.6em; overflow: hidden; }
@@ -189,47 +201,81 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .device-label { color: var(--c-text-muted); }
 .device-text { font-weight: 600; font-variant-numeric: tabular-nums; }
 .alarm-status { font-weight: 600; }
+.alarm-status.status-strong { color: var(--c-text); font-weight: 800; }
+.tone-silenced { color: var(--c-silenced); }
 
-/* When this screen is not receiving data, nothing on it may look live. */
+/* When this screen is not receiving data, nothing on it may look live: colour goes,
+   and the traces dim. The word NO DATA stays at full strength so it can be read. */
 .app[data-link="stale"] .screen, .app[data-link="down"] .screen,
-.app[data-link="stale"] .devices, .app[data-link="down"] .devices { filter: grayscale(1); opacity: 0.55; }
+.app[data-link="stale"] .devices, .app[data-link="down"] .devices { filter: grayscale(1); }
+.app[data-link="stale"] .row-trace, .app[data-link="down"] .row-trace { opacity: 0.55; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* =======================================================================
-   Notification box and feed. The box is a fixed size wherever it sits; the
-   feed is an overlay. Neither can move or resize anything else.
+   Notification ticker and feed. The box is a fixed size wherever it sits; the
+   feed is an overlay that opens only when the box is touched. Neither can move
+   or resize anything else. Text takes the colour of the row it is about.
    ======================================================================= */
 .notif { display: flex; align-items: center; gap: 10px; padding: 0 12px 0 var(--edge); text-align: left; overflow: hidden;
-  color: var(--c-text-muted); background: var(--c-surface); min-height: var(--touch); }
+  color: var(--c-text); background: var(--c-surface); min-height: var(--touch); position: relative; }
 .notif-bar { flex: 0 0 clamp(290px, 27vw, 380px); border-right: 1px solid var(--c-border); }
 .notif-bar.notif-size-wide { flex-basis: clamp(300px, 36vw, 520px); }
 .topbar .notif-bar { align-self: stretch; border-left: 1px solid var(--c-border); }
 .notif-strip { flex: none; height: 44px; display: flex; border-bottom: 1px solid var(--c-border); }
 .notif-strip .notif { flex: 1 1 auto; min-height: 0; }
-.notif .icon { flex: none; }
-.notif-main { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 1px; line-height: 1.15; }
-.notif-none { font-weight: 600; }
-.notif-tag, .feed-tag { flex: none; align-self: flex-start; font-size: 0.62em; font-weight: 800; letter-spacing: 0.08em;
-  padding: 1px 5px; border: 1px solid currentColor; border-radius: 4px; }
-.notif-text { font-size: 0.82em; font-weight: 600; color: var(--c-text); overflow: hidden;
+.notif .icon { flex: none; color: var(--c-text-muted); }
+
+/* The ticker window: items roll up (vertical) or scroll sideways (horizontal). */
+.ticker { flex: 1 1 0; min-width: 0; align-self: stretch; display: flex; align-items: center; overflow: hidden; }
+.ticker-none { font-weight: 600; color: var(--c-text-muted); }
+.ticker-roll { flex: 1 1 0; min-width: 0; display: flex; align-items: center; }
+.ticker-item { display: flex; flex-direction: column; justify-content: center; gap: 1px; min-width: 0; line-height: 1.15; }
+.notif-meta { display: flex; align-items: center; gap: 6px; }
+.notif-text { font-size: 0.82em; font-weight: 600; overflow: hidden;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.notif-strip .notif-main { flex-direction: row; align-items: center; gap: 8px; }
-.notif-strip .notif-tag { align-self: center; }
+.notif-strip .ticker-item { flex-direction: row; align-items: center; gap: 8px; }
 .notif-strip .notif-text { -webkit-line-clamp: 1; }
-.notif-count { flex: none; font-weight: 800; font-size: 0.85em; padding: 2px 7px; border-radius: 999px;
-  border: 1px solid currentColor; }
+.notif-tag, .feed-tag { flex: none; font-size: 0.62em; font-weight: 800; letter-spacing: 0.08em;
+  padding: 1px 5px; border: 1px solid currentColor; border-radius: 4px; }
+/* Patient alarm priority in shape: !!! high, !! medium, ! low. Alarm colours live
+   here and on the frame, not on the text. */
+.notif-mark { flex: none; font-size: 0.7em; font-weight: 900; letter-spacing: 0.02em; padding: 0 5px;
+  border-radius: 4px; line-height: 1.5; border: 1px solid currentColor; }
+.mark-high { background: var(--c-alarm-high); color: var(--c-background); border-color: var(--c-alarm-high); }
+.mark-medium { background: var(--c-alarm-medium); color: var(--c-background); border-color: var(--c-alarm-medium); }
+.notif-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
+.notif-count { flex: none; font-weight: 800; font-size: 0.8em; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid var(--c-border); color: var(--c-text-muted); font-variant-numeric: tabular-nums; }
+
+/* Vertical: the next item rolls up into view. */
+.ticker-roll { animation: roll-in 250ms ease-out; }
+@keyframes roll-in { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+/* Horizontal: the items scroll past, only when they do not fit. */
+.ticker-viewport { flex: 1 1 0; min-width: 0; overflow: hidden; display: flex; align-items: center;
+  mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); }
+.ticker-track { display: inline-flex; align-items: center; gap: 36px; white-space: nowrap; will-change: transform; }
+.ticker-track .ticker-item { flex-direction: row; align-items: center; gap: 8px; }
+.ticker-track .notif-text { display: inline; -webkit-line-clamp: unset; overflow: visible; }
+.ticker-track.is-scrolling { animation: marquee var(--marquee-s, 12s) linear infinite; }
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.notif[aria-expanded="true"] .ticker-track.is-scrolling { animation-play-state: paused; }
+
 .notif-paused { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
   align-self: stretch; margin: 6px 0; padding: 0 6px; border-radius: 6px; font-size: 0.6em; font-weight: 800;
   letter-spacing: 0.05em; line-height: 1.15; background: var(--c-silenced); color: var(--c-background); }
 .notif-paused strong { font-size: 1.7em; font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .notif-strip .notif-paused { flex-direction: row; gap: 6px; margin: 5px 0; }
-/* Colour by what the headline is about and how serious it is. */
-.notif-monitor-low, .notif-monitor-medium { color: var(--c-technical); box-shadow: inset 0 0 0 2px var(--c-technical); }
-.notif-monitor-high { background: var(--c-technical); color: var(--c-background); }
-.notif-patient-low { color: var(--c-alarm-low); box-shadow: inset 0 0 0 2px var(--c-alarm-low); }
-.notif-patient-medium { background: var(--c-alarm-medium); color: var(--c-background); }
-.notif-patient-high { background: var(--c-alarm-high); color: var(--c-background); }
-.notif-monitor-high .notif-text, .notif-patient-medium .notif-text, .notif-patient-high .notif-text { color: inherit; }
-.notif.is-paused.notif-empty { box-shadow: inset 0 0 0 2px var(--c-silenced); color: var(--c-silenced); }
+
+/* The frame says what kind of item is on show: a frame in the alarm colour for a
+   patient alarm (bold for high, thinner for medium), a dashed neutral frame for a
+   monitoring problem, none when there is nothing to report. */
+.notif-patient-high { box-shadow: inset 0 0 0 3px var(--c-alarm-high); }
+.notif-patient-medium { box-shadow: inset 0 0 0 2px var(--c-alarm-medium); }
+.notif-monitor::after { content: ""; position: absolute; inset: 2px; border: 1px dashed var(--c-text-muted);
+  border-radius: 4px; pointer-events: none; }
+.notif.is-paused.notif-empty { box-shadow: inset 0 0 0 2px var(--c-silenced); }
 
 /* The feed does not dim the monitor: values stay readable behind it. */
 .scrim.scrim-clear { background: transparent; }
@@ -246,15 +292,15 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .feed-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px calc(var(--inset) - 6px); min-height: var(--touch);
   border-bottom: 1px solid var(--c-border); border-left: 6px solid transparent; }
 .feed-item:last-child { border-bottom: 0; }
-.feed-text { flex: 1 1 0; color: var(--c-text); }
+.feed-text { flex: 1 1 0; }
 .feed-age { flex: none; color: var(--c-text-muted); font-size: 0.8em; font-variant-numeric: tabular-nums; }
 .feed-tag { align-self: center; }
 .feed-none { color: var(--c-text-muted); justify-content: center; }
 .feed-paused { border-left-color: var(--c-silenced); color: var(--c-silenced); }
-.feed-monitor-low, .feed-monitor-medium, .feed-monitor-high { border-left-color: var(--c-technical); color: var(--c-technical); }
-.feed-patient-low { border-left-color: var(--c-alarm-low); color: var(--c-alarm-low); }
-.feed-patient-medium { border-left-color: var(--c-alarm-medium); color: var(--c-alarm-medium); }
-.feed-patient-high { border-left-color: var(--c-alarm-high); color: var(--c-alarm-high); }
+.feed-monitor-low, .feed-monitor-medium, .feed-monitor-high { border-left-color: var(--c-border); }
+.feed-patient-low { border-left-color: var(--c-text-muted); }
+.feed-patient-medium { border-left-color: var(--c-alarm-medium); }
+.feed-patient-high { border-left-color: var(--c-alarm-high); }
 
 /* Flash rates: fast for high priority, slow for medium, steady for low. The rates
    sit inside the ranges IEC 60601-1-8 gives for alarm indicator lights as recalled
@@ -263,13 +309,15 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 @keyframes flash-high { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.35; } }
 @keyframes flash-medium { 0%, 59% { opacity: 1; } 60%, 100% { opacity: 0.45; } }
 .tab-silence.is-silenced .icon, .notif-paused strong { animation: flash-medium 1.6s steps(1) infinite; }
-.notif.can-flash.notif-patient-high .icon, .notif.can-flash.notif-monitor-high .icon,
+.notif.can-flash.notif-patient-high .icon, .notif.can-flash.notif-patient-high .mark-high,
 .device-critical .battery, .device-lost .link { animation: flash-high 0.5s steps(1) infinite; }
-.notif.can-flash.notif-patient-medium .icon, .notif.can-flash.notif-monitor-medium .icon,
+.notif.can-flash.notif-patient-medium .icon, .notif.can-flash.notif-patient-medium .mark-medium,
 .device-low .battery { animation: flash-medium 1.6s steps(1) infinite; }
-/* People who ask for less motion still get the state in words, colour and position. */
+/* People who ask for less motion still get the state in words, marks and position:
+   items swap without sliding or scrolling, and nothing flashes. */
 @media (prefers-reduced-motion: reduce) {
   .tab-silence *, .notif *, .device-mark * { animation: none !important; }
+  .ticker-track.is-scrolling { transform: none; }
 }
 
 /* ---- placeholders (scaffold only) ---- */

@@ -2,38 +2,40 @@ import { useDesign, useUi } from "@/app/store";
 import { rowTitle } from "@/design/text";
 import { paramVar } from "@/design/theme";
 import type { Row, WidgetOf } from "@/design/types";
-import { Numeric, RowStatus } from "@/safety/Numeric";
+import { RowStatus, Tile, type TileValue } from "@/safety/Tile";
+import { TraceFrame } from "@/traces/TraceFrame";
 
-/** Blood pressure reads as one value, "120/80 (93)", so it takes one tile. */
-function isBloodPressure(numerics: readonly string[]): boolean {
-  return numerics.includes("bp_sys") && numerics.includes("bp_dia");
-}
-
-function tileCount(row: Row): number {
-  if (row.kind !== "parameter") return 0;
-  return isBloodPressure(row.numerics as string[]) ? 1 : row.numerics.length;
+/** The values a row's tile holds, primary first. Blood pressure reads as one value, "120/80 (93)". */
+export function tileValues(row: Row): TileValue[] {
+  const n = row.numerics as string[];
+  if (n.includes("bp_sys") && n.includes("bp_dia")) {
+    return [{ parameter: "bp_sys", name: "BP",
+              extra: [{ separator: "/" }, ...(n.includes("bp_mean")
+                ? [{ separator: " ", wrap: [" (", ")"] as [string, string] }] : [])] }];
+  }
+  return n.map((parameter) => ({ parameter }));
 }
 
 /**
- * The ICU-style rows: trace on one side, tiles of numbers on the other.
+ * The ICU-style rows: the trace on the left, one tile of numbers on the right.
  *
- * The tile column is the same width on every row (as many tile slots as the
- * busiest row needs), so traces line up and nothing shifts when a tile's content
- * changes.
+ * There is one tile per row, the same width on every row, so traces line up and
+ * nothing shifts when a tile's content changes. A row with no numbers (events,
+ * timer) keeps an empty cell so the grid lines run straight down.
  *
- * Scaffold: lays the rows out from the design (order, height, colour, labels).
- * M2 adds the real trace (WaveCanvas / TrendTrace / BarTrace / EventsTrace) and
- * passes live values to <Numeric>. Keep <Numeric> and <RowStatus>: they decide
- * what is shown when there is no trustworthy number.
+ * Scaffold: lays the rows out from the design and draws each trace's reference
+ * marks (dashed baseline, scale) with no signal in them. M2 draws the signal inside
+ * <TraceFrame> using the same transform, and passes live values to <Tile>. Keep
+ * <Tile> and <RowStatus>: they decide what is shown when there is no trustworthy
+ * number.
  */
 export function MonitorRows({ widget }: { widget: WidgetOf<"monitor-rows"> }) {
   const design = useDesign()!;
   const registry = useUi((s) => s.registry)!;
   const byId = new Map(design.rows.map((r) => [r.id, r]));
   const rows = widget.row_ids.map((id) => byId.get(id)).filter((r): r is Row => !!r && r.visible);
-  const slots = Math.max(1, ...rows.map(tileCount));
   const equal = design.tiles.equal_row_heights;
-  const style = { "--tile": `${design.tiles.width_px}px`, "--tile-slots": slots } as React.CSSProperties;
+  const style = { "--tile": `${design.tiles.width_px}px` } as React.CSSProperties;
 
   return (
     <div className={`rows rows-${widget.numerics_side}`} style={style}>
@@ -44,28 +46,23 @@ export function MonitorRows({ widget }: { widget: WidgetOf<"monitor-rows"> }) {
         }
         const colour = row.colour ?? (row.parameter ? paramVar(row.parameter) : "var(--c-text)");
         const title = rowTitle(row, design, registry);
-        const bp = isBloodPressure(row.numerics as string[]);
+        const values = tileValues(row);
         return (
           <button key={row.id} type="button" className="row"
-                  style={{ flex: `${equal && tileCount(row) > 0 ? 1 : row.height} 1 0`, color: colour }}
+                  style={{ flex: `${equal && values.length ? 1 : row.height} 1 0`, color: colour }}
                   data-testid={`row-${row.id}`} data-parameter={row.parameter ?? ""}
                   onClick={() => useUi.getState().showSheet("alarm-limits", row.id)}>
             <div className="row-trace">
-              <span className="row-label" data-testid={`row-label-${row.id}`}>
-                {title.name}{title.method && <span className="row-method"> - {title.method}</span>}
-              </span>
-              {row.parameter && <RowStatus parameter={row.parameter} />}
+              <div className="row-head">
+                <span className="row-label" data-testid={`row-label-${row.id}`}>
+                  {title.name}{title.method && <span className="row-method"> - {title.method}</span>}
+                </span>
+                {row.parameter && <RowStatus parameter={row.parameter} />}
+              </div>
+              <TraceFrame row={row} />
             </div>
             <div className="row-tiles">
-              {/* Empty cells keep the grid identical on every row. */}
-              {Array.from({ length: slots - tileCount(row) }, (_, i) => (
-                <span key={`empty-${i}`} className="tile tile-empty" aria-hidden="true" />
-              ))}
-              {bp ? (
-                <Numeric parameter="bp_sys" name="BP" main
-                         extra={[{ separator: "/" }, ...((row.numerics as string[]).includes("bp_mean")
-                           ? [{ separator: " ", wrap: [" (", ")"] as [string, string] }] : [])]} />
-              ) : row.numerics.map((p, i) => <Numeric key={p} parameter={p} main={i === 0} />)}
+              {values.length ? <Tile values={values} /> : <span className="tile tile-empty" aria-hidden="true" />}
             </div>
           </button>
         );

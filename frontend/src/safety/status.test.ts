@@ -100,6 +100,7 @@ describe("notifications", () => {
     link: "live" as const, sound: "ready" as const, alarms: state([]),
     order: "severity-then-recent" as const,
     registry: { parameters: { spo2: { short: "SpO2" }, pulse: { short: "PR" } },
+                alarm_priority_marks: { high: "!!!", medium: "!!", low: "!" },
                 technical_alarms: { "display-disconnected": { message: "Screen not updating." },
                                     "sound-unavailable": { message: "Sound is off." } } } as any,
   };
@@ -119,6 +120,22 @@ describe("notifications", () => {
     const list = buildNotices({ ...base, order: "recent-first", alarms: state([
       alarm("old-high", "high", 30), alarm("low", "low", 1), alarm("medium", "medium", 5)]) });
     expect(list.map((n) => n.id)).toEqual(["low", "medium", "old-high"]);
+  });
+
+  it("marks patient alarms with their priority and leaves monitoring problems unmarked", () => {
+    const list = buildNotices({ ...base, alarms: state([
+      alarm("hr", "high", 1, { parameter: "hr" }), alarm("rr", "medium", 1), alarm("lo", "low", 1),
+      alarm("batt", "low", 1, { kind: "technical", technical: "battery-low" })]) });
+    expect(Object.fromEntries(list.map((n) => [n.id, n.mark]))).toEqual({ hr: "!!!", rr: "!!", lo: "!", batt: null });
+    expect(list.find((n) => n.id === "hr")!.parameters).toEqual(["hr"]);
+  });
+
+  it("says which rows a device problem is about", () => {
+    const list = buildNotices({
+      ...base, devices: [{ id: "limb", parameters: ["spo2", "pulse"] } as any],
+      alarms: state([alarm("lost", "medium", 1, { kind: "technical", technical: "connection-lost",
+                                                   parameter: null, device_id: "limb" })]) });
+    expect(list[0]!.parameters).toEqual(["spo2", "pulse"]);
   });
 
   it("separates patient alarms from monitoring problems", () => {

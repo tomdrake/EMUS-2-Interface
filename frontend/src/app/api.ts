@@ -52,7 +52,14 @@ export interface Registry {
     min_value: number | null; max_value: number | null; waveforms: string[]; note: string;
     method: string;
   }>;
-  waveforms: Record<string, { label: string; hz: number; unit: string; parameter: string }>;
+  waveforms: Record<string, {
+    label: string; hz: number; unit: string; parameter: string;
+    scale: {
+      unit: string; calibrated: boolean; gains_mm_per_unit: number[]; default_gain: number | null;
+      tick: number; baseline: "isoelectric" | "mean"; range: [number, number];
+    };
+  }>;
+  alarm_priority_marks: Record<"high" | "medium" | "low", string>;
   o2_devices: Record<string, string>;
   acvpu_levels: string[];
   lab_groups: Record<string, string>;

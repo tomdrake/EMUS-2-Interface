@@ -25,16 +25,16 @@ _ICU_PARAM_COLOURS = {
 _CB_PARAM_COLOURS = {
     "hr": "#009E73", "pulse": "#56B4E9", "spo2": "#56B4E9", "rr": "#F0E442",
     "bp_sys": "#D55E00", "bp_dia": "#D55E00", "bp_mean": "#D55E00",
-    "temp": "#FFFFFF", "o2_flow": "#0072B2", "fio2": "#0072B2", "acvpu": "#CC79A7",
+    "temp": "#FFFFFF", "o2_flow": "#0086D1", "fio2": "#0086D1", "acvpu": "#CC79A7",
     "news2": "#FFFFFF", "activity": "#E69F00", "position": "#E69F00",
     "falls": "#CC79A7", "sleep": "#56B4E9", "timer": "#BBBBBB",
 }
 
 _PAPER_PARAM_COLOURS = {
-    "hr": "#5B9BD5", "pulse": "#5B9BD5", "spo2": "#8E3FD0", "rr": "#3E8E41",
+    "hr": "#2C70AD", "pulse": "#2C70AD", "spo2": "#8E3FD0", "rr": "#357937",
     "bp_sys": "#1F5FBF", "bp_dia": "#1F5FBF", "bp_mean": "#1F5FBF",
-    "temp": "#E0362C", "o2_flow": "#1F3F8F", "fio2": "#1F3F8F", "acvpu": "#C02FC0",
-    "news2": "#1A1A1A", "activity": "#B8650A", "position": "#B8650A",
+    "temp": "#CF281E", "o2_flow": "#1F3F8F", "fio2": "#1F3F8F", "acvpu": "#B42CB4",
+    "news2": "#1A1A1A", "activity": "#A55A09", "position": "#A55A09",
     "falls": "#B0246A", "sleep": "#4B55B8", "timer": "#555555",
 }
 

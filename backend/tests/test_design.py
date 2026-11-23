@@ -7,7 +7,9 @@ from pydantic import ValidationError
 
 from app import registry
 from app.defaults import DEFAULT_DESIGNS, THEME_PRESETS, validated_defaults
-from app.models.design import Design, Theme, json_schema, max_touch_depth
+from app.models.design import (
+    MIN_TEXT_CONTRAST, Design, Theme, contrast_ratio, json_schema, max_touch_depth,
+)
 
 
 def test_all_default_designs_validate():
@@ -259,3 +261,69 @@ def test_certainty_metric_must_suit_what_it_describes(icu_design):
                                      "event_metric": "ppv_natural_frequency",
                                      "finding_metric": "token_logprob", "display": "badge"}}
     Design.model_validate(doc)
+
+
+# ------------------------------------------------- row colour, tiles, ticker, traces
+
+def test_contrast_ratio_matches_wcag():
+    assert contrast_ratio("#000000", "#FFFFFF") == pytest.approx(21.0)
+    assert contrast_ratio("#FFFFFF", "#FFFFFF") == pytest.approx(1.0)
+    assert contrast_ratio("#777777", "#FFFFFF") == pytest.approx(4.48, abs=0.02)   # WCAG's own example
+
+
+def test_every_row_colour_in_every_preset_is_readable_text():
+    """Text takes the row colour, so a colour that cannot be read is a safety fault."""
+    for name, preset in THEME_PRESETS.items():
+        c = preset["colours"]
+        for pid, colour in preset["parameter_colours"].items():
+            for ground in (c["background"], c["surface"]):
+                assert contrast_ratio(colour, ground) >= MIN_TEXT_CONTRAST, (name, pid, colour)
+
+
+def test_unreadable_row_colours_are_rejected_in_both_themes(icu_design):
+    near_bg = icu_design["theme"]["colours"]["background"]
+    assert "parameter_colours.hr" in _broken(
+        icu_design, lambda d: d["theme"]["parameter_colours"].__setitem__("hr", "#101010"))
+    assert "alt_theme.parameter_colours.hr" in _broken(
+        icu_design, lambda d: d["alt_theme"]["parameter_colours"].__setitem__("hr", "#F0F0F0"))
+    assert "contrast" in _broken(icu_design, lambda d: d["rows"][0].__setitem__("colour", near_bg))
+    doc = copy.deepcopy(icu_design)
+    doc["rows"][0]["colour"] = "#FFFFFF"          # white is fine on the dark theme...
+    with pytest.raises(ValidationError):           # ...but not on the light one
+        Design.model_validate(doc)
+
+
+def test_one_tile_per_row_is_wide_enough_for_two_values():
+    d = validated_defaults()["icu-monitor"]
+    assert d.tiles.width_px == 220 and d.tiles.equal_row_heights
+    spo2 = next(r for r in d.rows if r.id == "spo2")
+    assert list(spo2.numerics) == ["spo2", "pulse"], "SpO2 and PR share a row, so one tile"
+
+
+def test_ticker_options():
+    defs = json_schema()["$defs"]["NotificationsDisplay"]["properties"]
+    assert set(defs["ticker"]["enum"]) == {"vertical", "horizontal"}
+    assert set(defs["ticker_speed"]["enum"]) == {"slow", "medium", "fast"}
+    d = validated_defaults()["icu-monitor"].notifications
+    assert (d.ticker, d.ticker_dwell_s, d.position) == ("vertical", 4, "tab-bar-left")
+
+
+def test_ticker_settings_are_bounded(icu_design):
+    doc = copy.deepcopy(icu_design)
+    doc["notifications"] = {"ticker": "horizontal", "ticker_speed": "slow", "ticker_dwell_s": 10}
+    Design.model_validate(doc)
+    _broken(icu_design, lambda d: d.__setitem__("notifications", {"ticker_dwell_s": 1}))
+    _broken(icu_design, lambda d: d.__setitem__("notifications", {"ticker_dwell_s": 11}))
+    _broken(icu_design, lambda d: d.__setitem__("notifications", {"ticker": "off"}))
+    _broken(icu_design, lambda d: d.__setitem__("notifications", {"auto_open": True}))
+
+
+def test_trace_reference_marks_are_on_by_default_and_gain_is_standard(icu_design):
+    t = validated_defaults()["icu-monitor"].traces
+    assert (t.show_baseline, t.show_scale, t.show_calibration_bar, t.show_time_scale) == (
+        True, True, True, True)
+    assert t.ecg_gain_mm_per_mv == 10
+    doc = copy.deepcopy(icu_design)
+    doc["traces"] = {"ecg_gain_mm_per_mv": 20, "show_baseline": False}
+    Design.model_validate(doc)
+    _broken(icu_design, lambda d: d.__setitem__("traces", {"ecg_gain_mm_per_mv": 15}))
