@@ -77,7 +77,10 @@ overlay feed), the link watchdog, and the rules in `status.ts` and
 goes through `<Numeric>`; every alarm and problem reaches the user through the
 notification box. Two layout rules are tested in the browser check and must keep
 passing: every tile is the same size, and nothing that arrives (an alarm, a fault,
-the sound pause, the feed opening) moves or resizes anything.
+the sound pause, the feed opening) moves or resizes anything. A tile has three
+fixed bands (name, value, device state) and a compact form for short rows; the
+trace must start below the row's name line (`--row-pad` + `--line`) so names and
+tile headers stay level and legible over a moving trace.
 
 | File | Build |
 |---|---|

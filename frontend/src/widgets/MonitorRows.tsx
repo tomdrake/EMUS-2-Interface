@@ -57,6 +57,10 @@ export function MonitorRows({ widget }: { widget: WidgetOf<"monitor-rows"> }) {
               {row.parameter && <RowStatus parameter={row.parameter} />}
             </div>
             <div className="row-tiles">
+              {/* Empty cells keep the grid identical on every row. */}
+              {Array.from({ length: slots - tileCount(row) }, (_, i) => (
+                <span key={`empty-${i}`} className="tile tile-empty" aria-hidden="true" />
+              ))}
               {bp ? (
                 <Numeric parameter="bp_sys" name="BP" main
                          extra={[{ separator: "/" }, ...((row.numerics as string[]).includes("bp_mean")

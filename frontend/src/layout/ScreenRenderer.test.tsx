@@ -61,8 +61,8 @@ describe("ScreenRenderer", () => {
 
   it("gives every row the same tile column, with blood pressure in one tile", () => {
     render(<ScreenRenderer screen={split} />);
-    expect(dom.getByTestId("row-bp").querySelectorAll(".tile")).toHaveLength(1);
-    expect(dom.getByTestId("row-ecg").querySelectorAll(".tile")).toHaveLength(1);
+    expect(dom.getByTestId("row-bp").querySelectorAll(".tile:not(.tile-empty)")).toHaveLength(1);
+    expect(dom.getByTestId("row-ecg").querySelectorAll(".tile:not(.tile-empty)")).toHaveLength(1);
     const rowsEl = dom.getByTestId("widget-rows").querySelector(".rows") as HTMLElement;
     expect(rowsEl.style.getPropertyValue("--tile")).toBe("150px");
     expect(rowsEl.style.getPropertyValue("--tile-slots")).toBe("1");

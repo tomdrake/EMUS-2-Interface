@@ -8,6 +8,14 @@
   --c-ai-highlight: #3b2f6b; --c-forecast: #b79cff;
   --font-family: system-ui, sans-serif; --font-scale: 1; --numeric-scale: 1;
   --trace-width: 2px; --touch: 56px; --radius: 8px; --gap: 8px;
+  /* Alignment. --edge is the one left inset for text everywhere: bars, rows, menus,
+     sheets. --inset gets a bordered panel inside the screen padding to the same line.
+     --line is the height of the first text line in a row and in a tile, so a row's
+     name and its tile's name sit on the same level. */
+  --edge: 16px;
+  --inset: calc(var(--edge) - var(--gap) - 1px);
+  --line: 20px;
+  --row-pad: 6px;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -27,14 +35,16 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .boot-error { color: var(--c-alarm-high); }
 
 /* ---- top bar ---- */
-.topbar {
-  flex: none; display: flex; align-items: center; gap: calc(var(--gap) * 2);
-  padding: 0 0 0 max(16px, env(safe-area-inset-left));
-  background: var(--c-surface); border-bottom: 1px solid var(--c-border); white-space: nowrap;
-}
+.topbar { flex: none; display: flex; align-items: stretch; background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border); white-space: nowrap; }
+/* Every field sits on one baseline, whatever its text size; the line as a whole is
+   centred in the bar. Fields shrink rather than wrap, so the clock is never lost. */
+.tb-fields { flex: 1 1 0; min-width: 0; display: flex; align-items: center; overflow: hidden;
+  padding: 0 var(--edge) 0 max(var(--edge), env(safe-area-inset-left)); }
+.tb-line { flex: 1 1 0; min-width: 0; display: flex; align-items: baseline; column-gap: calc(var(--gap) * 2); }
 .tb-field { display: flex; align-items: baseline; gap: 6px; min-width: 0; color: var(--c-text-muted); flex: 0 1 auto; }
 /* What must never be squeezed: who the patient is, the time, and alarm state. */
-.tb-field.tb-name { flex: 0 1 auto; min-width: 9ch; }
+.tb-field.tb-name { min-width: 9ch; }
 .tb-field.tb-clock, .tb-field.tb-alarm-status { flex: none; }
 .tb-field.tb-devices { overflow: hidden; }
 .tb-name { color: var(--c-text); font-size: 1.2em; overflow: hidden; text-overflow: ellipsis; }
@@ -48,15 +58,19 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
   .tb-field.tb-clock, .tb-field.tb-date + .tb-field.tb-clock { margin-left: auto; }
 }
 .badge { flex: none; font-size: 0.7em; font-weight: 700; letter-spacing: 0.06em; padding: 3px 8px;
-  border-radius: 999px; border: 1px solid var(--c-border); color: var(--c-text-muted); }
+  border-radius: 999px; border: 1px solid var(--c-border); color: var(--c-text-muted); line-height: 1.2; }
 @media (max-width: 1100px) { .badge-proto { display: none; } }
 /* Buttons at the top right: new patient, discharge, dark / light, settings. */
-.topbtns { flex: none; align-self: stretch; display: flex; border-left: 1px solid var(--c-border); }
-.topbtn { min-width: max(var(--touch), 64px); min-height: var(--touch); padding: 0 8px; display: flex;
-  flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+.topbtns { flex: none; display: flex; border-left: 1px solid var(--c-border); }
+.topbtn { min-width: max(var(--touch), 72px); min-height: var(--touch); padding: 0 8px; display: flex;
+  flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   color: var(--c-text-muted); border-right: 1px solid var(--c-border); }
 .topbtn:last-child { border-right: 0; }
 .topbtn .tab-label { font-size: 0.68em; }
+/* Icon boxes and label lines are fixed heights, so icons share one level and
+   labels another across a whole bar. */
+.tab .icon, .topbtn .icon { flex: none; display: block; }
+.tab-label { line-height: 1.2; }
 .topbtn.is-active { color: var(--c-text); background: var(--c-surface-alt); box-shadow: inset 0 -3px 0 var(--c-accent); }
 .topbtn:active { background: var(--c-surface-alt); }
 
@@ -68,7 +82,8 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .pane { min-width: 0; min-height: 0; display: flex; }
 .widget { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column;
   background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); overflow: hidden; }
-.widget-title { flex: none; padding: 8px 12px; color: var(--c-text-muted); border-bottom: 1px solid var(--c-border); }
+.widget-title { flex: none; padding: 8px var(--inset); color: var(--c-text-muted); border-bottom: 1px solid var(--c-border);
+  line-height: var(--line); }
 .widget-monitor-rows { background: var(--c-background); }
 
 /* ---- monitor rows ---- */
@@ -78,37 +93,60 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .row:last-child { border-bottom: 0; }
 .rows-left .row { flex-direction: row-reverse; }
 .row-spacer { border-bottom: 1px dashed var(--c-border); }
-.row-trace { flex: 1 1 0; min-width: 0; display: flex; gap: 12px; align-items: baseline; padding: 6px 12px;
-  white-space: nowrap; overflow: hidden; }
+.row-trace { flex: 1 1 0; min-width: 0; display: flex; gap: 12px; align-items: baseline;
+  padding: var(--row-pad) var(--inset); line-height: var(--line); white-space: nowrap; overflow: hidden; }
 .row-label { font-weight: 700; flex: none; }
 .row-method { font-weight: 500; opacity: 0.8; }
 
 /* The tile column is the same width on every row: as many slots as the busiest
    row needs, each exactly --tile wide. Tiles fill from the outer edge. */
-.row-tiles { flex: none; width: calc(var(--tile) * var(--tile-slots)); display: flex; justify-content: flex-end;
-  border-left: 1px solid var(--c-border); }
-.rows-left .row-tiles { justify-content: flex-start; border-left: 0; border-right: 1px solid var(--c-border); }
+.row-tiles { flex: none; width: calc(var(--tile) * var(--tile-slots)); display: flex; }
+.rows-left .row-tiles { flex-direction: row-reverse; }
 
 /* =======================================================================
    Tiles. One number per tile, or the word that explains why there is none.
    A tile is always --tile wide and as tall as its row. Nothing it shows can
    change that: content scales to the tile (cqw / cqh), the tile never to it.
    ======================================================================= */
-.tile { flex: none; width: var(--tile); min-width: 0; display: grid; grid-template-rows: auto 1fr auto;
-  padding: 4px 8px; container-type: size; overflow: hidden; border-left: 1px solid var(--c-border); }
-.tile:first-child { border-left: 0; }
-.tile-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-width: 0;
-  font-size: min(0.72rem, 15cqh); line-height: 1.2; white-space: nowrap; }
+.tile { position: relative; flex: none; width: var(--tile); min-width: 0; display: grid;
+  /* Name on the first line (level with the row's name), value in the middle,
+     device state on the last line. The three bands are the same in every tile, so
+     values sit on one level across the screen. */
+  --tile-foot: 14px;
+  --tile-pad-b: 3px;
+  grid-template: "head" var(--line) "body" minmax(0, 1fr) "foot" var(--tile-foot) / minmax(0, 1fr);
+  padding: var(--row-pad) 8px var(--tile-pad-b); container-type: size; overflow: hidden;
+  border-left: 1px solid var(--c-border);
+  /* Height left for the value: the tile's content box less the two bands. */
+  --body-h: calc(100cqh - var(--line) - var(--tile-foot)); }
+.rows-left .tile { border-left: 0; border-right: 1px solid var(--c-border); }
+.tile-head { grid-area: head; display: flex; align-items: center; justify-content: space-between; gap: 4px;
+  min-width: 0; font-size: 0.72rem; line-height: var(--line); white-space: nowrap; }
 .tile-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
 .tile-name small { font-weight: 500; opacity: 0.8; font-size: 1em; }
-.tile-body { display: flex; align-items: center; justify-content: center; min-height: 0; line-height: 1; text-align: center; }
+.tile-body { grid-area: body; display: flex; align-items: center; justify-content: center; min-height: 0;
+  line-height: 1; text-align: center; }
 .tile-value { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
-  font-size: min(calc(2.1rem * var(--numeric-scale)), 52cqh, 30cqw); }
-.tile-main .tile-value { font-size: min(calc(2.8rem * var(--numeric-scale)), 60cqh, 36cqw); }
+  font-size: min(calc(2.1rem * var(--numeric-scale)), var(--body-h), 30cqw); }
+.tile-main .tile-value { font-size: min(calc(2.8rem * var(--numeric-scale)), var(--body-h), 36cqw); }
 .tile-extra { font-size: 0.62em; }
-.tile-main:has(.tile-extra) .tile-value { font-size: min(calc(2.2rem * var(--numeric-scale)), 50cqh, 22cqw); }
-.tile-foot { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-height: 13px;
-  font-size: min(0.66rem, 15cqh); line-height: 1.2; white-space: nowrap; overflow: hidden; }
+.tile-main:has(.tile-extra) .tile-value { font-size: min(calc(2.2rem * var(--numeric-scale)), var(--body-h), 22cqw); }
+.tile-foot { grid-area: foot; display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0;
+  font-size: 0.66rem; line-height: var(--tile-foot); white-space: nowrap; overflow: hidden; }
+
+/* A short tile (a split screen, a small tablet) has no room for three bands: the
+   device state moves up beside the name and the unit is dropped, leaving the
+   height to the value. Still one size, still nothing moves. */
+@container (max-height: 62px) {
+  .tile-head { grid-area: head; }
+  .tile-foot { grid-area: head; justify-self: end; line-height: var(--line); }
+  .tile-name small { display: none; }
+  .tile-body { grid-row: body / foot; }
+  .tile-value, .tile-main .tile-value, .tile-main:has(.tile-extra) .tile-value { --body-h: calc(100cqh - var(--line)); }
+  /* One line only here, sized so the longest word (CONNECTION LOST) fits the width. */
+  .tile-state { --body-h: calc(100cqh - var(--line)); white-space: nowrap;
+    font-size: clamp(12px, min(calc(1rem * var(--numeric-scale)), var(--body-h) * 0.9, 9.2cqw), 2rem); }
+}
 
 /* Safety states. Each differs from every other in WORD, colour and outline, never
    colour alone. See docs/human-factors.md. */
@@ -117,12 +155,16 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .tone-stale { color: var(--c-text-muted); }
 .tone-silenced { color: var(--c-silenced); }
 /* The word sits inside the tile, wraps to two lines at most, and is sized to fit. */
+/* The word wraps to two lines at most and is sized so two lines fit the value band. */
 .tile-state { display: block; max-width: 100%; font-weight: 800; letter-spacing: 0.03em; line-height: 1.1;
-  text-wrap: balance; font-size: min(calc(1rem * var(--numeric-scale)), 26cqh, 13.5cqw); }
-.tile-standby, .tile-acquiring, .tile-no-data { box-shadow: inset 0 0 0 1px var(--c-border); }
+  text-wrap: balance; font-size: clamp(12px, min(calc(1rem * var(--numeric-scale)), var(--body-h) / 2.3, 13.5cqw), 2rem); }
 .tile-standby .tile-state, .tile-acquiring .tile-state, .tile-no-data .tile-state { font-weight: 700; }
-.tile-sensor-off, .tile-connection-lost, .tile-invalid { box-shadow: inset 0 0 0 2px var(--c-technical); }
-.tile-poor-signal { box-shadow: inset 0 0 0 1px var(--c-technical); }
+/* A problem is marked by a frame set just inside the tile, clear of the grid
+   lines, so the grid stays even whatever state a tile is in. */
+.tile-sensor-off::after, .tile-connection-lost::after, .tile-invalid::after, .tile-poor-signal::after {
+  content: ""; position: absolute; inset: 2px; border: 2px solid var(--c-technical); border-radius: 5px;
+  pointer-events: none; }
+.tile-poor-signal::after { border-width: 1px; border-style: dashed; }
 .tile-poor-signal .tile-value { opacity: 0.75; }
 .tile-flag { color: var(--c-technical); margin-left: 2px; }
 .tile-last { color: var(--c-text-muted); text-decoration: line-through; margin-right: auto;
@@ -156,9 +198,9 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
    Notification box and feed. The box is a fixed size wherever it sits; the
    feed is an overlay. Neither can move or resize anything else.
    ======================================================================= */
-.notif { display: flex; align-items: center; gap: 8px; padding: 0 10px; text-align: left; overflow: hidden;
+.notif { display: flex; align-items: center; gap: 10px; padding: 0 12px 0 var(--edge); text-align: left; overflow: hidden;
   color: var(--c-text-muted); background: var(--c-surface); min-height: var(--touch); }
-.notif-bar { flex: 0 0 clamp(230px, 27vw, 380px); border-right: 1px solid var(--c-border); }
+.notif-bar { flex: 0 0 clamp(290px, 27vw, 380px); border-right: 1px solid var(--c-border); }
 .notif-bar.notif-size-wide { flex-basis: clamp(300px, 36vw, 520px); }
 .topbar .notif-bar { align-self: stretch; border-left: 1px solid var(--c-border); }
 .notif-strip { flex: none; height: 44px; display: flex; border-bottom: 1px solid var(--c-border); }
@@ -176,7 +218,7 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .notif-count { flex: none; font-weight: 800; font-size: 0.85em; padding: 2px 7px; border-radius: 999px;
   border: 1px solid currentColor; }
 .notif-paused { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  align-self: stretch; margin: 6px 0; padding: 0 8px; border-radius: 6px; font-size: 0.62em; font-weight: 800;
+  align-self: stretch; margin: 6px 0; padding: 0 6px; border-radius: 6px; font-size: 0.6em; font-weight: 800;
   letter-spacing: 0.05em; line-height: 1.15; background: var(--c-silenced); color: var(--c-background); }
 .notif-paused strong { font-size: 1.7em; font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .notif-strip .notif-paused { flex-direction: row; gap: 6px; margin: 5px 0; }
@@ -196,12 +238,12 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
   border-radius: var(--radius); box-shadow: 0 10px 30px color-mix(in srgb, var(--c-background) 70%, transparent); }
 .feed-above { bottom: calc(var(--tabbar-h, 72px) + 8px); }
 .feed-below { top: calc(var(--topbar-h, 64px) + 8px); }
-.feed-left { left: 8px; }
-.feed-right { right: 8px; }
-.feed-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 6px 6px 6px 14px;
+.feed-left { left: var(--gap); }
+.feed-right { right: var(--gap); }
+.feed-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 6px 6px 6px var(--inset);
   border-bottom: 1px solid var(--c-border); }
 .feed-list { flex: 0 1 auto; min-height: 0; overflow: auto; list-style: none; margin: 0; padding: 0; }
-.feed-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; min-height: var(--touch);
+.feed-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px calc(var(--inset) - 6px); min-height: var(--touch);
   border-bottom: 1px solid var(--c-border); border-left: 6px solid transparent; }
 .feed-item:last-child { border-bottom: 0; }
 .feed-text { flex: 1 1 0; color: var(--c-text); }
@@ -259,7 +301,7 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .scrim { position: absolute; inset: 0; background: color-mix(in srgb, var(--c-background) 55%, transparent); z-index: 10; }
 .menu, .sheet { position: absolute; left: 0; right: 0; z-index: 20; background: var(--c-surface);
   border-top: 1px solid var(--c-border); box-shadow: 0 -8px 24px color-mix(in srgb, var(--c-background) 60%, transparent); }
-.menu { bottom: 0; padding: 12px 16px calc(var(--touch) + 40px); }
+.menu { bottom: 0; padding: 12px var(--edge) calc(var(--touch) + 40px); }
 .menu-title { color: var(--c-text-muted); margin-bottom: 10px; }
 .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--gap); }
 .menu-item { min-height: calc(var(--touch) * 1.25); display: flex; align-items: center; gap: 12px; padding: 0 16px;
@@ -267,11 +309,12 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
   font-weight: 600; text-align: left; }
 .menu-item:active { border-color: var(--c-accent); }
 .sheet { top: 8%; bottom: 0; display: flex; flex-direction: column; border-radius: var(--radius) var(--radius) 0 0; }
-.sheet-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 8px 16px;
+.sheet-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 8px var(--edge);
   border-bottom: 1px solid var(--c-border); }
 .sheet-body { flex: 1 1 0; min-height: 0; overflow: auto; display: flex; flex-direction: column;
   padding-bottom: calc(var(--touch) + 32px); }
-.about { padding: 16px; max-width: 60ch; line-height: 1.5; }
+.about { padding: var(--edge); max-width: 60ch; line-height: 1.5; }
+.about p:first-child { margin-top: 0; }
 .btn { min-height: var(--touch); min-width: var(--touch); padding: 0 20px; border-radius: var(--radius);
   background: var(--c-surface-alt); border: 1px solid var(--c-border); font-weight: 600; }
 

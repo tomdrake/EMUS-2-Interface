@@ -82,7 +82,7 @@ for (const vp of VIEWPORTS) {
   check(await T("notif-text").innerText() === "No Notifications", `${vp.name}: empty box says "No Notifications"`);
 
   // --- tiles: all the same width, and the tile column the same on every row
-  const tiles = () => page.locator(".tile").evaluateAll((els) => els.map((e) => {
+  const tiles = () => page.locator(".tile:not(.tile-empty)").evaluateAll((els) => els.map((e) => {
     const r = e.getBoundingClientRect();
     return [e.dataset.testid, Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)].join(":");
   }));
@@ -90,7 +90,80 @@ for (const vp of VIEWPORTS) {
   check(sizes.size === 1, `${vp.name}: every tile is the same width and height (${[...sizes].join(", ")} px)`);
   const columns = new Set(await page.locator(".row-tiles").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width))));
   check(columns.size === 1, `${vp.name}: the tile column is the same width on every row`);
-  check(await page.locator('[data-testid="row-bp"] .tile').count() === 1, `${vp.name}: blood pressure is one tile`);
+  check(await page.locator('[data-testid="row-bp"] .tile:not(.tile-empty)').count() === 1, `${vp.name}: blood pressure is one tile`);
+
+  // --- alignment: things that belong on one line are on one line
+  const align = await page.evaluate(() => {
+    const q = (s) => document.querySelector(s);
+    const rect = (e) => e.getBoundingClientRect();
+    // Baseline of an element's text: a zero-size inline box sits exactly on it.
+    const baseline = (e) => {
+      const probe = document.createElement("span");
+      probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
+      e.appendChild(probe);
+      const y = rect(probe).bottom;
+      probe.remove();
+      return Math.round(y * 10) / 10;
+    };
+    const spread = (xs) => Math.round((Math.max(...xs) - Math.min(...xs)) * 10) / 10;
+    const mid = (r) => (r.top + r.bottom) / 2;
+    const all = (s) => [...document.querySelectorAll(s)];
+    const rows = all(".row:not(.row-spacer)").filter((r) => r.querySelector(".tile:not(.tile-empty)"));
+    return {
+      // one left edge for the patient name, every row name and the notification box
+      leftEdge: spread([rect(q('[data-testid="patient-name"]')).left, ...all(".row-label").map((e) => rect(e).left),
+                        rect(q(".notif .icon")).left]),
+      // top bar text shares a baseline, and that line is centred in the bar
+      topBaseline: spread([".tb-name", ".tb-alarm-status .alarm-status", ".tb-clock time"].map((s) => baseline(q(s)))),
+      topCentred: Math.abs(mid(rect(q(".tb-line"))) - mid(rect(q(".topbar")))),
+      // a row's name and its tile's name are on the same level
+      rowHead: Math.max(...rows.map((r) => Math.abs(
+        mid(rect(r.querySelector(".row-label"))) - mid(rect(r.querySelector(".tile:not(.tile-empty) .tile-head")))))),
+      // the value band sits at the same level in every tile
+      bodyLevel: spread(all(".tile:not(.tile-empty)").map((t) => mid(rect(t.querySelector(".tile-body"))) - rect(t).top)),
+      // and what is in it is centred in that band, and big enough to read
+      bodyCentred: Math.max(...all(".tile:not(.tile-empty)").map((t) => {
+        const inner = t.querySelector(".tile-state, .tile-value");
+        return Math.abs(mid(rect(inner)) - mid(rect(t.querySelector(".tile-body"))));
+      })),
+      smallestText: Math.min(...all(".tile-state, .tile-value, .tile-name, .device-word, .row-label, .tab-label")
+        .map((e) => parseFloat(getComputedStyle(e).fontSize))),
+      smallestState: Math.min(...all(".tile-state, .tile-value").map((e) => parseFloat(getComputedStyle(e).fontSize))),
+      // the same cells on every row, so the grid lines run straight down
+      cellsPerRow: new Set(all(".row:not(.row-spacer)").map((r) => r.querySelectorAll(".tile").length)).size,
+      columns: new Set(all(".tile").map((t) => Math.round(rect(t).left))).size,
+      slots: Number(getComputedStyle(q(".rows")).getPropertyValue("--tile-slots")),
+      tileRight: spread(all(".row-tiles").map((e) => rect(e).right)),
+      // buttons: icons on one level and labels on one baseline, in each bar
+      tabIcons: spread(all(".tabbar .tab .icon").map((e) => mid(rect(e)))),
+      tabLabels: spread(all(".tabbar .tab .tab-label").map(baseline)),
+      topIcons: spread(all(".topbtn .icon").map((e) => mid(rect(e)))),
+      topLabels: spread(all(".topbtn .tab-label").map(baseline)),
+      // both bars end flush with the screen; the content panel is inset evenly
+      barsFlush: Math.abs(rect(q(".topbtns")).right - innerWidth) + Math.abs(rect(q(".tabbar .tab:last-child")).right - innerWidth),
+      panelInsets: spread([rect(q(".widget")).left, innerWidth - rect(q(".widget")).right,
+                           rect(q(".widget")).top - rect(q(".topbar")).bottom, rect(q(".tabbar")).top - rect(q(".widget")).bottom]),
+    };
+  });
+  check(align.leftEdge <= 1, `${vp.name}: patient name, row names and notification box share one left edge (off by ${align.leftEdge}px)`);
+  check(align.topBaseline <= 0.5, `${vp.name}: top bar text shares one baseline (off by ${align.topBaseline}px)`);
+  check(align.topCentred <= 1, `${vp.name}: the top bar line is centred in the bar`);
+  check(align.rowHead <= 1, `${vp.name}: each row's name and its tile's name are on the same level (off by ${align.rowHead}px)`);
+  check(align.bodyLevel <= 0.5 && align.bodyCentred <= 1, `${vp.name}: values sit on one level in every tile, centred in their band`);
+  check(align.smallestState >= 12 && align.smallestText >= 10.5,
+        `${vp.name}: tile text is large enough to read (words ${align.smallestState}px, smallest label ${align.smallestText}px)`);
+  check(align.cellsPerRow === 1 && align.columns === align.slots && align.tileRight <= 0.5,
+        `${vp.name}: every row has the same tile cells, in straight columns`);
+  check(align.tabIcons <= 0.5 && align.tabLabels <= 0.5, `${vp.name}: tab icons share a level and tab labels a baseline`);
+  check(align.topIcons <= 0.5 && align.topLabels <= 0.5, `${vp.name}: top-bar icons share a level and labels a baseline`);
+  check(align.barsFlush <= 1, `${vp.name}: both bars end flush with the screen edge`);
+  check(align.panelInsets <= 1, `${vp.name}: the content panel is inset evenly on all four sides`);
+  const squeezed = await page.locator(".tab, .topbtn").evaluateAll((els) => els.filter((b) => {
+    const l = b.querySelector(".tab-label");
+    return l && l.getBoundingClientRect().width > b.getBoundingClientRect().width - 6;
+  }).map((b) => b.dataset.testid));
+  check(squeezed.length === 0, `${vp.name}: every button label fits its button ${squeezed.join(", ")}`);
+  const nameLeft = (await box('[data-testid="patient-name"]'))[0];
   const texts = () => page.locator(".tile-body").allInnerTexts();
   check(!(await texts()).some((t) => /--/.test(t)), `${vp.name}: no tile ever shows dashes`);
   await shot("home");
@@ -164,6 +237,11 @@ for (const vp of VIEWPORTS) {
       return a.left < b.left - 1 || a.right > b.right + 1 || a.top < b.top - 1 || a.bottom > b.bottom + 1;
     })).map((e) => e.dataset.testid));
   check(fits.length === 0, `${vp.name}: every state fits inside its tile ${fits.join(", ")}`);
+  const legible = () => page.locator(".tile-state, .tile-value").evaluateAll((els) => els.map((e) => {
+    const r = e.getBoundingClientRect();
+    return { size: parseFloat(getComputedStyle(e).fontSize), h: r.height, w: r.width };
+  }).filter((x) => x.size < 12 || x.h < 10 || x.w < 20).length);
+  check(await legible() === 0, `${vp.name}: every state word is large enough to read`);
 
   // The box headlines the most serious problem and counts the rest.
   check(/connection lost/i.test(await T("notif-text").innerText()), `${vp.name}: the box headlines the most serious problem`);
@@ -175,6 +253,12 @@ for (const vp of VIEWPORTS) {
   // --- the feed is an overlay, most serious first
   await T("notifications").click();
   await T("feed").waitFor();
+  const feedEdges = await page.evaluate(() => {
+    const l = (s) => document.querySelector(s).getBoundingClientRect().left;
+    return [l(".feed-head h2"), ...[...document.querySelectorAll(".feed-tag")].map((e) => e.getBoundingClientRect().left)];
+  });
+  check(Math.max(...feedEdges) - Math.min(...feedEdges) <= 1 && Math.abs(feedEdges[0] - nameLeft) <= 1,
+        `${vp.name}: the feed's title and items line up with the same left edge`);
   const order = await page.locator('[data-testid="feed"] [data-notice]').evaluateAll((els) => els.map((e) => e.dataset.notice));
   check(order.join() === "t1,t2", `${vp.name}: the feed lists the most serious first`);
   const feedOk = await page.evaluate(() => {
@@ -251,14 +335,38 @@ for (const vp of VIEWPORTS) {
   await T("tab-split").click();
   await T("menu-item-stacked").click();
   check(await T("split").evaluate((e) => e.classList.contains("split-vertical")), `${vp.name}: stacked split is vertical`);
+  const shortTiles = await page.evaluate(() => {
+    const tiles = [...document.querySelectorAll(".tile:not(.tile-empty)")];
+    const mid = (r) => (r.top + r.bottom) / 2;
+    return {
+      sizes: new Set(tiles.map((t) => `${Math.round(t.getBoundingClientRect().width)}x${Math.round(t.getBoundingClientRect().height)}`)).size,
+      smallest: Math.min(...tiles.map((t) => parseFloat(getComputedStyle(t.querySelector(".tile-state, .tile-value")).fontSize))),
+      clipped: tiles.filter((t) => { const a = t.querySelector(".tile-state, .tile-value").getBoundingClientRect(), b = t.getBoundingClientRect();
+        return a.top < b.top - 1 || a.bottom > b.bottom + 1 || a.left < b.left - 1 || a.right > b.right + 1; }).length,
+      head: Math.max(...[...document.querySelectorAll(".row")].filter((r) => r.querySelector(".tile:not(.tile-empty)")).map((r) =>
+        Math.abs(mid(r.querySelector(".row-label").getBoundingClientRect()) - mid(r.querySelector(".tile:not(.tile-empty) .tile-head").getBoundingClientRect())))),
+    };
+  });
+  check(shortTiles.sizes === 1 && shortTiles.smallest >= 12 && shortTiles.clipped === 0 && shortTiles.head <= 1,
+        `${vp.name}: short tiles on a split screen stay identical, readable and level (${shortTiles.smallest}px)`);
   await shot("split-v");
 
   // --- two touches: settings (top right) -> a studio section
   await T("top-settings").click();
   check(await T("menu-settings").isVisible(), `${vp.name}: settings menu opens from the cog`);
+  const menuEdges = await page.evaluate(() => {
+    const l = (s) => document.querySelector(s).getBoundingClientRect().left;
+    const items = [...document.querySelectorAll(".menu-item")].map((e) => e.getBoundingClientRect());
+    return { title: l(".menu-title"), first: l(".menu-item"),
+             heights: new Set(items.map((r) => Math.round(r.height))).size, widths: new Set(items.map((r) => Math.round(r.width))).size };
+  });
+  check(Math.abs(menuEdges.title - nameLeft) <= 1 && Math.abs(menuEdges.first - nameLeft) <= 1,
+        `${vp.name}: the menu lines up with the same left edge`);
+  check(menuEdges.heights === 1 && menuEdges.widths === 1, `${vp.name}: menu items are all one size`);
   await shot("menu-settings");
   await T("menu-item-appearance").click();
   check(await T("sheet-studio-appearance").isVisible(), `${vp.name}: appearance in two touches`);
+  check(Math.abs((await box(".sheet-head h2"))[0] - nameLeft) <= 1, `${vp.name}: sheet titles line up with the same left edge`);
   await T("sheet-close").click();
 
   // --- new patient and discharge are one touch

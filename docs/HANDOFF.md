@@ -105,6 +105,15 @@ with, then commit. To use a different model for the agents, pass it as an argume
     through `label()` from `frontend/src/design/text.ts`. Never pass prose (advice,
     explanations, alarm messages) through it.
 
+12. **Alignment is measured, not eyeballed.** Use the shared metrics in
+    `frontend/src/styles.css`: `--edge` (the one left inset for text in bars, rows,
+    menus, sheets and the feed), `--inset` (the same line from inside a bordered
+    panel), `--line` (the first text line of a row and of a tile, so a row's name
+    and its tile's name are level) and the tile's three bands. The browser check
+    measures left edges, baselines, levels, tile sizes and text sizes; new screens
+    add their own measurements there. Look at the screenshots as well: a check can
+    pass while the screen is wrong.
+
 ## Things that need a person
 
 - **API tokens.** Claude and ELM calls are only tested against mocked responses.
