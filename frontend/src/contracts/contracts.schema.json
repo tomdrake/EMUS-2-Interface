@@ -1,0 +1,2500 @@
+{
+  "$defs": {
+    "AlarmEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "acknowledged_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Acknowledged At"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ended At"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "low",
+            "high",
+            "event",
+            "technical"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "limit": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limit"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "parameter": {
+          "enum": [
+            "hr",
+            "pulse",
+            "spo2",
+            "rr",
+            "bp_sys",
+            "bp_dia",
+            "bp_mean",
+            "temp",
+            "o2_flow",
+            "fio2",
+            "acvpu",
+            "news2",
+            "activity",
+            "position",
+            "falls",
+            "sleep",
+            "timer"
+          ],
+          "title": "Parameter",
+          "type": "string"
+        },
+        "priority": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Priority",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "id",
+        "parameter",
+        "kind",
+        "priority",
+        "message",
+        "value",
+        "limit",
+        "started_at",
+        "ended_at",
+        "acknowledged_at"
+      ],
+      "title": "AlarmEvent",
+      "type": "object"
+    },
+    "AlarmLimit": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "High"
+        },
+        "low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Low"
+        },
+        "priority": {
+          "default": "medium",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Priority",
+          "type": "string"
+        }
+      },
+      "required": [
+        "low",
+        "high",
+        "priority",
+        "enabled"
+      ],
+      "title": "AlarmLimit",
+      "type": "object"
+    },
+    "AlarmMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/AlarmState"
+        },
+        "type": {
+          "const": "alarms",
+          "default": "alarms",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "state"
+      ],
+      "title": "AlarmMessage",
+      "type": "object"
+    },
+    "AlarmState": {
+      "additionalProperties": false,
+      "properties": {
+        "active": {
+          "items": {
+            "$ref": "#/$defs/AlarmEvent"
+          },
+          "title": "Active",
+          "type": "array"
+        },
+        "silence_seconds": {
+          "default": 120,
+          "title": "Silence Seconds",
+          "type": "integer"
+        },
+        "silenced_until": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Silenced Until"
+        }
+      },
+      "required": [
+        "active",
+        "silenced_until",
+        "silence_seconds"
+      ],
+      "title": "AlarmState",
+      "type": "object"
+    },
+    "CertaintyValue": {
+      "additionalProperties": false,
+      "description": "One certainty metric for one output.\n\n``score`` is always normalised so that 1.0 is most certain and 0.0 least,\nwhatever the metric, so any display (percent, badge, bars, opacity) can be\ndriven by any metric. ``raw`` carries the metric's native values for the\nexplanation view.",
+      "properties": {
+        "metric": {
+          "enum": [
+            "prediction_interval",
+            "conformal_interval",
+            "ensemble_disagreement",
+            "posterior_interval",
+            "calibrated_probability",
+            "ppv_natural_frequency",
+            "time_to_event",
+            "input_quality",
+            "population_similarity",
+            "horizon_decay",
+            "sensitivity",
+            "evidence_agreement",
+            "token_logprob",
+            "self_consistency",
+            "semantic_entropy",
+            "verbalised_confidence"
+          ],
+          "title": "Metric",
+          "type": "string"
+        },
+        "raw": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              }
+            ]
+          },
+          "title": "Raw",
+          "type": "object"
+        },
+        "score": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "text": {
+          "description": "Clinician-facing phrase, e.g. '6 in 10', '5 to 8'.",
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric",
+        "score",
+        "text",
+        "raw"
+      ],
+      "title": "CertaintyValue",
+      "type": "object"
+    },
+    "Contributor": {
+      "additionalProperties": false,
+      "description": "One reason behind a forecast (from the causal model).",
+      "properties": {
+        "direction": {
+          "enum": [
+            "raises",
+            "lowers"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "image": "#/$defs/ImageEvidence",
+                "lab": "#/$defs/LabEvidence",
+                "trend": "#/$defs/TrendEvidence",
+                "waveform": "#/$defs/WaveformEvidence"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/WaveformEvidence"
+              },
+              {
+                "$ref": "#/$defs/TrendEvidence"
+              },
+              {
+                "$ref": "#/$defs/LabEvidence"
+              },
+              {
+                "$ref": "#/$defs/ImageEvidence"
+              }
+            ]
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "factor": {
+          "description": "e.g. 'Respiratory rate rising for 90 min'",
+          "title": "Factor",
+          "type": "string"
+        },
+        "parameter": {
+          "anyOf": [
+            {
+              "enum": [
+                "hr",
+                "pulse",
+                "spo2",
+                "rr",
+                "bp_sys",
+                "bp_dia",
+                "bp_mean",
+                "temp",
+                "o2_flow",
+                "fio2",
+                "acvpu",
+                "news2",
+                "activity",
+                "position",
+                "falls",
+                "sleep",
+                "timer"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameter"
+        },
+        "weight": {
+          "description": "Share of the predicted change.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Weight",
+          "type": "number"
+        }
+      },
+      "required": [
+        "factor",
+        "parameter",
+        "direction",
+        "weight",
+        "evidence"
+      ],
+      "title": "Contributor",
+      "type": "object"
+    },
+    "EventPrediction": {
+      "additionalProperties": false,
+      "properties": {
+        "certainty": {
+          "items": {
+            "$ref": "#/$defs/CertaintyValue"
+          },
+          "title": "Certainty",
+          "type": "array"
+        },
+        "contributors": {
+          "items": {
+            "$ref": "#/$defs/Contributor"
+          },
+          "title": "Contributors",
+          "type": "array"
+        },
+        "earliest_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Earliest At"
+        },
+        "event": {
+          "enum": [
+            "news2_ge_5",
+            "news2_ge_7",
+            "desaturation",
+            "hypotension",
+            "tachyarrhythmia",
+            "o2_escalation",
+            "sepsis",
+            "aki",
+            "fall"
+          ],
+          "title": "Event",
+          "type": "string"
+        },
+        "expected_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected At"
+        },
+        "generated_at": {
+          "format": "date-time",
+          "title": "Generated At",
+          "type": "string"
+        },
+        "horizon_min": {
+          "title": "Horizon Min",
+          "type": "integer"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "latest_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latest At"
+        },
+        "model": {
+          "$ref": "#/$defs/ModelInfo"
+        },
+        "probability": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Probability",
+          "type": "number"
+        },
+        "suggested_causes": {
+          "items": {
+            "$ref": "#/$defs/SuggestedCause"
+          },
+          "title": "Suggested Causes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "event",
+        "label",
+        "horizon_min",
+        "probability",
+        "expected_at",
+        "earliest_at",
+        "latest_at",
+        "certainty",
+        "contributors",
+        "suggested_causes",
+        "model",
+        "generated_at"
+      ],
+      "title": "EventPrediction",
+      "type": "object"
+    },
+    "Finding": {
+      "additionalProperties": false,
+      "description": "An AI interpretation of what is happening (or happened), with its evidence.",
+      "properties": {
+        "certainty": {
+          "items": {
+            "$ref": "#/$defs/CertaintyValue"
+          },
+          "title": "Certainty",
+          "type": "array"
+        },
+        "code": {
+          "description": "e.g. 'af', 'vt', 'svt', 'desaturation', 'wcc-rising'",
+          "title": "Code",
+          "type": "string"
+        },
+        "domain": {
+          "enum": [
+            "rhythm",
+            "oxygenation",
+            "respiration",
+            "haemodynamic",
+            "temperature",
+            "activity",
+            "lab",
+            "imaging",
+            "overall"
+          ],
+          "title": "Domain",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "image": "#/$defs/ImageEvidence",
+                "lab": "#/$defs/LabEvidence",
+                "trend": "#/$defs/TrendEvidence",
+                "waveform": "#/$defs/WaveformEvidence"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/WaveformEvidence"
+              },
+              {
+                "$ref": "#/$defs/TrendEvidence"
+              },
+              {
+                "$ref": "#/$defs/LabEvidence"
+              },
+              {
+                "$ref": "#/$defs/ImageEvidence"
+              }
+            ]
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "explanation": {
+          "default": "",
+          "description": "Why the model says this, in plain language.",
+          "title": "Explanation",
+          "type": "string"
+        },
+        "generated_at": {
+          "format": "date-time",
+          "title": "Generated At",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "model": {
+          "$ref": "#/$defs/ModelInfo"
+        },
+        "offset": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Offset"
+        },
+        "onset": {
+          "format": "date-time",
+          "title": "Onset",
+          "type": "string"
+        },
+        "parameter": {
+          "anyOf": [
+            {
+              "enum": [
+                "hr",
+                "pulse",
+                "spo2",
+                "rr",
+                "bp_sys",
+                "bp_dia",
+                "bp_mean",
+                "temp",
+                "o2_flow",
+                "fio2",
+                "acvpu",
+                "news2",
+                "activity",
+                "position",
+                "falls",
+                "sleep",
+                "timer"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameter"
+        },
+        "severity": {
+          "default": "info",
+          "enum": [
+            "info",
+            "warning",
+            "critical"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "resolved"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "summary": {
+          "description": "One sentence shown on the row / card.",
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "parameter",
+        "domain",
+        "code",
+        "label",
+        "status",
+        "onset",
+        "offset",
+        "severity",
+        "summary",
+        "explanation",
+        "certainty",
+        "evidence",
+        "model",
+        "generated_at"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "FindingsMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/Finding"
+          },
+          "title": "Findings",
+          "type": "array"
+        },
+        "type": {
+          "const": "findings",
+          "default": "findings",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "findings"
+      ],
+      "title": "FindingsMessage",
+      "type": "object"
+    },
+    "Forecast": {
+      "additionalProperties": false,
+      "description": "Expected course of one parameter (or 'news2').",
+      "properties": {
+        "certainty": {
+          "items": {
+            "$ref": "#/$defs/CertaintyValue"
+          },
+          "title": "Certainty",
+          "type": "array"
+        },
+        "contributors": {
+          "items": {
+            "$ref": "#/$defs/Contributor"
+          },
+          "title": "Contributors",
+          "type": "array"
+        },
+        "generated_at": {
+          "format": "date-time",
+          "title": "Generated At",
+          "type": "string"
+        },
+        "model": {
+          "$ref": "#/$defs/ModelInfo"
+        },
+        "parameter": {
+          "enum": [
+            "hr",
+            "pulse",
+            "spo2",
+            "rr",
+            "bp_sys",
+            "bp_dia",
+            "bp_mean",
+            "temp",
+            "o2_flow",
+            "fio2",
+            "acvpu",
+            "news2",
+            "activity",
+            "position",
+            "falls",
+            "sleep",
+            "timer"
+          ],
+          "title": "Parameter",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/ForecastPoint"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "scenario": {
+          "default": "baseline",
+          "title": "Scenario",
+          "type": "string"
+        },
+        "scenario_label": {
+          "default": "No change",
+          "title": "Scenario Label",
+          "type": "string"
+        },
+        "suggested_causes": {
+          "items": {
+            "$ref": "#/$defs/SuggestedCause"
+          },
+          "title": "Suggested Causes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "parameter",
+        "generated_at",
+        "points",
+        "scenario",
+        "scenario_label",
+        "certainty",
+        "contributors",
+        "suggested_causes",
+        "model"
+      ],
+      "title": "Forecast",
+      "type": "object"
+    },
+    "ForecastBundle": {
+      "additionalProperties": false,
+      "description": "Everything the forecast UI needs for one patient at one moment.",
+      "properties": {
+        "events": {
+          "items": {
+            "$ref": "#/$defs/EventPrediction"
+          },
+          "title": "Events",
+          "type": "array"
+        },
+        "forecasts": {
+          "items": {
+            "$ref": "#/$defs/Forecast"
+          },
+          "title": "Forecasts",
+          "type": "array"
+        },
+        "generated_at": {
+          "format": "date-time",
+          "title": "Generated At",
+          "type": "string"
+        },
+        "minutes_to_news_threshold": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Minutes To News Threshold",
+          "type": "object"
+        },
+        "model": {
+          "$ref": "#/$defs/ModelInfo"
+        },
+        "news_bands": {
+          "items": {
+            "$ref": "#/$defs/NewsBandProbabilities"
+          },
+          "title": "News Bands",
+          "type": "array"
+        },
+        "patient_id": {
+          "title": "Patient Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "patient_id",
+        "generated_at",
+        "model",
+        "forecasts",
+        "news_bands",
+        "minutes_to_news_threshold",
+        "events"
+      ],
+      "title": "ForecastBundle",
+      "type": "object"
+    },
+    "ForecastPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "horizon_min": {
+          "title": "Horizon Min",
+          "type": "integer"
+        },
+        "intervals": {
+          "additionalProperties": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "description": "{'50': [lo, hi], '80': [...], '95': [...]}",
+          "title": "Intervals",
+          "type": "object"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "horizon_min",
+        "at",
+        "value",
+        "intervals"
+      ],
+      "title": "ForecastPoint",
+      "type": "object"
+    },
+    "ImageEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "compare_study_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Compare Study Id"
+        },
+        "regions": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Regions",
+          "type": "array"
+        },
+        "study_id": {
+          "title": "Study Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "image",
+          "default": "image",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "study_id",
+        "regions",
+        "compare_study_id",
+        "caption"
+      ],
+      "title": "ImageEvidence",
+      "type": "object"
+    },
+    "ImagingStudy": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "image_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Url"
+        },
+        "modality": {
+          "default": "DX",
+          "enum": [
+            "CR",
+            "DX",
+            "CT",
+            "US",
+            "MR"
+          ],
+          "title": "Modality",
+          "type": "string"
+        },
+        "performed_at": {
+          "format": "date-time",
+          "title": "Performed At",
+          "type": "string"
+        },
+        "performed_where": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Performed Where"
+        },
+        "placeholder_image": {
+          "default": true,
+          "title": "Placeholder Image",
+          "type": "boolean"
+        },
+        "previous_study_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Previous Study Id"
+        },
+        "report": {
+          "default": "",
+          "title": "Report",
+          "type": "string"
+        },
+        "reported_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reported By"
+        }
+      },
+      "required": [
+        "id",
+        "modality",
+        "description",
+        "performed_at",
+        "performed_where",
+        "report",
+        "reported_by",
+        "image_url",
+        "previous_study_id",
+        "placeholder_image"
+      ],
+      "title": "ImagingStudy",
+      "type": "object"
+    },
+    "LabEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "test": {
+          "enum": [
+            "wcc",
+            "neut",
+            "hb",
+            "plt",
+            "na",
+            "k",
+            "urea",
+            "creat",
+            "bicarb",
+            "bili",
+            "alt",
+            "alp",
+            "alb",
+            "crp",
+            "lactate",
+            "ph",
+            "pco2",
+            "po2",
+            "be",
+            "trop",
+            "inr",
+            "glucose"
+          ],
+          "title": "Test",
+          "type": "string"
+        },
+        "type": {
+          "const": "lab",
+          "default": "lab",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "test",
+        "caption"
+      ],
+      "title": "LabEvidence",
+      "type": "object"
+    },
+    "LabResult": {
+      "additionalProperties": false,
+      "properties": {
+        "collected_at": {
+          "format": "date-time",
+          "title": "Collected At",
+          "type": "string"
+        },
+        "flag": {
+          "default": "normal",
+          "enum": [
+            "critical-low",
+            "low",
+            "normal",
+            "high",
+            "critical-high"
+          ],
+          "title": "Flag",
+          "type": "string"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ward/department at collection",
+          "title": "Location"
+        },
+        "performed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Performed At"
+        },
+        "ref_high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref High"
+        },
+        "ref_low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref Low"
+        },
+        "reported_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reported At"
+        },
+        "source": {
+          "default": "epr",
+          "enum": [
+            "anne-one",
+            "manual",
+            "derived",
+            "epr",
+            "flow-meter",
+            "simulated"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "specimen": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Specimen"
+        },
+        "test": {
+          "enum": [
+            "wcc",
+            "neut",
+            "hb",
+            "plt",
+            "na",
+            "k",
+            "urea",
+            "creat",
+            "bicarb",
+            "bili",
+            "alt",
+            "alp",
+            "alb",
+            "crp",
+            "lactate",
+            "ph",
+            "pco2",
+            "po2",
+            "be",
+            "trop",
+            "inr",
+            "glucose"
+          ],
+          "title": "Test",
+          "type": "string"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "test",
+        "value",
+        "unit",
+        "collected_at",
+        "reported_at",
+        "ref_low",
+        "ref_high",
+        "flag",
+        "specimen",
+        "performed_at",
+        "location",
+        "source"
+      ],
+      "title": "LabResult",
+      "type": "object"
+    },
+    "LabSeries": {
+      "additionalProperties": false,
+      "description": "Everything the labs widget needs for one test.",
+      "properties": {
+        "delta_from_historic": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delta From Historic"
+        },
+        "delta_from_recent": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delta From Recent"
+        },
+        "historic_baseline": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Historic Baseline"
+        },
+        "history": {
+          "items": {
+            "$ref": "#/$defs/LabResult"
+          },
+          "title": "History",
+          "type": "array"
+        },
+        "latest": {
+          "$ref": "#/$defs/LabResult"
+        },
+        "recent_baseline": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recent Baseline"
+        },
+        "test": {
+          "enum": [
+            "wcc",
+            "neut",
+            "hb",
+            "plt",
+            "na",
+            "k",
+            "urea",
+            "creat",
+            "bicarb",
+            "bili",
+            "alt",
+            "alp",
+            "alb",
+            "crp",
+            "lactate",
+            "ph",
+            "pco2",
+            "po2",
+            "be",
+            "trop",
+            "inr",
+            "glucose"
+          ],
+          "title": "Test",
+          "type": "string"
+        },
+        "trend": {
+          "default": "unknown",
+          "enum": [
+            "rising",
+            "falling",
+            "stable",
+            "unknown"
+          ],
+          "title": "Trend",
+          "type": "string"
+        }
+      },
+      "required": [
+        "test",
+        "latest",
+        "history",
+        "historic_baseline",
+        "recent_baseline",
+        "delta_from_historic",
+        "delta_from_recent",
+        "trend"
+      ],
+      "title": "LabSeries",
+      "type": "object"
+    },
+    "ModelInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "placeholder": {
+          "title": "Placeholder",
+          "type": "boolean"
+        },
+        "supported_certainty": {
+          "items": {
+            "enum": [
+              "prediction_interval",
+              "conformal_interval",
+              "ensemble_disagreement",
+              "posterior_interval",
+              "calibrated_probability",
+              "ppv_natural_frequency",
+              "time_to_event",
+              "input_quality",
+              "population_similarity",
+              "horizon_decay",
+              "sensitivity",
+              "evidence_agreement",
+              "token_logprob",
+              "self_consistency",
+              "semantic_entropy",
+              "verbalised_confidence"
+            ],
+            "type": "string"
+          },
+          "title": "Supported Certainty",
+          "type": "array"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "placeholder",
+        "description",
+        "supported_certainty"
+      ],
+      "title": "ModelInfo",
+      "type": "object"
+    },
+    "NewsBandProbabilities": {
+      "additionalProperties": false,
+      "description": "N2: probability of each NEWS2 risk band at a horizon.",
+      "properties": {
+        "high": {
+          "title": "High",
+          "type": "number"
+        },
+        "horizon_min": {
+          "title": "Horizon Min",
+          "type": "integer"
+        },
+        "low": {
+          "title": "Low",
+          "type": "number"
+        },
+        "medium": {
+          "title": "Medium",
+          "type": "number"
+        }
+      },
+      "required": [
+        "horizon_min",
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "NewsBandProbabilities",
+      "type": "object"
+    },
+    "NumericsMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "quality": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "enum": [
+              "hr",
+              "pulse",
+              "spo2",
+              "rr",
+              "bp_sys",
+              "bp_dia",
+              "bp_mean",
+              "temp",
+              "o2_flow",
+              "fio2",
+              "acvpu",
+              "news2",
+              "activity",
+              "position",
+              "falls",
+              "sleep",
+              "timer"
+            ]
+          },
+          "title": "Quality",
+          "type": "object"
+        },
+        "type": {
+          "const": "numerics",
+          "default": "numerics",
+          "title": "Type",
+          "type": "string"
+        },
+        "values": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "propertyNames": {
+            "enum": [
+              "hr",
+              "pulse",
+              "spo2",
+              "rr",
+              "bp_sys",
+              "bp_dia",
+              "bp_mean",
+              "temp",
+              "o2_flow",
+              "fio2",
+              "acvpu",
+              "news2",
+              "activity",
+              "position",
+              "falls",
+              "sleep",
+              "timer"
+            ]
+          },
+          "title": "Values",
+          "type": "object"
+        }
+      },
+      "required": [
+        "type",
+        "at",
+        "values",
+        "quality"
+      ],
+      "title": "NumericsMessage",
+      "type": "object"
+    },
+    "Observation": {
+      "additionalProperties": false,
+      "description": "One numeric or coded value at one time.",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "device_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device Id"
+        },
+        "parameter": {
+          "enum": [
+            "hr",
+            "pulse",
+            "spo2",
+            "rr",
+            "bp_sys",
+            "bp_dia",
+            "bp_mean",
+            "temp",
+            "o2_flow",
+            "fio2",
+            "acvpu",
+            "news2",
+            "activity",
+            "position",
+            "falls",
+            "sleep",
+            "timer"
+          ],
+          "title": "Parameter",
+          "type": "string"
+        },
+        "quality": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Signal quality 0-1",
+          "title": "Quality"
+        },
+        "source": {
+          "default": "simulated",
+          "enum": [
+            "anne-one",
+            "manual",
+            "derived",
+            "epr",
+            "flow-meter",
+            "simulated"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "value_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "e.g. ACVPU level, body position",
+          "title": "Value Code"
+        }
+      },
+      "required": [
+        "parameter",
+        "at",
+        "value",
+        "value_code",
+        "source",
+        "device_id",
+        "quality"
+      ],
+      "title": "Observation",
+      "type": "object"
+    },
+    "ObservationSet": {
+      "additionalProperties": false,
+      "description": "A charted set of observations (one NEWS2 column).",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "escalated": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Escalated"
+        },
+        "monitoring_hours": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Monitoring Hours"
+        },
+        "news2_complete": {
+          "default": true,
+          "title": "News2 Complete",
+          "type": "boolean"
+        },
+        "news2_components": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "News2 Components",
+          "type": "object"
+        },
+        "news2_risk": {
+          "anyOf": [
+            {
+              "enum": [
+                "low",
+                "low-medium",
+                "medium",
+                "high"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "News2 Risk"
+        },
+        "news2_total": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "News2 Total"
+        },
+        "oxygen": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OxygenTherapy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "recorded_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recorded By"
+        },
+        "source": {
+          "default": "charted",
+          "enum": [
+            "charted",
+            "continuous"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "values": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "propertyNames": {
+            "enum": [
+              "hr",
+              "pulse",
+              "spo2",
+              "rr",
+              "bp_sys",
+              "bp_dia",
+              "bp_mean",
+              "temp",
+              "o2_flow",
+              "fio2",
+              "acvpu",
+              "news2",
+              "activity",
+              "position",
+              "falls",
+              "sleep",
+              "timer"
+            ]
+          },
+          "title": "Values",
+          "type": "object"
+        }
+      },
+      "required": [
+        "at",
+        "values",
+        "oxygen",
+        "news2_total",
+        "news2_components",
+        "news2_risk",
+        "news2_complete",
+        "monitoring_hours",
+        "escalated",
+        "recorded_by",
+        "source"
+      ],
+      "title": "ObservationSet",
+      "type": "object"
+    },
+    "OxygenTherapy": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "device": {
+          "default": "A",
+          "enum": [
+            "A",
+            "N",
+            "SM",
+            "V24",
+            "V28",
+            "V35",
+            "V40",
+            "V60",
+            "RM",
+            "H28",
+            "H35",
+            "H40",
+            "H60",
+            "TM",
+            "CP",
+            "NIV",
+            "HFNO"
+          ],
+          "title": "Device",
+          "type": "string"
+        },
+        "fio2_pct": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 21,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fio2 Pct"
+        },
+        "flow_l_min": {
+          "description": "0 = room air",
+          "maximum": 70,
+          "minimum": 0,
+          "title": "Flow L Min",
+          "type": "number"
+        },
+        "recorded_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recorded By"
+        },
+        "source": {
+          "default": "manual",
+          "enum": [
+            "manual",
+            "flow-meter",
+            "simulated"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "flow_l_min",
+        "device",
+        "fio2_pct",
+        "source",
+        "recorded_by"
+      ],
+      "title": "OxygenTherapy",
+      "type": "object"
+    },
+    "Patient": {
+      "additionalProperties": false,
+      "properties": {
+        "admitted_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Admitted At"
+        },
+        "allergies": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Allergies",
+          "type": "array"
+        },
+        "bed": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bed"
+        },
+        "birth_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "YYYY-MM-DD",
+          "title": "Birth Date"
+        },
+        "consultant": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Consultant"
+        },
+        "family_name": {
+          "title": "Family Name",
+          "type": "string"
+        },
+        "given_name": {
+          "title": "Given Name",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "nhs_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nhs Number"
+        },
+        "origin": {
+          "default": "scenario",
+          "title": "Origin",
+          "type": "string"
+        },
+        "sex": {
+          "default": "unknown",
+          "enum": [
+            "male",
+            "female",
+            "other",
+            "unknown"
+          ],
+          "title": "Sex",
+          "type": "string"
+        },
+        "simulated": {
+          "default": true,
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "ward": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ward"
+        },
+        "weight_kg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weight Kg"
+        }
+      },
+      "required": [
+        "id",
+        "family_name",
+        "given_name",
+        "title",
+        "birth_date",
+        "sex",
+        "nhs_number",
+        "ward",
+        "bed",
+        "consultant",
+        "allergies",
+        "weight_kg",
+        "admitted_at",
+        "origin",
+        "simulated"
+      ],
+      "title": "Patient",
+      "type": "object"
+    },
+    "PatientSettings": {
+      "additionalProperties": false,
+      "description": "Per-patient clinical settings. Stored as patient data, never in a design.",
+      "properties": {
+        "alarm_limits": {
+          "additionalProperties": {
+            "$ref": "#/$defs/AlarmLimit"
+          },
+          "propertyNames": {
+            "enum": [
+              "hr",
+              "pulse",
+              "spo2",
+              "rr",
+              "bp_sys",
+              "bp_dia",
+              "bp_mean",
+              "temp",
+              "o2_flow",
+              "fio2",
+              "acvpu",
+              "news2",
+              "activity",
+              "position",
+              "falls",
+              "sleep",
+              "timer"
+            ]
+          },
+          "title": "Alarm Limits",
+          "type": "object"
+        },
+        "spo2_scale": {
+          "default": 1,
+          "enum": [
+            1,
+            2
+          ],
+          "title": "Spo2 Scale",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "spo2_scale",
+        "alarm_limits"
+      ],
+      "title": "PatientSettings",
+      "type": "object"
+    },
+    "StatusMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "connected": {
+          "title": "Connected",
+          "type": "boolean"
+        },
+        "replay_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Replay At"
+        },
+        "replay_speed": {
+          "default": 1.0,
+          "title": "Replay Speed",
+          "type": "number"
+        },
+        "simulated": {
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "type": {
+          "const": "status",
+          "default": "status",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "source",
+        "connected",
+        "simulated",
+        "replay_at",
+        "replay_speed"
+      ],
+      "title": "StatusMessage",
+      "type": "object"
+    },
+    "SuggestedCause": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "description": "e.g. 'Hospital-acquired pneumonia'",
+          "title": "Label",
+          "type": "string"
+        },
+        "probability": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Probability",
+          "type": "number"
+        },
+        "rationale": {
+          "default": "",
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "probability",
+        "rationale"
+      ],
+      "title": "SuggestedCause",
+      "type": "object"
+    },
+    "TrendEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "end": {
+          "format": "date-time",
+          "title": "End",
+          "type": "string"
+        },
+        "parameter": {
+          "enum": [
+            "hr",
+            "pulse",
+            "spo2",
+            "rr",
+            "bp_sys",
+            "bp_dia",
+            "bp_mean",
+            "temp",
+            "o2_flow",
+            "fio2",
+            "acvpu",
+            "news2",
+            "activity",
+            "position",
+            "falls",
+            "sleep",
+            "timer"
+          ],
+          "title": "Parameter",
+          "type": "string"
+        },
+        "start": {
+          "format": "date-time",
+          "title": "Start",
+          "type": "string"
+        },
+        "type": {
+          "const": "trend",
+          "default": "trend",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "parameter",
+        "start",
+        "end",
+        "caption"
+      ],
+      "title": "TrendEvidence",
+      "type": "object"
+    },
+    "WaveformEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline_end": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baseline End"
+        },
+        "baseline_start": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A comparison strip from the patient's own normal rhythm.",
+          "title": "Baseline Start"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "end": {
+          "format": "date-time",
+          "title": "End",
+          "type": "string"
+        },
+        "marks": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Marks",
+          "type": "array"
+        },
+        "start": {
+          "format": "date-time",
+          "title": "Start",
+          "type": "string"
+        },
+        "type": {
+          "const": "waveform",
+          "default": "waveform",
+          "title": "Type",
+          "type": "string"
+        },
+        "waveform": {
+          "enum": [
+            "ecg",
+            "pleth",
+            "resp"
+          ],
+          "title": "Waveform",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "waveform",
+        "start",
+        "end",
+        "marks",
+        "baseline_start",
+        "baseline_end",
+        "caption"
+      ],
+      "title": "WaveformEvidence",
+      "type": "object"
+    },
+    "WaveformFrame": {
+      "additionalProperties": false,
+      "properties": {
+        "hz": {
+          "title": "Hz",
+          "type": "number"
+        },
+        "samples": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Samples",
+          "type": "array"
+        },
+        "t0": {
+          "format": "date-time",
+          "title": "T0",
+          "type": "string"
+        },
+        "waveform": {
+          "enum": [
+            "ecg",
+            "pleth",
+            "resp"
+          ],
+          "title": "Waveform",
+          "type": "string"
+        }
+      },
+      "required": [
+        "waveform",
+        "t0",
+        "hz",
+        "samples"
+      ],
+      "title": "WaveformFrame",
+      "type": "object"
+    },
+    "WaveformMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "frames": {
+          "items": {
+            "$ref": "#/$defs/WaveformFrame"
+          },
+          "title": "Frames",
+          "type": "array"
+        },
+        "type": {
+          "const": "waveform",
+          "default": "waveform",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "frames"
+      ],
+      "title": "WaveformMessage",
+      "type": "object"
+    }
+  },
+  "description": "Wrapper so every data contract lands in one schema / one TS file.",
+  "properties": {
+    "alarm_state": {
+      "$ref": "#/$defs/AlarmState"
+    },
+    "finding": {
+      "$ref": "#/$defs/Finding"
+    },
+    "forecast_bundle": {
+      "$ref": "#/$defs/ForecastBundle"
+    },
+    "imaging_study": {
+      "$ref": "#/$defs/ImagingStudy"
+    },
+    "lab_series": {
+      "$ref": "#/$defs/LabSeries"
+    },
+    "observation": {
+      "$ref": "#/$defs/Observation"
+    },
+    "observation_set": {
+      "$ref": "#/$defs/ObservationSet"
+    },
+    "oxygen": {
+      "$ref": "#/$defs/OxygenTherapy"
+    },
+    "patient": {
+      "$ref": "#/$defs/Patient"
+    },
+    "patient_settings": {
+      "$ref": "#/$defs/PatientSettings"
+    },
+    "stream_message": {
+      "discriminator": {
+        "mapping": {
+          "alarms": "#/$defs/AlarmMessage",
+          "findings": "#/$defs/FindingsMessage",
+          "numerics": "#/$defs/NumericsMessage",
+          "status": "#/$defs/StatusMessage",
+          "waveform": "#/$defs/WaveformMessage"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/NumericsMessage"
+        },
+        {
+          "$ref": "#/$defs/WaveformMessage"
+        },
+        {
+          "$ref": "#/$defs/AlarmMessage"
+        },
+        {
+          "$ref": "#/$defs/FindingsMessage"
+        },
+        {
+          "$ref": "#/$defs/StatusMessage"
+        }
+      ],
+      "title": "Stream Message"
+    }
+  },
+  "required": [
+    "patient",
+    "patient_settings",
+    "oxygen",
+    "observation",
+    "observation_set",
+    "lab_series",
+    "imaging_study",
+    "finding",
+    "forecast_bundle",
+    "alarm_state",
+    "stream_message"
+  ],
+  "title": "Contracts",
+  "type": "object"
+}

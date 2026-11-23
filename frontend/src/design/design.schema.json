@@ -1,0 +1,2305 @@
+{
+  "$defs": {
+    "AiDisplay": {
+      "additionalProperties": false,
+      "properties": {
+        "highlight_style": {
+          "default": "pill",
+          "enum": [
+            "pill",
+            "underline",
+            "glow"
+          ],
+          "title": "Highlight Style",
+          "type": "string"
+        },
+        "min_confidence": {
+          "default": 0.5,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Min Confidence",
+          "type": "number"
+        },
+        "resolved_window_hours": {
+          "default": 24,
+          "maximum": 168,
+          "minimum": 1,
+          "title": "Resolved Window Hours",
+          "type": "integer"
+        },
+        "show_confidence": {
+          "default": true,
+          "title": "Show Confidence",
+          "type": "boolean"
+        },
+        "show_resolved": {
+          "default": true,
+          "description": "e.g. 'Last run of AF 2 h 14 min ago'.",
+          "title": "Show Resolved",
+          "type": "boolean"
+        },
+        "show_row_chips": {
+          "default": true,
+          "title": "Show Row Chips",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "show_row_chips",
+        "show_confidence",
+        "highlight_style",
+        "show_resolved",
+        "resolved_window_hours",
+        "min_confidence"
+      ],
+      "title": "AiDisplay",
+      "type": "object"
+    },
+    "AiSummaryWidget": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "include_resolved": {
+          "default": true,
+          "title": "Include Resolved",
+          "type": "boolean"
+        },
+        "max_items": {
+          "default": 6,
+          "maximum": 20,
+          "minimum": 1,
+          "title": "Max Items",
+          "type": "integer"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "ai-summary",
+          "default": "ai-summary",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type",
+        "max_items",
+        "include_resolved"
+      ],
+      "title": "AiSummaryWidget",
+      "type": "object"
+    },
+    "AlarmDefault": {
+      "additionalProperties": false,
+      "description": "Design-level default limits. Per-patient overrides are patient data.",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "High"
+        },
+        "low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Low"
+        },
+        "priority": {
+          "default": "medium",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Priority",
+          "type": "string"
+        }
+      },
+      "required": [
+        "low",
+        "high",
+        "priority",
+        "enabled"
+      ],
+      "title": "AlarmDefault",
+      "type": "object"
+    },
+    "AlarmPresentation": {
+      "additionalProperties": false,
+      "properties": {
+        "banner": {
+          "default": "top",
+          "enum": [
+            "top",
+            "none"
+          ],
+          "title": "Banner",
+          "type": "string"
+        },
+        "flash_numerics": {
+          "default": true,
+          "title": "Flash Numerics",
+          "type": "boolean"
+        },
+        "show_silence_countdown": {
+          "const": true,
+          "default": true,
+          "title": "Show Silence Countdown",
+          "type": "boolean"
+        },
+        "sound": {
+          "default": "standard",
+          "enum": [
+            "standard",
+            "soft",
+            "off-in-demo"
+          ],
+          "title": "Sound",
+          "type": "string"
+        }
+      },
+      "required": [
+        "flash_numerics",
+        "banner",
+        "sound",
+        "show_silence_countdown"
+      ],
+      "title": "AlarmPresentation",
+      "type": "object"
+    },
+    "AlarmsWidget": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "alarms",
+          "default": "alarms",
+          "title": "Type",
+          "type": "string"
+        },
+        "view": {
+          "default": "both",
+          "enum": [
+            "limits",
+            "history",
+            "both"
+          ],
+          "title": "View",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type",
+        "view"
+      ],
+      "title": "AlarmsWidget",
+      "type": "object"
+    },
+    "CertaintyDisplay": {
+      "additionalProperties": false,
+      "description": "Which certainty metric drives the display, and how it is shown.",
+      "properties": {
+        "badge_high_at": {
+          "default": 0.8,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Badge High At",
+          "type": "number"
+        },
+        "badge_medium_at": {
+          "default": 0.5,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Badge Medium At",
+          "type": "number"
+        },
+        "display": {
+          "default": "percent",
+          "enum": [
+            "percent",
+            "natural-frequency",
+            "interval",
+            "badge",
+            "bars",
+            "opacity",
+            "dash-density"
+          ],
+          "title": "Display",
+          "type": "string"
+        },
+        "event_metric": {
+          "default": "calibrated_probability",
+          "enum": [
+            "prediction_interval",
+            "conformal_interval",
+            "ensemble_disagreement",
+            "posterior_interval",
+            "calibrated_probability",
+            "ppv_natural_frequency",
+            "time_to_event",
+            "input_quality",
+            "population_similarity",
+            "horizon_decay",
+            "sensitivity",
+            "evidence_agreement",
+            "token_logprob",
+            "self_consistency",
+            "semantic_entropy",
+            "verbalised_confidence"
+          ],
+          "title": "Event Metric",
+          "type": "string"
+        },
+        "finding_metric": {
+          "default": "calibrated_probability",
+          "enum": [
+            "prediction_interval",
+            "conformal_interval",
+            "ensemble_disagreement",
+            "posterior_interval",
+            "calibrated_probability",
+            "ppv_natural_frequency",
+            "time_to_event",
+            "input_quality",
+            "population_similarity",
+            "horizon_decay",
+            "sensitivity",
+            "evidence_agreement",
+            "token_logprob",
+            "self_consistency",
+            "semantic_entropy",
+            "verbalised_confidence"
+          ],
+          "title": "Finding Metric",
+          "type": "string"
+        },
+        "metric": {
+          "default": "prediction_interval",
+          "enum": [
+            "prediction_interval",
+            "conformal_interval",
+            "ensemble_disagreement",
+            "posterior_interval",
+            "calibrated_probability",
+            "ppv_natural_frequency",
+            "time_to_event",
+            "input_quality",
+            "population_similarity",
+            "horizon_decay",
+            "sensitivity",
+            "evidence_agreement",
+            "token_logprob",
+            "self_consistency",
+            "semantic_entropy",
+            "verbalised_confidence"
+          ],
+          "title": "Metric",
+          "type": "string"
+        },
+        "min_to_show": {
+          "default": 0.3,
+          "description": "Hide predictions below this certainty.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Min To Show",
+          "type": "number"
+        },
+        "show_metric_name": {
+          "default": true,
+          "title": "Show Metric Name",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "metric",
+        "event_metric",
+        "finding_metric",
+        "display",
+        "badge_medium_at",
+        "badge_high_at",
+        "min_to_show",
+        "show_metric_name"
+      ],
+      "title": "CertaintyDisplay",
+      "type": "object"
+    },
+    "EventsTimelineWidget": {
+      "additionalProperties": false,
+      "properties": {
+        "hours_ahead": {
+          "default": 6,
+          "maximum": 24,
+          "minimum": 1,
+          "title": "Hours Ahead",
+          "type": "integer"
+        },
+        "hours_back": {
+          "default": 6,
+          "maximum": 48,
+          "minimum": 0,
+          "title": "Hours Back",
+          "type": "integer"
+        },
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "events-timeline",
+          "default": "events-timeline",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type",
+        "hours_back",
+        "hours_ahead"
+      ],
+      "title": "EventsTimelineWidget",
+      "type": "object"
+    },
+    "Forecast": {
+      "additionalProperties": false,
+      "properties": {
+        "certainty": {
+          "$ref": "#/$defs/CertaintyDisplay"
+        },
+        "default_horizon_min": {
+          "default": 240,
+          "enum": [
+            60,
+            120,
+            240,
+            360,
+            720
+          ],
+          "title": "Default Horizon Min",
+          "type": "integer"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "event_types": {
+          "items": {
+            "enum": [
+              "news2_ge_5",
+              "news2_ge_7",
+              "desaturation",
+              "hypotension",
+              "tachyarrhythmia",
+              "o2_escalation",
+              "sepsis",
+              "aki",
+              "fall"
+            ],
+            "type": "string"
+          },
+          "title": "Event Types",
+          "type": "array"
+        },
+        "events": {
+          "items": {
+            "enum": [
+              "cards",
+              "timeline",
+              "row-chips",
+              "threshold-text"
+            ],
+            "type": "string"
+          },
+          "title": "Events",
+          "type": "array"
+        },
+        "fan_levels": {
+          "items": {
+            "enum": [
+              50,
+              80,
+              95
+            ],
+            "type": "integer"
+          },
+          "title": "Fan Levels",
+          "type": "array"
+        },
+        "horizons_min": {
+          "items": {
+            "enum": [
+              60,
+              120,
+              240,
+              360,
+              720
+            ],
+            "type": "integer"
+          },
+          "minItems": 1,
+          "title": "Horizons Min",
+          "type": "array"
+        },
+        "max_contributors": {
+          "default": 4,
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Max Contributors",
+          "type": "integer"
+        },
+        "news_number": {
+          "default": "value-range",
+          "enum": [
+            "none",
+            "value-range",
+            "band-probabilities",
+            "time-to-threshold"
+          ],
+          "title": "News Number",
+          "type": "string"
+        },
+        "news_threshold": {
+          "default": 5,
+          "maximum": 20,
+          "minimum": 1,
+          "title": "News Threshold",
+          "type": "integer"
+        },
+        "show_contributors": {
+          "default": true,
+          "title": "Show Contributors",
+          "type": "boolean"
+        },
+        "trend": {
+          "default": "dashed-fan",
+          "enum": [
+            "none",
+            "dashed",
+            "dashed-fan",
+            "fading-dashes",
+            "ghost-columns"
+          ],
+          "title": "Trend",
+          "type": "string"
+        },
+        "what_if": {
+          "default": false,
+          "title": "What If",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "enabled",
+        "horizons_min",
+        "default_horizon_min",
+        "news_number",
+        "news_threshold",
+        "trend",
+        "fan_levels",
+        "what_if",
+        "events",
+        "event_types",
+        "certainty",
+        "show_contributors",
+        "max_contributors"
+      ],
+      "title": "Forecast",
+      "type": "object"
+    },
+    "ForecastPanelWidget": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "show_contributors": {
+          "default": true,
+          "title": "Show Contributors",
+          "type": "boolean"
+        },
+        "show_events": {
+          "default": true,
+          "title": "Show Events",
+          "type": "boolean"
+        },
+        "show_news_number": {
+          "default": true,
+          "title": "Show News Number",
+          "type": "boolean"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "forecast-panel",
+          "default": "forecast-panel",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type",
+        "show_news_number",
+        "show_events",
+        "show_contributors"
+      ],
+      "title": "ForecastPanelWidget",
+      "type": "object"
+    },
+    "ImagingWidget": {
+      "additionalProperties": false,
+      "properties": {
+        "compare_with_previous": {
+          "default": true,
+          "title": "Compare With Previous",
+          "type": "boolean"
+        },
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "show_ai_regions": {
+          "default": true,
+          "title": "Show Ai Regions",
+          "type": "boolean"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "epr-imaging",
+          "default": "epr-imaging",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type",
+        "show_ai_regions",
+        "compare_with_previous"
+      ],
+      "title": "ImagingWidget",
+      "type": "object"
+    },
+    "LabsWidget": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline": {
+          "default": "both",
+          "enum": [
+            "historic",
+            "recent",
+            "both"
+          ],
+          "title": "Baseline",
+          "type": "string"
+        },
+        "groups": {
+          "items": {
+            "enum": [
+              "fbc",
+              "ue",
+              "lft",
+              "inflammation",
+              "gas",
+              "cardiac",
+              "coag",
+              "glucose"
+            ],
+            "type": "string"
+          },
+          "title": "Groups",
+          "type": "array"
+        },
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "pin_critical": {
+          "default": true,
+          "title": "Pin Critical",
+          "type": "boolean"
+        },
+        "show_reference_range": {
+          "default": true,
+          "title": "Show Reference Range",
+          "type": "boolean"
+        },
+        "show_sparklines": {
+          "default": true,
+          "title": "Show Sparklines",
+          "type": "boolean"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "epr-labs",
+          "default": "epr-labs",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type",
+        "groups",
+        "show_sparklines",
+        "baseline",
+        "pin_critical",
+        "show_reference_range"
+      ],
+      "title": "LabsWidget",
+      "type": "object"
+    },
+    "Menu": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/MenuItem"
+          },
+          "maxItems": 12,
+          "minItems": 1,
+          "title": "Items",
+          "type": "array"
+        },
+        "title": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "items"
+      ],
+      "title": "Menu",
+      "type": "object"
+    },
+    "MenuAction": {
+      "additionalProperties": false,
+      "properties": {
+        "menu_id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Menu Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "menu",
+          "default": "menu",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "menu_id"
+      ],
+      "title": "MenuAction",
+      "type": "object"
+    },
+    "MenuItem": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "discriminator": {
+            "mapping": {
+              "open-settings": "#/$defs/SettingsAction",
+              "screen": "#/$defs/ScreenAction",
+              "sheet": "#/$defs/SheetAction",
+              "silence-alarms": "#/$defs/SilenceAction"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ScreenAction"
+            },
+            {
+              "$ref": "#/$defs/SheetAction"
+            },
+            {
+              "$ref": "#/$defs/SilenceAction"
+            },
+            {
+              "$ref": "#/$defs/SettingsAction"
+            }
+          ],
+          "title": "Action"
+        },
+        "icon": {
+          "default": "none",
+          "enum": [
+            "monitor",
+            "chart",
+            "split",
+            "labs",
+            "imaging",
+            "ai",
+            "forecast",
+            "alarm",
+            "alarm-off",
+            "settings",
+            "patient",
+            "oxygen",
+            "timer",
+            "heart",
+            "lungs",
+            "drop",
+            "thermometer",
+            "activity",
+            "sleep",
+            "fall",
+            "palette",
+            "layout",
+            "chat",
+            "history",
+            "info",
+            "none"
+          ],
+          "title": "Icon",
+          "type": "string"
+        },
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "icon",
+        "action"
+      ],
+      "title": "MenuItem",
+      "type": "object"
+    },
+    "MonitorRowsWidget": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "numerics_side": {
+          "default": "right",
+          "enum": [
+            "left",
+            "right"
+          ],
+          "title": "Numerics Side",
+          "type": "string"
+        },
+        "row_ids": {
+          "description": "Rows to show, top to bottom.",
+          "items": {
+            "description": "Lowercase id: letters, digits, hyphens.",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+            "type": "string"
+          },
+          "title": "Row Ids",
+          "type": "array"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "monitor-rows",
+          "default": "monitor-rows",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type",
+        "row_ids",
+        "numerics_side"
+      ],
+      "title": "MonitorRowsWidget",
+      "type": "object"
+    },
+    "News2ChartWidget": {
+      "additionalProperties": false,
+      "properties": {
+        "column_source": {
+          "default": "charted",
+          "description": "'charted' = recorded observation sets; 'continuous' = derived from the wearable every interval.",
+          "enum": [
+            "charted",
+            "continuous"
+          ],
+          "title": "Column Source",
+          "type": "string"
+        },
+        "continuous_interval_min": {
+          "default": 60,
+          "maximum": 240,
+          "minimum": 5,
+          "title": "Continuous Interval Min",
+          "type": "integer"
+        },
+        "hours_visible": {
+          "default": 24,
+          "maximum": 168,
+          "minimum": 4,
+          "title": "Hours Visible",
+          "type": "integer"
+        },
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "show_escalation_rows": {
+          "default": true,
+          "title": "Show Escalation Rows",
+          "type": "boolean"
+        },
+        "show_future": {
+          "default": true,
+          "description": "Append predicted columns (see forecast).",
+          "title": "Show Future",
+          "type": "boolean"
+        },
+        "show_total_row": {
+          "default": true,
+          "title": "Show Total Row",
+          "type": "boolean"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "news2-chart",
+          "default": "news2-chart",
+          "title": "Type",
+          "type": "string"
+        },
+        "variant": {
+          "default": "bands-light",
+          "enum": [
+            "bands-light",
+            "bands-dark",
+            "trend-dark"
+          ],
+          "title": "Variant",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type",
+        "variant",
+        "hours_visible",
+        "show_total_row",
+        "show_escalation_rows",
+        "show_future",
+        "column_source",
+        "continuous_interval_min"
+      ],
+      "title": "News2ChartWidget",
+      "type": "object"
+    },
+    "NewsBandColours": {
+      "additionalProperties": false,
+      "properties": {
+        "grid": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Grid",
+          "type": "string"
+        },
+        "header": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Header",
+          "type": "string"
+        },
+        "header_text": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Header Text",
+          "type": "string"
+        },
+        "score_0": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Score 0",
+          "type": "string"
+        },
+        "score_1": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Score 1",
+          "type": "string"
+        },
+        "score_2": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Score 2",
+          "type": "string"
+        },
+        "score_3": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Score 3",
+          "type": "string"
+        }
+      },
+      "required": [
+        "score_0",
+        "score_1",
+        "score_2",
+        "score_3",
+        "grid",
+        "header",
+        "header_text"
+      ],
+      "title": "NewsBandColours",
+      "type": "object"
+    },
+    "OxygenWidget": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "oxygen",
+          "default": "oxygen",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type"
+      ],
+      "title": "OxygenWidget",
+      "type": "object"
+    },
+    "PatientWidget": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "patient",
+          "default": "patient",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type"
+      ],
+      "title": "PatientWidget",
+      "type": "object"
+    },
+    "Row": {
+      "additionalProperties": false,
+      "description": "One monitoring item with its trace and numbers.",
+      "properties": {
+        "colour": {
+          "anyOf": [
+            {
+              "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+              "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides theme.parameter_colours.",
+          "title": "Colour"
+        },
+        "height": {
+          "default": 1.0,
+          "description": "Relative row height.",
+          "maximum": 4.0,
+          "minimum": 0.25,
+          "title": "Height",
+          "type": "number"
+        },
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "default": "parameter",
+          "enum": [
+            "parameter",
+            "spacer",
+            "timer"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides the registry label.",
+          "title": "Label"
+        },
+        "numerics": {
+          "description": "Numbers shown at the right of the row, largest first.",
+          "items": {
+            "enum": [
+              "hr",
+              "pulse",
+              "spo2",
+              "rr",
+              "bp_sys",
+              "bp_dia",
+              "bp_mean",
+              "temp",
+              "o2_flow",
+              "fio2",
+              "acvpu",
+              "news2",
+              "activity",
+              "position",
+              "falls",
+              "sleep",
+              "timer"
+            ],
+            "type": "string"
+          },
+          "maxItems": 4,
+          "title": "Numerics",
+          "type": "array"
+        },
+        "parameter": {
+          "anyOf": [
+            {
+              "enum": [
+                "hr",
+                "pulse",
+                "spo2",
+                "rr",
+                "bp_sys",
+                "bp_dia",
+                "bp_mean",
+                "temp",
+                "o2_flow",
+                "fio2",
+                "acvpu",
+                "news2",
+                "activity",
+                "position",
+                "falls",
+                "sleep",
+                "timer"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Required when kind='parameter'.",
+          "title": "Parameter"
+        },
+        "show_ai": {
+          "default": true,
+          "description": "Show AI interpretation text on this row.",
+          "title": "Show Ai",
+          "type": "boolean"
+        },
+        "show_forecast": {
+          "default": true,
+          "description": "Show the dashed expected trend.",
+          "title": "Show Forecast",
+          "type": "boolean"
+        },
+        "show_limits": {
+          "default": true,
+          "title": "Show Limits",
+          "type": "boolean"
+        },
+        "trace": {
+          "default": "trend",
+          "enum": [
+            "waveform",
+            "trend",
+            "bar",
+            "events",
+            "none"
+          ],
+          "title": "Trace",
+          "type": "string"
+        },
+        "trend_window_min": {
+          "default": 60,
+          "maximum": 1440,
+          "minimum": 5,
+          "title": "Trend Window Min",
+          "type": "integer"
+        },
+        "visible": {
+          "default": true,
+          "title": "Visible",
+          "type": "boolean"
+        },
+        "waveform": {
+          "anyOf": [
+            {
+              "enum": [
+                "ecg",
+                "pleth",
+                "resp"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Required when trace='waveform'.",
+          "title": "Waveform"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "parameter",
+        "label",
+        "colour",
+        "trace",
+        "waveform",
+        "trend_window_min",
+        "height",
+        "numerics",
+        "show_limits",
+        "show_ai",
+        "show_forecast",
+        "visible"
+      ],
+      "title": "Row",
+      "type": "object"
+    },
+    "Screen": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "layout": {
+          "discriminator": {
+            "mapping": {
+              "split": "#/$defs/SplitNode",
+              "widget": "#/$defs/WidgetNode"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/WidgetNode"
+            },
+            {
+              "$ref": "#/$defs/SplitNode"
+            }
+          ],
+          "title": "Layout"
+        },
+        "name": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "layout"
+      ],
+      "title": "Screen",
+      "type": "object"
+    },
+    "ScreenAction": {
+      "additionalProperties": false,
+      "properties": {
+        "screen_id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Screen Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "screen",
+          "default": "screen",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "screen_id"
+      ],
+      "title": "ScreenAction",
+      "type": "object"
+    },
+    "SettingsAction": {
+      "additionalProperties": false,
+      "description": "Opens the menu whose id is 'settings' (which must exist).",
+      "properties": {
+        "type": {
+          "const": "open-settings",
+          "default": "open-settings",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "SettingsAction",
+      "type": "object"
+    },
+    "SheetAction": {
+      "additionalProperties": false,
+      "description": "Opens a built-in panel over the current screen.",
+      "properties": {
+        "sheet": {
+          "enum": [
+            "alarm-limits",
+            "oxygen",
+            "patient",
+            "record-observations",
+            "finding-explain",
+            "forecast-horizon",
+            "news2-variant",
+            "home-screen",
+            "studio-appearance",
+            "studio-layout",
+            "studio-rows",
+            "studio-navigation",
+            "studio-alarms",
+            "studio-forecast",
+            "assistant",
+            "versions",
+            "api-tokens",
+            "demo-controls",
+            "about"
+          ],
+          "title": "Sheet",
+          "type": "string"
+        },
+        "type": {
+          "const": "sheet",
+          "default": "sheet",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "sheet"
+      ],
+      "title": "SheetAction",
+      "type": "object"
+    },
+    "SilenceAction": {
+      "additionalProperties": false,
+      "description": "Silences alarm audio for registry.ALARM_SILENCE_SECONDS (2 minutes).",
+      "properties": {
+        "type": {
+          "const": "silence-alarms",
+          "default": "silence-alarms",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "SilenceAction",
+      "type": "object"
+    },
+    "SplitNode": {
+      "additionalProperties": false,
+      "description": "Two panes side by side ('horizontal') or stacked ('vertical').",
+      "properties": {
+        "children": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "split": "#/$defs/SplitNode",
+                "widget": "#/$defs/WidgetNode"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/WidgetNode"
+              },
+              {
+                "$ref": "#/$defs/SplitNode"
+              }
+            ]
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "title": "Children",
+          "type": "array"
+        },
+        "direction": {
+          "enum": [
+            "horizontal",
+            "vertical"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "kind": {
+          "const": "split",
+          "default": "split",
+          "title": "Kind",
+          "type": "string"
+        },
+        "ratio": {
+          "default": 0.5,
+          "description": "Share taken by the first pane.",
+          "maximum": 0.85,
+          "minimum": 0.15,
+          "title": "Ratio",
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "direction",
+        "ratio",
+        "children"
+      ],
+      "title": "SplitNode",
+      "type": "object"
+    },
+    "Sweep": {
+      "additionalProperties": false,
+      "description": "How waveforms are drawn. The 'sweep break' is the moving erase gap.",
+      "properties": {
+        "gap_px": {
+          "default": 24,
+          "description": "Width of the sweep break.",
+          "maximum": 80,
+          "minimum": 4,
+          "title": "Gap Px",
+          "type": "integer"
+        },
+        "mode": {
+          "default": "erase-bar",
+          "enum": [
+            "erase-bar",
+            "scroll"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "show_grid": {
+          "default": false,
+          "title": "Show Grid",
+          "type": "boolean"
+        },
+        "speed_mm_s": {
+          "default": 25,
+          "description": "One of 6.25, 12.5, 25 or 50 mm/s.",
+          "enum": [
+            6.25,
+            12.5,
+            25.0,
+            50.0
+          ],
+          "title": "Speed Mm S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "mode",
+        "speed_mm_s",
+        "gap_px",
+        "show_grid"
+      ],
+      "title": "Sweep",
+      "type": "object"
+    },
+    "Tab": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "discriminator": {
+            "mapping": {
+              "menu": "#/$defs/MenuAction",
+              "open-settings": "#/$defs/SettingsAction",
+              "screen": "#/$defs/ScreenAction",
+              "sheet": "#/$defs/SheetAction",
+              "silence-alarms": "#/$defs/SilenceAction"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ScreenAction"
+            },
+            {
+              "$ref": "#/$defs/MenuAction"
+            },
+            {
+              "$ref": "#/$defs/SheetAction"
+            },
+            {
+              "$ref": "#/$defs/SilenceAction"
+            },
+            {
+              "$ref": "#/$defs/SettingsAction"
+            }
+          ],
+          "title": "Action"
+        },
+        "colour": {
+          "anyOf": [
+            {
+              "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+              "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Colour"
+        },
+        "icon": {
+          "default": "none",
+          "enum": [
+            "monitor",
+            "chart",
+            "split",
+            "labs",
+            "imaging",
+            "ai",
+            "forecast",
+            "alarm",
+            "alarm-off",
+            "settings",
+            "patient",
+            "oxygen",
+            "timer",
+            "heart",
+            "lungs",
+            "drop",
+            "thermometer",
+            "activity",
+            "sleep",
+            "fall",
+            "palette",
+            "layout",
+            "chat",
+            "history",
+            "info",
+            "none"
+          ],
+          "title": "Icon",
+          "type": "string"
+        },
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "icon",
+        "action",
+        "colour"
+      ],
+      "title": "Tab",
+      "type": "object"
+    },
+    "TabBar": {
+      "additionalProperties": false,
+      "properties": {
+        "height_px": {
+          "default": 72,
+          "maximum": 112,
+          "minimum": 56,
+          "title": "Height Px",
+          "type": "integer"
+        },
+        "position": {
+          "const": "bottom",
+          "default": "bottom",
+          "title": "Position",
+          "type": "string"
+        },
+        "show_labels": {
+          "default": true,
+          "title": "Show Labels",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "position",
+        "show_labels",
+        "height_px"
+      ],
+      "title": "TabBar",
+      "type": "object"
+    },
+    "TextWidget": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "default": "",
+          "description": "Plain text note. No HTML.",
+          "maxLength": 600,
+          "title": "Body",
+          "type": "string"
+        },
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "text",
+          "default": "text",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type",
+        "body"
+      ],
+      "title": "TextWidget",
+      "type": "object"
+    },
+    "Theme": {
+      "additionalProperties": false,
+      "properties": {
+        "colours": {
+          "$ref": "#/$defs/ThemeColours"
+        },
+        "corner_radius_px": {
+          "default": 8,
+          "maximum": 24,
+          "minimum": 0,
+          "title": "Corner Radius Px",
+          "type": "integer"
+        },
+        "density": {
+          "default": "comfortable",
+          "enum": [
+            "compact",
+            "comfortable",
+            "large"
+          ],
+          "title": "Density",
+          "type": "string"
+        },
+        "font_family": {
+          "default": "system",
+          "enum": [
+            "system",
+            "inter",
+            "atkinson-hyperlegible",
+            "mono"
+          ],
+          "title": "Font Family",
+          "type": "string"
+        },
+        "font_scale": {
+          "default": 1.0,
+          "maximum": 1.75,
+          "minimum": 0.75,
+          "title": "Font Scale",
+          "type": "number"
+        },
+        "news_bands": {
+          "$ref": "#/$defs/NewsBandColours"
+        },
+        "numeric_scale": {
+          "default": 1.0,
+          "description": "Size of the big numbers.",
+          "maximum": 2.0,
+          "minimum": 0.6,
+          "title": "Numeric Scale",
+          "type": "number"
+        },
+        "parameter_colours": {
+          "additionalProperties": {
+            "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+            "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+            "type": "string"
+          },
+          "description": "Trace and numeric colour per parameter.",
+          "propertyNames": {
+            "enum": [
+              "hr",
+              "pulse",
+              "spo2",
+              "rr",
+              "bp_sys",
+              "bp_dia",
+              "bp_mean",
+              "temp",
+              "o2_flow",
+              "fio2",
+              "acvpu",
+              "news2",
+              "activity",
+              "position",
+              "falls",
+              "sleep",
+              "timer"
+            ]
+          },
+          "title": "Parameter Colours",
+          "type": "object"
+        },
+        "preset": {
+          "enum": [
+            "icu-dark",
+            "news-paper",
+            "high-contrast",
+            "colour-blind-safe",
+            "custom"
+          ],
+          "title": "Preset",
+          "type": "string"
+        },
+        "touch_target_px": {
+          "default": 56,
+          "description": "Minimum height/width of anything tappable.",
+          "maximum": 96,
+          "minimum": 48,
+          "title": "Touch Target Px",
+          "type": "integer"
+        },
+        "trace_width": {
+          "default": 2.0,
+          "maximum": 5.0,
+          "minimum": 1.0,
+          "title": "Trace Width",
+          "type": "number"
+        }
+      },
+      "required": [
+        "preset",
+        "colours",
+        "parameter_colours",
+        "news_bands",
+        "font_family",
+        "font_scale",
+        "numeric_scale",
+        "trace_width",
+        "touch_target_px",
+        "corner_radius_px",
+        "density"
+      ],
+      "title": "Theme",
+      "type": "object"
+    },
+    "ThemeColours": {
+      "additionalProperties": false,
+      "properties": {
+        "accent": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Accent",
+          "type": "string"
+        },
+        "ai_highlight": {
+          "description": "Highlight behind AI interpretation text.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Ai Highlight",
+          "type": "string"
+        },
+        "alarm_high": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Alarm High",
+          "type": "string"
+        },
+        "alarm_low": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Alarm Low",
+          "type": "string"
+        },
+        "alarm_medium": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Alarm Medium",
+          "type": "string"
+        },
+        "background": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Background",
+          "type": "string"
+        },
+        "border": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Border",
+          "type": "string"
+        },
+        "forecast": {
+          "description": "Dashed forecast lines and bands. Keep distinct from the NEWS score colours.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Forecast",
+          "type": "string"
+        },
+        "surface": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Surface",
+          "type": "string"
+        },
+        "surface_alt": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Surface Alt",
+          "type": "string"
+        },
+        "text": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Text",
+          "type": "string"
+        },
+        "text_muted": {
+          "description": "Hex colour, #RRGGBB or #RRGGBBAA.",
+          "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
+          "title": "Text Muted",
+          "type": "string"
+        }
+      },
+      "required": [
+        "background",
+        "surface",
+        "surface_alt",
+        "text",
+        "text_muted",
+        "border",
+        "accent",
+        "alarm_high",
+        "alarm_medium",
+        "alarm_low",
+        "ai_highlight",
+        "forecast"
+      ],
+      "title": "ThemeColours",
+      "type": "object"
+    },
+    "TopBar": {
+      "additionalProperties": false,
+      "properties": {
+        "clock_format": {
+          "default": "24h",
+          "enum": [
+            "24h",
+            "12h"
+          ],
+          "title": "Clock Format",
+          "type": "string"
+        },
+        "fields": {
+          "description": "Left to right. Must include 'name' and 'clock'.",
+          "items": {
+            "enum": [
+              "name",
+              "dob",
+              "age",
+              "sex",
+              "nhs_number",
+              "bed",
+              "ward",
+              "consultant",
+              "clock",
+              "date",
+              "alarm_status",
+              "oxygen",
+              "news2",
+              "allergies",
+              "weight"
+            ],
+            "type": "string"
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "height_px": {
+          "default": 56,
+          "maximum": 96,
+          "minimum": 40,
+          "title": "Height Px",
+          "type": "integer"
+        },
+        "show_seconds": {
+          "default": true,
+          "title": "Show Seconds",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "fields",
+        "clock_format",
+        "show_seconds",
+        "height_px"
+      ],
+      "title": "TopBar",
+      "type": "object"
+    },
+    "WidgetNode": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "widget",
+          "default": "widget",
+          "title": "Kind",
+          "type": "string"
+        },
+        "widget": {
+          "discriminator": {
+            "mapping": {
+              "ai-summary": "#/$defs/AiSummaryWidget",
+              "alarms": "#/$defs/AlarmsWidget",
+              "epr-imaging": "#/$defs/ImagingWidget",
+              "epr-labs": "#/$defs/LabsWidget",
+              "events-timeline": "#/$defs/EventsTimelineWidget",
+              "forecast-panel": "#/$defs/ForecastPanelWidget",
+              "monitor-rows": "#/$defs/MonitorRowsWidget",
+              "news2-chart": "#/$defs/News2ChartWidget",
+              "oxygen": "#/$defs/OxygenWidget",
+              "patient": "#/$defs/PatientWidget",
+              "text": "#/$defs/TextWidget"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/MonitorRowsWidget"
+            },
+            {
+              "$ref": "#/$defs/News2ChartWidget"
+            },
+            {
+              "$ref": "#/$defs/LabsWidget"
+            },
+            {
+              "$ref": "#/$defs/ImagingWidget"
+            },
+            {
+              "$ref": "#/$defs/AiSummaryWidget"
+            },
+            {
+              "$ref": "#/$defs/ForecastPanelWidget"
+            },
+            {
+              "$ref": "#/$defs/EventsTimelineWidget"
+            },
+            {
+              "$ref": "#/$defs/AlarmsWidget"
+            },
+            {
+              "$ref": "#/$defs/OxygenWidget"
+            },
+            {
+              "$ref": "#/$defs/PatientWidget"
+            },
+            {
+              "$ref": "#/$defs/TextWidget"
+            }
+          ],
+          "title": "Widget"
+        }
+      },
+      "required": [
+        "kind",
+        "widget"
+      ],
+      "title": "WidgetNode",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "ai": {
+      "$ref": "#/$defs/AiDisplay"
+    },
+    "alarm_defaults": {
+      "additionalProperties": {
+        "$ref": "#/$defs/AlarmDefault"
+      },
+      "propertyNames": {
+        "enum": [
+          "hr",
+          "pulse",
+          "spo2",
+          "rr",
+          "bp_sys",
+          "bp_dia",
+          "bp_mean",
+          "temp",
+          "o2_flow",
+          "fio2",
+          "acvpu",
+          "news2",
+          "activity",
+          "position",
+          "falls",
+          "sleep",
+          "timer"
+        ]
+      },
+      "title": "Alarm Defaults",
+      "type": "object"
+    },
+    "alarm_presentation": {
+      "$ref": "#/$defs/AlarmPresentation"
+    },
+    "description": {
+      "default": "",
+      "maxLength": 400,
+      "title": "Description",
+      "type": "string"
+    },
+    "forecast": {
+      "$ref": "#/$defs/Forecast"
+    },
+    "home_screen": {
+      "description": "Lowercase id: letters, digits, hyphens.",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+      "title": "Home Screen",
+      "type": "string"
+    },
+    "menus": {
+      "items": {
+        "$ref": "#/$defs/Menu"
+      },
+      "title": "Menus",
+      "type": "array"
+    },
+    "name": {
+      "maxLength": 40,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "rows": {
+      "items": {
+        "$ref": "#/$defs/Row"
+      },
+      "title": "Rows",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "screens": {
+      "items": {
+        "$ref": "#/$defs/Screen"
+      },
+      "minItems": 1,
+      "title": "Screens",
+      "type": "array"
+    },
+    "sweep": {
+      "$ref": "#/$defs/Sweep"
+    },
+    "tab_bar": {
+      "$ref": "#/$defs/TabBar"
+    },
+    "tabs": {
+      "items": {
+        "$ref": "#/$defs/Tab"
+      },
+      "maxItems": 9,
+      "minItems": 2,
+      "title": "Tabs",
+      "type": "array"
+    },
+    "theme": {
+      "$ref": "#/$defs/Theme"
+    },
+    "top_bar": {
+      "$ref": "#/$defs/TopBar"
+    }
+  },
+  "required": [
+    "schema_version",
+    "name",
+    "description",
+    "theme",
+    "top_bar",
+    "tab_bar",
+    "tabs",
+    "menus",
+    "screens",
+    "home_screen",
+    "rows",
+    "sweep",
+    "alarm_defaults",
+    "alarm_presentation",
+    "ai",
+    "forecast"
+  ],
+  "title": "Design",
+  "type": "object"
+}

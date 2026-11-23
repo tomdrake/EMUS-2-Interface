@@ -1,0 +1,310 @@
+"""Built-in starting designs and theme presets.
+
+These are seeded into the ``designs`` table on first run (see ``app.db.seed``).
+Workshop participants duplicate and change them; the originals stay read-only.
+Every design here is validated against ``app.models.design.Design`` in tests.
+"""
+
+from __future__ import annotations
+
+import copy
+
+from app.models.design import Design
+
+# ----------------------------------------------------------------- theme presets
+
+_ICU_PARAM_COLOURS = {
+    "hr": "#3DDC55", "pulse": "#35D0E6", "spo2": "#35D0E6", "rr": "#F2E14B",
+    "bp_sys": "#FF5A4D", "bp_dia": "#FF5A4D", "bp_mean": "#FF5A4D",
+    "temp": "#F4F4F4", "o2_flow": "#7FB2FF", "fio2": "#7FB2FF", "acvpu": "#D58CFF",
+    "news2": "#FFFFFF", "activity": "#FFA94D", "position": "#FFA94D",
+    "falls": "#FF7AB6", "sleep": "#9AA7FF", "timer": "#C8CDD3",
+}
+
+# Okabe-Ito palette: distinguishable with the common colour-vision deficiencies.
+_CB_PARAM_COLOURS = {
+    "hr": "#009E73", "pulse": "#56B4E9", "spo2": "#56B4E9", "rr": "#F0E442",
+    "bp_sys": "#D55E00", "bp_dia": "#D55E00", "bp_mean": "#D55E00",
+    "temp": "#FFFFFF", "o2_flow": "#0072B2", "fio2": "#0072B2", "acvpu": "#CC79A7",
+    "news2": "#FFFFFF", "activity": "#E69F00", "position": "#E69F00",
+    "falls": "#CC79A7", "sleep": "#56B4E9", "timer": "#BBBBBB",
+}
+
+_PAPER_PARAM_COLOURS = {
+    "hr": "#5B9BD5", "pulse": "#5B9BD5", "spo2": "#8E3FD0", "rr": "#3E8E41",
+    "bp_sys": "#1F5FBF", "bp_dia": "#1F5FBF", "bp_mean": "#1F5FBF",
+    "temp": "#E0362C", "o2_flow": "#1F3F8F", "fio2": "#1F3F8F", "acvpu": "#C02FC0",
+    "news2": "#1A1A1A", "activity": "#B8650A", "position": "#B8650A",
+    "falls": "#B0246A", "sleep": "#4B55B8", "timer": "#555555",
+}
+
+# NEWS2 chart band colours as printed on the RCP chart (white / yellow / orange / red).
+_NEWS_BANDS_LIGHT = {
+    "score_0": "#FFFFFF", "score_1": "#FFF1B8", "score_2": "#F6C99B", "score_3": "#EC9B85",
+    "grid": "#2B2B2B", "header": "#2A5DB8", "header_text": "#FFFFFF",
+}
+_NEWS_BANDS_DARK = {
+    "score_0": "#12161C", "score_1": "#4A4318", "score_2": "#5C3A1A", "score_3": "#6B2420",
+    "grid": "#3A424D", "header": "#1D2A44", "header_text": "#E8EEF7",
+}
+
+THEME_PRESETS: dict[str, dict] = {
+    "icu-dark": {
+        "preset": "icu-dark",
+        "colours": {
+            "background": "#000000", "surface": "#0E1116", "surface_alt": "#1A1F27",
+            "text": "#F2F4F7", "text_muted": "#9AA4B2", "border": "#2A313C",
+            "accent": "#4C8DFF", "alarm_high": "#FF2D2D", "alarm_medium": "#FFC400",
+            "alarm_low": "#35D0E6", "ai_highlight": "#3B2F6B", "forecast": "#B79CFF",
+        },
+        "parameter_colours": _ICU_PARAM_COLOURS,
+        "news_bands": _NEWS_BANDS_DARK,
+        "font_family": "system", "font_scale": 1.0, "numeric_scale": 1.0,
+        "trace_width": 2.0, "touch_target_px": 56, "corner_radius_px": 8,
+        "density": "comfortable",
+    },
+    "news-paper": {
+        "preset": "news-paper",
+        "colours": {
+            "background": "#FFFFFF", "surface": "#F5F7FA", "surface_alt": "#E6EBF2",
+            "text": "#14181F", "text_muted": "#566070", "border": "#B9C2CF",
+            "accent": "#2A5DB8", "alarm_high": "#C8102E", "alarm_medium": "#B36B00",
+            "alarm_low": "#00708A", "ai_highlight": "#E8DEFF", "forecast": "#6A3FC9",
+        },
+        "parameter_colours": _PAPER_PARAM_COLOURS,
+        "news_bands": _NEWS_BANDS_LIGHT,
+        "font_family": "system", "font_scale": 1.0, "numeric_scale": 1.0,
+        "trace_width": 2.0, "touch_target_px": 56, "corner_radius_px": 6,
+        "density": "comfortable",
+    },
+    "high-contrast": {
+        "preset": "high-contrast",
+        "colours": {
+            "background": "#000000", "surface": "#000000", "surface_alt": "#1C1C1C",
+            "text": "#FFFFFF", "text_muted": "#D0D0D0", "border": "#FFFFFF",
+            "accent": "#FFFF00", "alarm_high": "#FF3B30", "alarm_medium": "#FFD60A",
+            "alarm_low": "#40E0FF", "ai_highlight": "#4B2E83", "forecast": "#D9C2FF",
+        },
+        "parameter_colours": {**_ICU_PARAM_COLOURS, "temp": "#FFFFFF", "timer": "#FFFFFF"},
+        "news_bands": {**_NEWS_BANDS_DARK, "grid": "#FFFFFF", "score_0": "#000000"},
+        "font_family": "atkinson-hyperlegible", "font_scale": 1.15, "numeric_scale": 1.15,
+        "trace_width": 3.0, "touch_target_px": 64, "corner_radius_px": 4,
+        "density": "large",
+    },
+    "colour-blind-safe": {
+        "preset": "colour-blind-safe",
+        "colours": {
+            "background": "#000000", "surface": "#0E1116", "surface_alt": "#1A1F27",
+            "text": "#F2F4F7", "text_muted": "#9AA4B2", "border": "#2A313C",
+            "accent": "#56B4E9", "alarm_high": "#D55E00", "alarm_medium": "#F0E442",
+            "alarm_low": "#56B4E9", "ai_highlight": "#4A2C4F", "forecast": "#CC79A7",
+        },
+        "parameter_colours": _CB_PARAM_COLOURS,
+        "news_bands": {
+            "score_0": "#12161C", "score_1": "#4D4A14", "score_2": "#5A3B00",
+            "score_3": "#6B2A00", "grid": "#3A424D", "header": "#1D2A44",
+            "header_text": "#E8EEF7",
+        },
+        "font_family": "system", "font_scale": 1.0, "numeric_scale": 1.0,
+        "trace_width": 2.5, "touch_target_px": 56, "corner_radius_px": 8,
+        "density": "comfortable",
+    },
+}
+
+# ------------------------------------------------------------------------- rows
+
+_ROWS: list[dict] = [
+    {"id": "ecg", "parameter": "hr", "trace": "waveform", "waveform": "ecg",
+     "numerics": ["hr"], "height": 1.4},
+    {"id": "spo2", "parameter": "spo2", "trace": "waveform", "waveform": "pleth",
+     "numerics": ["spo2", "pulse"], "height": 1.0},
+    {"id": "resp", "parameter": "rr", "trace": "waveform", "waveform": "resp",
+     "numerics": ["rr"], "height": 1.0},
+    {"id": "bp", "parameter": "bp_sys", "label": "Blood pressure", "trace": "trend",
+     "numerics": ["bp_sys", "bp_dia", "bp_mean"], "trend_window_min": 240, "height": 1.0},
+    {"id": "temp", "parameter": "temp", "trace": "trend", "numerics": ["temp"],
+     "trend_window_min": 240, "height": 0.7},
+    {"id": "oxygen", "parameter": "o2_flow", "trace": "bar", "numerics": ["o2_flow"],
+     "height": 0.6, "show_forecast": False},
+    {"id": "sweep-break", "kind": "spacer", "trace": "none", "height": 0.25,
+     "show_ai": False, "show_forecast": False, "show_limits": False},
+    {"id": "activity", "parameter": "activity", "trace": "bar", "numerics": ["position"],
+     "trend_window_min": 240, "height": 0.6, "show_forecast": False},
+    {"id": "sleep", "parameter": "sleep", "trace": "events", "trend_window_min": 720,
+     "height": 0.5, "show_forecast": False, "visible": False},
+    {"id": "falls", "parameter": "falls", "trace": "events", "trend_window_min": 720,
+     "height": 0.5},
+    {"id": "obs-timer", "kind": "timer", "label": "Next obs due", "trace": "none",
+     "height": 0.5, "show_ai": False, "show_forecast": False, "show_limits": False},
+]
+
+_MONITOR_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp", "oxygen", "sweep-break",
+                    "activity", "falls", "obs-timer"]
+_COMPACT_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp", "oxygen"]
+
+# ---------------------------------------------------------------------- screens
+
+
+def _w(widget: dict) -> dict:
+    return {"kind": "widget", "widget": widget}
+
+
+def _split(direction: str, ratio: float, a: dict, b: dict) -> dict:
+    return {"kind": "split", "direction": direction, "ratio": ratio, "children": [a, b]}
+
+
+def _news(widget_id: str, variant: str) -> dict:
+    return _w({"id": widget_id, "type": "news2-chart", "variant": variant})
+
+
+def _rows(widget_id: str, ids: list[str]) -> dict:
+    return _w({"id": widget_id, "type": "monitor-rows", "row_ids": ids})
+
+
+def _screens(news_variant: str) -> list[dict]:
+    return [
+        {"id": "monitor", "name": "Monitor", "layout": _rows("monitor-rows", _MONITOR_ROW_IDS)},
+        {"id": "news2", "name": "NEWS2", "layout": _news("news2-full", news_variant)},
+        {"id": "split-h", "name": "Split (side by side)",
+         "layout": _split("horizontal", 0.5, _news("news2-left", news_variant),
+                          _rows("rows-right", _COMPACT_ROW_IDS))},
+        {"id": "split-v", "name": "Split (stacked)",
+         "layout": _split("vertical", 0.55, _rows("rows-top", _COMPACT_ROW_IDS),
+                          _news("news2-bottom", news_variant))},
+        {"id": "epr", "name": "Results",
+         "layout": _split("horizontal", 0.6,
+                          _w({"id": "labs", "type": "epr-labs", "title": "Laboratory"}),
+                          _w({"id": "imaging", "type": "epr-imaging", "title": "Imaging"}))},
+        {"id": "predict", "name": "AI and predictions",
+         "layout": _split("horizontal", 0.5,
+                          _split("vertical", 0.5,
+                                 _w({"id": "forecast", "type": "forecast-panel",
+                                     "title": "Forecast"}),
+                                 _w({"id": "timeline", "type": "events-timeline",
+                                     "title": "Events"})),
+                          _w({"id": "ai-summary", "type": "ai-summary",
+                              "title": "What the AI sees now"}))},
+        {"id": "alarms", "name": "Alarms",
+         "layout": _w({"id": "alarms-panel", "type": "alarms", "view": "both"})},
+    ]
+
+
+_TABS: list[dict] = [
+    {"id": "monitor", "label": "Monitor", "icon": "monitor",
+     "action": {"type": "screen", "screen_id": "monitor"}},
+    {"id": "news2", "label": "NEWS2", "icon": "chart",
+     "action": {"type": "screen", "screen_id": "news2"}},
+    {"id": "split", "label": "Split", "icon": "split",
+     "action": {"type": "menu", "menu_id": "views"}},
+    {"id": "results", "label": "Results", "icon": "labs",
+     "action": {"type": "screen", "screen_id": "epr"}},
+    {"id": "predict", "label": "Predict", "icon": "forecast",
+     "action": {"type": "screen", "screen_id": "predict"}},
+    {"id": "alarms", "label": "Alarms", "icon": "alarm",
+     "action": {"type": "screen", "screen_id": "alarms"}},
+    {"id": "patient", "label": "Patient", "icon": "patient",
+     "action": {"type": "menu", "menu_id": "patient"}},
+    {"id": "silence", "label": "Silence 2 min", "icon": "alarm-off",
+     "action": {"type": "silence-alarms"}},
+    {"id": "settings", "label": "Settings", "icon": "settings",
+     "action": {"type": "open-settings"}},
+]
+
+_MENUS: list[dict] = [
+    {"id": "views", "title": "Views", "items": [
+        {"id": "side", "label": "NEWS2 beside monitor", "icon": "split",
+         "action": {"type": "screen", "screen_id": "split-h"}},
+        {"id": "stacked", "label": "Monitor above NEWS2", "icon": "split",
+         "action": {"type": "screen", "screen_id": "split-v"}},
+        {"id": "news-variant", "label": "NEWS2 chart style", "icon": "chart",
+         "action": {"type": "sheet", "sheet": "news2-variant"}},
+        {"id": "home", "label": "Choose home screen", "icon": "layout",
+         "action": {"type": "sheet", "sheet": "home-screen"}},
+    ]},
+    {"id": "patient", "title": "Patient", "items": [
+        {"id": "details", "label": "Patient details", "icon": "patient",
+         "action": {"type": "sheet", "sheet": "patient"}},
+        {"id": "observations", "label": "Record observations", "icon": "chart",
+         "action": {"type": "sheet", "sheet": "record-observations"}},
+        {"id": "oxygen", "label": "Oxygen", "icon": "oxygen",
+         "action": {"type": "sheet", "sheet": "oxygen"}},
+        {"id": "limits", "label": "Alarm limits", "icon": "alarm",
+         "action": {"type": "sheet", "sheet": "alarm-limits"}},
+        {"id": "horizon", "label": "Forecast horizon", "icon": "forecast",
+         "action": {"type": "sheet", "sheet": "forecast-horizon"}},
+    ]},
+    # Opened by the Settings button. Every design-studio section is one more touch.
+    {"id": "settings", "title": "Settings", "items": [
+        {"id": "appearance", "label": "Appearance", "icon": "palette",
+         "action": {"type": "sheet", "sheet": "studio-appearance"}},
+        {"id": "layout", "label": "Screens and layout", "icon": "layout",
+         "action": {"type": "sheet", "sheet": "studio-layout"}},
+        {"id": "rows", "label": "Rows", "icon": "monitor",
+         "action": {"type": "sheet", "sheet": "studio-rows"}},
+        {"id": "navigation", "label": "Tabs and menus", "icon": "layout",
+         "action": {"type": "sheet", "sheet": "studio-navigation"}},
+        {"id": "alarm-defaults", "label": "Alarm defaults", "icon": "alarm",
+         "action": {"type": "sheet", "sheet": "studio-alarms"}},
+        {"id": "forecast", "label": "Forecast and certainty", "icon": "forecast",
+         "action": {"type": "sheet", "sheet": "studio-forecast"}},
+        {"id": "assistant", "label": "Redesign with AI", "icon": "chat",
+         "action": {"type": "sheet", "sheet": "assistant"}},
+        {"id": "versions", "label": "Versions", "icon": "history",
+         "action": {"type": "sheet", "sheet": "versions"}},
+        {"id": "tokens", "label": "API tokens", "icon": "settings",
+         "action": {"type": "sheet", "sheet": "api-tokens"}},
+        {"id": "demo", "label": "Demo controls", "icon": "info",
+         "action": {"type": "sheet", "sheet": "demo-controls"}},
+        {"id": "about", "label": "About", "icon": "info",
+         "action": {"type": "sheet", "sheet": "about"}},
+    ]},
+]
+
+_TOP_BAR = {"fields": ["name", "dob", "age", "nhs_number", "bed", "oxygen", "news2",
+                       "alarm_status", "date", "clock"]}
+
+_ALARM_DEFAULTS = {
+    "hr": {"low": 50, "high": 120, "priority": "high"},
+    "spo2": {"low": 90, "priority": "high"},
+    "rr": {"low": 8, "high": 25},
+    "bp_sys": {"low": 90, "high": 180, "priority": "high"},
+    "temp": {"low": 35.0, "high": 38.5, "priority": "low"},
+    "news2": {"high": 5},
+}
+
+
+def _design(name: str, description: str, preset: str, home: str, news_variant: str) -> dict:
+    return {
+        "schema_version": 1,
+        "name": name,
+        "description": description,
+        "theme": copy.deepcopy(THEME_PRESETS[preset]),
+        "top_bar": copy.deepcopy(_TOP_BAR),
+        "tabs": copy.deepcopy(_TABS),
+        "menus": copy.deepcopy(_MENUS),
+        "screens": _screens(news_variant),
+        "home_screen": home,
+        "rows": copy.deepcopy(_ROWS),
+        "alarm_defaults": copy.deepcopy(_ALARM_DEFAULTS),
+    }
+
+
+#: slug -> design document (dict). Slugs are stable ids used for seeding.
+DEFAULT_DESIGNS: dict[str, dict] = {
+    "icu-monitor": _design(
+        "ICU monitor", "Familiar bedside monitor: waveforms and numbers, tabs along the bottom.",
+        "icu-dark", "monitor", "bands-dark"),
+    "news2-chart": _design(
+        "NEWS2 chart", "The RCP NEWS2 chart as the home screen.",
+        "news-paper", "news2", "bands-light"),
+    "split-side": _design(
+        "NEWS2 beside monitor", "NEWS2 chart on the left, continuous observations on the right.",
+        "icu-dark", "split-h", "bands-dark"),
+    "split-stacked": _design(
+        "Monitor above NEWS2", "Continuous observations above, NEWS2 trend below.",
+        "icu-dark", "split-v", "trend-dark"),
+}
+
+
+def validated_defaults() -> dict[str, Design]:
+    return {slug: Design.model_validate(doc) for slug, doc in DEFAULT_DESIGNS.items()}
