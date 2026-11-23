@@ -7,8 +7,8 @@
  *
  * Millimetres here are NOMINAL: a CSS millimetre is 96/25.4 px, which is not the
  * physical size on any particular screen. The bar is exactly 1 mV at the gain
- * drawn, so amplitude can be read from the screen; "mm/mV" is a label of that
- * gain, and says "nominal" until a screen has been calibrated.
+ * drawn, so amplitude can be read from the screen whatever the screen; "mm/mV" is
+ * the name of that gain, not a promise about physical size.
  */
 
 export const NOMINAL_PX_PER_MM = 96 / 25.4;
@@ -116,11 +116,10 @@ export function secondBarPx(speedMmS: number, pxPerMm = NOMINAL_PX_PER_MM): numb
   return speedMmS * pxPerMm;
 }
 
-/** The label that states the gain and speed, honest about what it is. */
-export function gainLabel(t: Pick<WaveTransform, "gainMmPerUnit" | "fitted">, speedMmS: number): string {
-  const speed = `${speedMmS} mm/s`;
-  return t.gainMmPerUnit == null ? speed + " nominal"
-    : `${t.gainMmPerUnit} mm/mV${t.fitted ? " fitted" : ""} · ${speed} nominal`;
+/** The gain as written on the trace: just "5 mm/mV". Whether it was fitted to the row, and that
+ *  millimetres are nominal, are documented (docs/human-factors.md), not repeated on screen. */
+export function gainText(t: Pick<WaveTransform, "gainMmPerUnit">): string | null {
+  return t.gainMmPerUnit == null ? null : `${t.gainMmPerUnit} mm/mV`;
 }
 
 /** The range shown for a trend trace: the usual alarm span with a margin, inside the parameter's limits. */

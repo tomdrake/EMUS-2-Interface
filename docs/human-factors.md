@@ -191,15 +191,18 @@ Each waveform and trend carries the marks needed to read it (a design choice, al
 by default; see `traces` in the design):
 
 - **ECG**: a dashed line at 0 mV (the isoelectric baseline), an axis in mV, and a
-  calibration bar exactly 1 mV tall at the gain drawn. The gain is 10 mm/mV where
-  the row is tall enough, and falls back to 5 or 2.5 mm/mV (labelled "fitted") where
-  it is not. A one-second bar shows the sweep speed.
+  calibration bar exactly 1 mV tall at the gain drawn. The gain is written as just
+  "10 mm/mV" in thin light text; it is 10 where the row is tall enough and falls
+  back to 5 or 2.5 where it is not, and the text always states the gain actually
+  drawn. A one-second bar marks the time scale, with no label.
 - **Pleth and respiration**: a dashed line at the mean and an axis in arbitrary
   units. They have no absolute amplitude, so there is no calibration bar.
 - **Trends**: gridlines and labels in the parameter's own unit.
 
 Two honest limits. Millimetres are nominal: a CSS millimetre is not a physical one
-on any particular screen, so the label says "nominal" until a screen is calibrated.
+on any particular screen, so "5 mm/mV" names the gain rather than promising a size on
+the glass; the 1 mV bar is the true scale. The sweep speed (25 mm/s) and the word
+"nominal" are no longer written on the traces.
 And the dashed ECG line is the display zero, not an estimate of the patient's
 isoelectric level: on a drifting trace it will show the drift.
 

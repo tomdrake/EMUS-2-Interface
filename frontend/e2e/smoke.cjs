@@ -199,7 +199,9 @@ for (const vp of VIEWPORTS) {
         barDrawn: bar ? Math.abs(Number(bar.querySelector("line").getAttribute("y1")) - Number(bar.querySelector("line").getAttribute("y2"))) : null,
         timePx: time ? Number(time.dataset.px) : null,
         timeDrawn: time ? Math.abs(Number(time.querySelector("line").getAttribute("x2")) - Number(time.querySelector("line").getAttribute("x1"))) : null,
-        labels: labels.map((l) => l.textContent), labelSize: Math.min(...labels.map((l) => parseFloat(getComputedStyle(l).fontSize))),
+        labels: labels.map((l) => l.textContent),
+        gainWeight: (() => { const g = svg.querySelector(".trace-gain"); return g ? Number(getComputedStyle(g).fontWeight) : null; })(),
+        gainSize: (() => { const g = svg.querySelector(".trace-gain"); return g ? parseFloat(getComputedStyle(g).fontSize) : null; })(), labelSize: Math.min(...labels.map((l) => parseFloat(getComputedStyle(l).fontSize))),
         labelColour: labels.every((l) => getComputedStyle(l).fill === rowColour),
         clearOfName: frame.top >= name.bottom - 1,
       };
@@ -213,8 +215,13 @@ for (const vp of VIEWPORTS) {
     check(m[id].dashed && m[id].inside && Math.abs(m[id].baselineY - m[id].expectedY) < 0.1 && m[id].baselineSpan > 100,
           `${vp.name}: the ${id} trace has a dashed baseline inside its frame`);
   }
-  check(m.ecg.labels.includes("mV") && m.ecg.labels.includes("1 mV") && m.ecg.labels.some((l) => /mm\/mV/.test(l) && /nominal/.test(l)),
-        `${vp.name}: the ECG has an mV axis, a 1 mV bar and an honest gain label (${m.ecg.labels.join(" ")})`);
+  const gainLabels = m.ecg.labels.filter((l) => /mm\/mV/.test(l));
+  check(m.ecg.labels.includes("mV") && m.ecg.labels.includes("1 mV") && gainLabels.length === 1 && /^\d+(\.\d+)? mm\/mV$/.test(gainLabels[0]),
+        `${vp.name}: the ECG has an mV axis, a 1 mV bar and a plain gain label (${m.ecg.labels.join(" | ")})`);
+  check(!m.ecg.labels.some((l) => /nominal|fitted|mm\/s|^1 s$/.test(l)) && !m.spo2.labels.some((l) => /^1 s|mm\/s/.test(l)),
+        `${vp.name}: there is no label on the time bar, and no speed or caveat text on the traces`);
+  check(m.ecg.gainWeight <= 300 && m.ecg.gainSize >= 10.5,
+        `${vp.name}: the gain is in thin light text (weight ${m.ecg.gainWeight}, ${m.ecg.gainSize}px)`);
   check(Math.abs(m.ecg.barDrawn - m.ecg.barPx) < 0.05 && Math.abs(m.ecg.barPx - m.ecg.pxPerUnit) < 0.01 &&
         Math.abs(m.ecg.barPx - Number(m.ecg.gain) * marks.pxPerMm) < 0.05,
         `${vp.name}: the 1 mV bar is exactly the trace's scale (${m.ecg.barPx}px = ${m.ecg.gain} mm/mV, fitted=${m.ecg.fitted})`);

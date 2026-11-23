@@ -1,5 +1,5 @@
 import {
-  NOMINAL_PX_PER_MM, gainLabel, mmToPx, niceTicks, secondBarPx, thinTicks, trendRange, trendY,
+  NOMINAL_PX_PER_MM, gainText, mmToPx, niceTicks, secondBarPx, thinTicks, trendRange, trendY,
   waveTransform, type WaveScale,
 } from "./traceScale";
 
@@ -62,10 +62,11 @@ describe("ECG scale", () => {
     expect(Math.abs((top - 3) - (140 - 3 - bottom))).toBeLessThan(1e-6);
   });
 
-  it("states the gain honestly", () => {
-    expect(gainLabel({ gainMmPerUnit: 10, fitted: false }, 25)).toBe("10 mm/mV · 25 mm/s nominal");
-    expect(gainLabel({ gainMmPerUnit: 5, fitted: true }, 25)).toBe("5 mm/mV fitted · 25 mm/s nominal");
-    expect(gainLabel({ gainMmPerUnit: null, fitted: false }, 12.5)).toBe("12.5 mm/s nominal");
+  it("writes the gain as just the number and unit", () => {
+    expect(gainText({ gainMmPerUnit: 10 })).toBe("10 mm/mV");
+    expect(gainText({ gainMmPerUnit: 5 })).toBe("5 mm/mV");
+    expect(gainText({ gainMmPerUnit: 2.5 })).toBe("2.5 mm/mV");
+    expect(gainText({ gainMmPerUnit: null })).toBeNull();          // pleth and resp have no gain
   });
 });
 

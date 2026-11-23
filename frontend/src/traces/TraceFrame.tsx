@@ -2,7 +2,7 @@ import { useDesign, useUi } from "@/app/store";
 import type { Row } from "@/design/types";
 
 import {
-  MIN_LABEL_HEIGHT_PX, gainLabel, niceTicks, secondBarPx, thinTicks, trendRange, trendY, waveTransform,
+  MIN_LABEL_HEIGHT_PX, gainText, niceTicks, secondBarPx, thinTicks, trendRange, trendY, waveTransform,
   type WaveScale,
 } from "./traceScale";
 import { useSize } from "./useSize";
@@ -72,6 +72,7 @@ export function TraceFrame({ row }: { row: Row }) {
           </g>);
       }
       if (cfg.show_time_scale && h >= MIN_LABEL_HEIGHT_PX) {
+        // One second, unlabelled: the bar is the x scale and needs no words.
         const len = secondBarPx(design.sweep.speed_mm_s, pxPerMm);
         const y = h - 4;
         children.push(
@@ -79,10 +80,15 @@ export function TraceFrame({ row }: { row: Row }) {
             <line x1={right - len} x2={right} y1={y} y2={y} />
             <line x1={right - len} x2={right - len} y1={y - 3} y2={y + 3} />
             <line x1={right} x2={right} y1={y - 3} y2={y + 3} />
-            <text className="trace-label" x={right - len - 4} y={y + 3.5} textAnchor="end">
-              1 s{scale.calibrated ? ` · ${gainLabel(t, design.sweep.speed_mm_s)}` : ""}
-            </text>
           </g>);
+      }
+      const gain = gainText(t);
+      if (cfg.show_scale && gain && h >= MIN_LABEL_HEIGHT_PX) {
+        // Just the gain, in thin light text, beside the time bar (or at the edge without one).
+        const x = cfg.show_time_scale ? right - secondBarPx(design.sweep.speed_mm_s, pxPerMm) - 6 : right;
+        children.push(
+          <text key="gain" className="trace-label trace-gain" data-testid={`trace-gain-${row.id}`}
+                x={x} y={h - 0.5} textAnchor="end">{gain}</text>);
       }
     } else if (row.trace === "trend" && row.parameter) {
       const p = registry.parameters[row.parameter]!;
