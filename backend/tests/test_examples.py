@@ -158,3 +158,86 @@ def test_certainty_values_come_from_what_the_rule_measured(client):
     q = next(x for x in s["strips"] if x["waveform"] == "ecg")["quality"]["sqi"]
     assert by["input_quality"]["score"] == pytest.approx(q, abs=0.001), "data quality is the trace's own grade"
     assert by["sensitivity"]["raw"]["perturbations"] == 3, "stability is re-reading three windows of the strip"
+
+
+# ------------------------------------------------- readings, results and observation sets
+
+def test_bp_readings_are_five_newest_first_with_a_correct_map(client):
+    s = snap(client, "scn-pneumonia", 180)
+    r = s["bp_readings"]
+    assert len(r) == 5
+    times = [x["at"] for x in r]
+    assert times == sorted(times, reverse=True)
+    for x in r:
+        assert x["map"] == round(x["dia"] + (x["sys"] - x["dia"]) / 3)
+    assert r[0]["sys"] < r[-1]["sys"], "the pressure is falling in this scenario"
+    gaps = {round((examples.datetime.fromisoformat(a["at"]) - examples.datetime.fromisoformat(b["at"])).total_seconds() / 60)
+            for a, b in zip(r, r[1:])}
+    assert gaps == {30}, "this scenario takes a cuff pressure every 30 minutes"
+
+
+def test_no_cuff_means_no_readings_not_old_ones(client):
+    assert snap(client, "scn-technical", 4)["bp_readings"] == []
+
+
+def test_measured_temperature_is_separate_from_the_continuous_skin_trend(client):
+    s = snap(client, "scn-pneumonia", 0)
+    measured = [t["value"] for t in s["temp_readings"]]
+    assert measured and s["temp_readings"][0]["at"] > s["temp_readings"][-1]["at"]
+    assert s["trends"]["temp"]["points"][-1]["v"] < measured[0], "skin reads a little below the measured value"
+    assert s["numerics"]["temp"] == round(measured[0] - 0.4, 1)
+
+
+def test_results_are_flagged_dated_and_within_72_hours(client):
+    s = snap(client, "scn-pneumonia", 0)
+    labs = s["labs"]
+    assert labs and all(l["collected_at"] <= s["generated_at"] for l in labs)
+    assert [l["collected_at"] for l in labs] == sorted((l["collected_at"] for l in labs), reverse=True)
+    by = {l["test"]: l for l in labs if l["collected_at"] == labs[0]["collected_at"]}
+    assert by["po2"]["flag"] == "low" and by["ph"]["flag"] == "normal"
+    assert {"glucose", "lactate"} <= {l["test"] for l in labs}
+    old = snap(client, "scn-technical", 0)["labs"]
+    assert old and all(l["test"] in ("glucose", "wcc", "k", "ph", "lactate") for l in old), "50 h old, but inside 72 h"
+    gone = snap(client, "scn-technical", 30)["labs"]   # 3030 minutes on: ~50 h still, inside the window
+    assert gone, "still inside 72 hours"
+    assert snap(client, "scn-vt", -470)["labs"] == [], "nothing has been taken yet at that point"
+
+
+def test_critical_results_say_so(client):
+    s = snap(client, "scn-vt", 5)
+    k = next(l for l in s["labs"] if l["test"] == "k")
+    assert k["flag"] == "critical-low"
+
+
+def test_observation_sets_are_scored_and_end_at_the_latest_grid_time(client):
+    s = snap(client, "scn-pneumonia", 360)
+    sets = s["obs_sets"]
+    assert 2 <= len(sets) <= 8
+    assert [o["at"] for o in sets] == sorted(o["at"] for o in sets), "oldest first, as the chart reads"
+    totals = [o["news2_total"] for o in sets]
+    assert totals[-1] > totals[0] and all(o["news2_complete"] for o in sets)
+    assert sets[-1]["values"]["rr"] == 27 and sets[-1]["news2_components"]["rr"] == 3
+    assert snap(client, "scn-stable", 0)["obs_sets"][-1]["news2_total"] == 0
+
+
+def test_overlay_marks_are_per_beat_boxes_with_sparse_labels(client):
+    af = snap(client, "scn-af", 20)
+    ecg = next(x for x in af["strips"] if x["waveform"] == "ecg")
+    boxes = [m for m in ecg["marks"] if m["kind"] == "box"]
+    assert len(boxes) > 10 and ecg["seconds"] == 30
+    assert all(0 <= m["start_s"] < m["end_s"] <= 30 for m in boxes)
+    labelled = sorted(m["start_s"] for m in boxes if m["label"])
+    assert labelled and all(b - a >= 1.0 for a, b in zip(labelled, labelled[1:])), "labels never sit on each other"
+    assert {m["label"] for m in boxes if m["label"]} == {"Irregular R-R"}      # P waves are not judged this fast
+    vt = next(x for x in snap(client, "scn-vt", 5)["strips"] if x["waveform"] == "ecg")
+    assert {m["label"] for m in vt["marks"] if m["label"]} == {"Wide QRS"}
+    stable = next(x for x in snap(client, "scn-stable", 0)["strips"] if x["waveform"] == "ecg")
+    assert not [m for m in stable["marks"] if m["tone"] == "finding"], "a normal rhythm is not decorated"
+
+
+def test_registry_carries_the_axes_and_names_the_new_cards_need(client):
+    reg = client.get("/api/registry").json()
+    assert reg["parameters"]["spo2"]["trend_range"] == [50, 100]
+    assert reg["waveforms"]["pleth"]["overlay_parameter"] == "spo2"
+    assert reg["parameters"]["position"]["short"] == "Position"
+    assert "readings" in reg["module_content"]

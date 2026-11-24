@@ -43,7 +43,7 @@ def test_every_size_always_has_room_for_the_number_and_content_only_grows():
     for sid, spec in registry.MODULE_SIZES.items():
         assert "number" in spec["fits"], sid
         assert set(spec["fits"]) <= set(registry.MODULE_CONTENT), sid
-        assert spec["flow"] in ("tile-only", "side", "stack", "row"), sid
+        assert spec["flow"] in ("tile-only", "split", "stack", "row"), sid
     area = lambda s: (registry.MODULE_SIZES[s]["cols"] or 8) * registry.MODULE_SIZES[s]["rows"]
     # a bigger module never has less room than a smaller one of the same shape
     assert len(registry.MODULE_SIZES["row-tall"]["fits"]) >= len(registry.MODULE_SIZES["row"]["fits"])

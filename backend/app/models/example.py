@@ -18,8 +18,8 @@ from typing import Literal
 from pydantic import Field
 
 from app.models.clinical import (
-    AlarmState, Contributor, DeviceStatus, Finding, ForecastBundle, ModelInfo, OxygenTherapy,
-    Patient, SignalQuality, SignalStatus, _Model,
+    AlarmState, Contributor, DeviceStatus, Finding, ForecastBundle, LabResult, ModelInfo,
+    ObservationSet, OxygenTherapy, Patient, SignalQuality, SignalStatus, _Model,
 )
 from app.models.design import ParameterId, WaveformId
 
@@ -39,7 +39,9 @@ class Highlight(_Model):
 class TraceMark(_Model):
     """A bracket or flag drawn on a strip to say what the AI saw there."""
 
-    kind: Literal["bracket", "flag"]
+    #: "box" tints the part of the trace a feature was found in (the AI overview overlay);
+    #: "bracket" and "flag" mark a stretch or a point.
+    kind: Literal["bracket", "flag", "box"]
     #: Seconds from the start of the strip.
     start_s: float
     end_s: float
@@ -92,6 +94,23 @@ class TrendSeries(_Model):
     quality: float | None = Field(None, ge=0, le=1)
 
 
+class BpReading(_Model):
+    """One cuff blood pressure."""
+
+    at: datetime
+    sys: int
+    dia: int
+    #: Mean arterial pressure, dia + (sys - dia) / 3, rounded.
+    map: int
+
+
+class TempReading(_Model):
+    """One measured (not continuous) temperature."""
+
+    at: datetime
+    value: float
+
+
 class ExampleScenarioInfo(_Model):
     id: str
     title: str
@@ -129,6 +148,14 @@ class ExampleSnapshot(_Model):
     alarms: AlarmState
     strips: list[ExampleStrip]
     trends: dict[ParameterId, TrendSeries]
+    #: The five most recent cuff pressures, newest first. Empty with no cuff connected.
+    bp_readings: list[BpReading]
+    #: Measured temperatures, newest first, as distinct from the continuous skin trend.
+    temp_readings: list[TempReading]
+    #: Results from the last 72 hours, newest first.
+    labs: list[LabResult]
+    #: Charted observation sets, oldest first, each scored for NEWS2.
+    obs_sets: list[ObservationSet]
     findings: list[Finding]
     finding_data: dict[str, FindingData]
     forecast: ForecastBundle

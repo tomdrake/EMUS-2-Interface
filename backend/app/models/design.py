@@ -145,6 +145,8 @@ class ModuleContent(_Model):
     certainty: bool = Field(True, description="How sure the interpretation is.")
     explain: bool = Field(False, description="A short 'why' line, with a tap for the full reasons.")
     forecast: bool = Field(False, description="The dashed expected trend and what is expected next.")
+    readings: bool = Field(False, description="The last five readings of an intermittent measurement "
+                                              "(blood pressure) with time, date and MAP.")
 
 
 class Row(_Model):
@@ -242,6 +244,15 @@ class News2ChartWidget(_Widget):
     continuous_interval_min: int = Field(60, ge=5, le=240)
 
 
+class AbcdeWidget(_Widget):
+    """Airway, Breathing, Circulation, Disability, Exposure: each checked from the monitor's own
+    data and prompts, then the most recent blood gas and bloods with when they were taken."""
+
+    type: Literal["abcde"] = "abcde"
+    show_trends_button: bool = True
+    show_bloods: bool = True
+
+
 class LabsWidget(_Widget):
     type: Literal["epr-labs"] = "epr-labs"
     groups: list[LabGroupId] = Field(default_factory=lambda: list(registry.LAB_GROUP_IDS))
@@ -296,7 +307,7 @@ class TextWidget(_Widget):
 
 Widget = Annotated[
     Union[
-        MonitorGridWidget, News2ChartWidget, LabsWidget, ImagingWidget, AiSummaryWidget,
+        MonitorGridWidget, News2ChartWidget, AbcdeWidget, LabsWidget, ImagingWidget, AiSummaryWidget,
         ForecastPanelWidget, EventsTimelineWidget, AlarmsWidget, OxygenWidget,
         PatientWidget, TextWidget,
     ],
@@ -345,6 +356,7 @@ SheetId = Literal[
     # clinical
     "alarm-limits", "oxygen", "patient", "new-patient", "discharge-patient",
     "record-observations", "finding-explain", "underlying-data", "explanation-examples",
+    "trends", "abcde-assess",
     "forecast-horizon", "news2-variant", "home-screen",
     # design studio sections (each one touch from the Settings menu)
     "studio-appearance", "studio-layout", "studio-rows", "studio-navigation",
@@ -387,6 +399,13 @@ class AiToggleAction(_Model):
     type: Literal["toggle-ai"] = "toggle-ai"
 
 
+class AiOverlayAction(_Model):
+    """Turns the AI overview on or off for this screen: boxes on the traces, one or two words
+    each, over what the AI used (no P wave, irregular R-R). A local preference of the screen."""
+
+    type: Literal["toggle-ai-overlay"] = "toggle-ai-overlay"
+
+
 class EditLayoutAction(_Model):
     """Enters Edit Layout: tap a module to change its size, content and place. Edits stay local
     to this screen until they are saved as a new design version."""
@@ -396,13 +415,13 @@ class EditLayoutAction(_Model):
 
 ButtonAction = Annotated[
     Union[ScreenAction, MenuAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction,
-          AiToggleAction, EditLayoutAction],
+          AiToggleAction, AiOverlayAction, EditLayoutAction],
     Field(discriminator="type"),
 ]
 # Menu items cannot open another menu: that is what keeps everything within two touches.
 MenuItemAction = Annotated[
     Union[ScreenAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction,
-          AiToggleAction, EditLayoutAction],
+          AiToggleAction, AiOverlayAction, EditLayoutAction],
     Field(discriminator="type"),
 ]
 
@@ -669,7 +688,7 @@ class Design(_Model):
     alt_theme: Theme = Field(description="The other side of the dark / light switch.")
     top_bar: TopBar
     tab_bar: TabBar = Field(default_factory=TabBar)
-    tabs: list[Button] = Field(min_length=2, max_length=9)
+    tabs: list[Button] = Field(min_length=2, max_length=10)
     menus: list[Menu] = Field(default_factory=list)
     screens: list[Screen] = Field(min_length=1)
     home_screen: Slug

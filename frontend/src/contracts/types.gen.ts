@@ -141,6 +141,7 @@ export interface Highlight {
 export interface ExampleSnapshot {
   alarms: AlarmState;
   badge: string;
+  bp_readings: BpReading[];
   devices: DeviceStatus[];
   finding_data: {
     [k: string]: FindingData;
@@ -148,12 +149,14 @@ export interface ExampleSnapshot {
   findings: Finding[];
   forecast: ForecastBundle;
   generated_at: string;
+  labs: LabResult[];
   minute: number;
   model: ModelInfo;
   news2: News2Now;
   numerics: {
     [k: string]: number | string | null;
   };
+  obs_sets: ObservationSet[];
   oxygen: OxygenTherapy;
   patient: Patient;
   placeholder: boolean;
@@ -163,10 +166,23 @@ export interface ExampleSnapshot {
     [k: string]: SignalStatus;
   };
   strips: ExampleStrip[];
+  temp_readings: TempReading[];
   title: string;
   trends: {
     [k: string]: TrendSeries;
   };
+}
+/**
+ * One cuff blood pressure.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "BpReading".
+ */
+export interface BpReading {
+  at: string;
+  dia: number;
+  map: number;
+  sys: number;
 }
 /**
  * One physical device feeding this patient's monitor.
@@ -248,7 +264,7 @@ export interface ExampleStrip {
 export interface TraceMark {
   end_s: number;
   finding_id: string | null;
-  kind: "bracket" | "flag";
+  kind: "bracket" | "flag" | "box";
   label: string;
   start_s: number;
   tone: "finding" | "technical";
@@ -662,6 +678,49 @@ export interface NewsBandProbabilities {
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "LabResult".
+ */
+export interface LabResult {
+  collected_at: string;
+  flag: "critical-low" | "low" | "normal" | "high" | "critical-high";
+  /**
+   * Ward/department at collection
+   */
+  location: string | null;
+  performed_at: string | null;
+  ref_high: number | null;
+  ref_low: number | null;
+  reported_at: string | null;
+  source: "anne-one" | "manual" | "derived" | "epr" | "flow-meter" | "simulated";
+  specimen: string | null;
+  test:
+    | "wcc"
+    | "neut"
+    | "hb"
+    | "plt"
+    | "na"
+    | "k"
+    | "urea"
+    | "creat"
+    | "bicarb"
+    | "bili"
+    | "alt"
+    | "alp"
+    | "alb"
+    | "crp"
+    | "lactate"
+    | "ph"
+    | "pco2"
+    | "po2"
+    | "be"
+    | "trop"
+    | "inr"
+    | "glucose";
+  unit: string;
+  value: number;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
  * via the `definition` "News2Now".
  */
 export interface News2Now {
@@ -672,6 +731,29 @@ export interface News2Now {
   response: string;
   risk: string | null;
   total: number | null;
+}
+/**
+ * A charted set of observations (one NEWS2 column).
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "ObservationSet".
+ */
+export interface ObservationSet {
+  at: string;
+  escalated: boolean | null;
+  monitoring_hours: number | null;
+  news2_complete: boolean;
+  news2_components: {
+    [k: string]: number;
+  };
+  news2_risk: ("low" | "low-medium" | "medium" | "high") | null;
+  news2_total: number | null;
+  oxygen: OxygenTherapy | null;
+  recorded_by: string | null;
+  source: "charted" | "continuous";
+  values: {
+    [k: string]: number | string | null;
+  };
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema
@@ -769,6 +851,16 @@ export interface SignalStatus {
   state: "ok" | "standby" | "acquiring" | "poor-signal" | "sensor-off" | "connection-lost" | "invalid";
 }
 /**
+ * One measured (not continuous) temperature.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "TempReading".
+ */
+export interface TempReading {
+  at: string;
+  value: number;
+}
+/**
  * This interface was referenced by `Contracts`'s JSON-Schema
  * via the `definition` "TrendSeries".
  */
@@ -851,49 +943,6 @@ export interface LabSeries {
   trend: "rising" | "falling" | "stable" | "unknown";
 }
 /**
- * This interface was referenced by `Contracts`'s JSON-Schema
- * via the `definition` "LabResult".
- */
-export interface LabResult {
-  collected_at: string;
-  flag: "critical-low" | "low" | "normal" | "high" | "critical-high";
-  /**
-   * Ward/department at collection
-   */
-  location: string | null;
-  performed_at: string | null;
-  ref_high: number | null;
-  ref_low: number | null;
-  reported_at: string | null;
-  source: "anne-one" | "manual" | "derived" | "epr" | "flow-meter" | "simulated";
-  specimen: string | null;
-  test:
-    | "wcc"
-    | "neut"
-    | "hb"
-    | "plt"
-    | "na"
-    | "k"
-    | "urea"
-    | "creat"
-    | "bicarb"
-    | "bili"
-    | "alt"
-    | "alp"
-    | "alb"
-    | "crp"
-    | "lactate"
-    | "ph"
-    | "pco2"
-    | "po2"
-    | "be"
-    | "trop"
-    | "inr"
-    | "glucose";
-  unit: string;
-  value: number;
-}
-/**
  * One numeric or coded value at one time.
  *
  * This interface was referenced by `Contracts`'s JSON-Schema
@@ -930,29 +979,6 @@ export interface Observation {
    * e.g. ACVPU level, body position
    */
   value_code: string | null;
-}
-/**
- * A charted set of observations (one NEWS2 column).
- *
- * This interface was referenced by `Contracts`'s JSON-Schema
- * via the `definition` "ObservationSet".
- */
-export interface ObservationSet {
-  at: string;
-  escalated: boolean | null;
-  monitoring_hours: number | null;
-  news2_complete: boolean;
-  news2_components: {
-    [k: string]: number;
-  };
-  news2_risk: ("low" | "low-medium" | "medium" | "high") | null;
-  news2_total: number | null;
-  oxygen: OxygenTherapy | null;
-  recorded_by: string | null;
-  source: "charted" | "continuous";
-  values: {
-    [k: string]: number | string | null;
-  };
 }
 /**
  * Per-patient clinical settings. Stored as patient data, never in a design.

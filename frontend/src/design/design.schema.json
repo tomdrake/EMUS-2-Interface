@@ -1,5 +1,56 @@
 {
   "$defs": {
+    "AbcdeWidget": {
+      "additionalProperties": false,
+      "description": "Airway, Breathing, Circulation, Disability, Exposure: each checked from the monitor's own\ndata and prompts, then the most recent blood gas and bloods with when they were taken.",
+      "properties": {
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "show_bloods": {
+          "default": true,
+          "title": "Show Bloods",
+          "type": "boolean"
+        },
+        "show_trends_button": {
+          "default": true,
+          "title": "Show Trends Button",
+          "type": "boolean"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "abcde",
+          "default": "abcde",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type",
+        "show_trends_button",
+        "show_bloods"
+      ],
+      "title": "AbcdeWidget",
+      "type": "object"
+    },
     "AiDisplay": {
       "additionalProperties": false,
       "properties": {
@@ -74,6 +125,23 @@
         "min_confidence"
       ],
       "title": "AiDisplay",
+      "type": "object"
+    },
+    "AiOverlayAction": {
+      "additionalProperties": false,
+      "description": "Turns the AI overview on or off for this screen: boxes on the traces, one or two words\neach, over what the AI used (no P wave, irregular R-R). A local preference of the screen.",
+      "properties": {
+        "type": {
+          "const": "toggle-ai-overlay",
+          "default": "toggle-ai-overlay",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "AiOverlayAction",
       "type": "object"
     },
     "AiSummaryWidget": {
@@ -304,6 +372,7 @@
               "sheet": "#/$defs/SheetAction",
               "silence-alarms": "#/$defs/SilenceAction",
               "toggle-ai": "#/$defs/AiToggleAction",
+              "toggle-ai-overlay": "#/$defs/AiOverlayAction",
               "toggle-theme": "#/$defs/ThemeToggleAction"
             },
             "propertyName": "type"
@@ -329,6 +398,9 @@
             },
             {
               "$ref": "#/$defs/AiToggleAction"
+            },
+            {
+              "$ref": "#/$defs/AiOverlayAction"
             },
             {
               "$ref": "#/$defs/EditLayoutAction"
@@ -1069,6 +1141,7 @@
               "sheet": "#/$defs/SheetAction",
               "silence-alarms": "#/$defs/SilenceAction",
               "toggle-ai": "#/$defs/AiToggleAction",
+              "toggle-ai-overlay": "#/$defs/AiOverlayAction",
               "toggle-theme": "#/$defs/ThemeToggleAction"
             },
             "propertyName": "type"
@@ -1091,6 +1164,9 @@
             },
             {
               "$ref": "#/$defs/AiToggleAction"
+            },
+            {
+              "$ref": "#/$defs/AiOverlayAction"
             },
             {
               "$ref": "#/$defs/EditLayoutAction"
@@ -1185,6 +1261,12 @@
           "title": "Forecast",
           "type": "boolean"
         },
+        "readings": {
+          "default": false,
+          "description": "The last five readings of an intermittent measurement (blood pressure) with time, date and MAP.",
+          "title": "Readings",
+          "type": "boolean"
+        },
         "trace": {
           "default": true,
           "description": "The trace or trend (a small spark at small sizes).",
@@ -1197,7 +1279,8 @@
         "ai",
         "certainty",
         "explain",
-        "forecast"
+        "forecast",
+        "readings"
       ],
       "title": "ModuleContent",
       "type": "object"
@@ -1954,6 +2037,8 @@
             "finding-explain",
             "underlying-data",
             "explanation-examples",
+            "trends",
+            "abcde-assess",
             "forecast-horizon",
             "news2-variant",
             "home-screen",
@@ -2604,6 +2689,7 @@
         "widget": {
           "discriminator": {
             "mapping": {
+              "abcde": "#/$defs/AbcdeWidget",
               "ai-summary": "#/$defs/AiSummaryWidget",
               "alarms": "#/$defs/AlarmsWidget",
               "epr-imaging": "#/$defs/ImagingWidget",
@@ -2624,6 +2710,9 @@
             },
             {
               "$ref": "#/$defs/News2ChartWidget"
+            },
+            {
+              "$ref": "#/$defs/AbcdeWidget"
             },
             {
               "$ref": "#/$defs/LabsWidget"
@@ -2772,7 +2861,7 @@
       "items": {
         "$ref": "#/$defs/Button"
       },
-      "maxItems": 9,
+      "maxItems": 10,
       "minItems": 2,
       "title": "Tabs",
       "type": "array"

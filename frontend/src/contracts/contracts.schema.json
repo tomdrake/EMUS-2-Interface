@@ -330,6 +330,37 @@
       "title": "AlarmState",
       "type": "object"
     },
+    "BpReading": {
+      "additionalProperties": false,
+      "description": "One cuff blood pressure.",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "dia": {
+          "title": "Dia",
+          "type": "integer"
+        },
+        "map": {
+          "title": "Map",
+          "type": "integer"
+        },
+        "sys": {
+          "title": "Sys",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "at",
+        "sys",
+        "dia",
+        "map"
+      ],
+      "title": "BpReading",
+      "type": "object"
+    },
     "CertaintyValue": {
       "additionalProperties": false,
       "description": "One certainty metric for one output.\n\n``score`` is always normalised so that 1.0 is most certain and 0.0 least,\nwhatever the metric, so any display (percent, badge, bars, opacity) can be\ndriven by any metric. ``raw`` carries the metric's native values for the\nexplanation view.",
@@ -896,6 +927,13 @@
           "title": "Badge",
           "type": "string"
         },
+        "bp_readings": {
+          "items": {
+            "$ref": "#/$defs/BpReading"
+          },
+          "title": "Bp Readings",
+          "type": "array"
+        },
         "devices": {
           "items": {
             "$ref": "#/$defs/DeviceStatus"
@@ -924,6 +962,13 @@
           "format": "date-time",
           "title": "Generated At",
           "type": "string"
+        },
+        "labs": {
+          "items": {
+            "$ref": "#/$defs/LabResult"
+          },
+          "title": "Labs",
+          "type": "array"
         },
         "minute": {
           "title": "Minute",
@@ -972,6 +1017,13 @@
           },
           "title": "Numerics",
           "type": "object"
+        },
+        "obs_sets": {
+          "items": {
+            "$ref": "#/$defs/ObservationSet"
+          },
+          "title": "Obs Sets",
+          "type": "array"
         },
         "oxygen": {
           "$ref": "#/$defs/OxygenTherapy"
@@ -1030,6 +1082,13 @@
           "title": "Strips",
           "type": "array"
         },
+        "temp_readings": {
+          "items": {
+            "$ref": "#/$defs/TempReading"
+          },
+          "title": "Temp Readings",
+          "type": "array"
+        },
         "title": {
           "title": "Title",
           "type": "string"
@@ -1081,6 +1140,10 @@
         "alarms",
         "strips",
         "trends",
+        "bp_readings",
+        "temp_readings",
+        "labs",
+        "obs_sets",
         "findings",
         "finding_data",
         "forecast"
@@ -3244,6 +3307,27 @@
       "title": "SuggestedCause",
       "type": "object"
     },
+    "TempReading": {
+      "additionalProperties": false,
+      "description": "One measured (not continuous) temperature.",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "at",
+        "value"
+      ],
+      "title": "TempReading",
+      "type": "object"
+    },
     "TimedValue": {
       "additionalProperties": false,
       "description": "A value at a time, in minutes relative to now (negative = past).",
@@ -3287,7 +3371,8 @@
         "kind": {
           "enum": [
             "bracket",
-            "flag"
+            "flag",
+            "box"
           ],
           "title": "Kind",
           "type": "string"

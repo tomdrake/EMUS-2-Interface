@@ -71,6 +71,8 @@ class Scenario(TypedDict):
     oxygen: list[OxygenStep]
     events: list[dict]             # {"at_min": .., "type": "fall"}
     obs_interval_min: int          # charted NEWS2 observation sets
+    #: Minutes between cuff blood pressures (default 60); shorter where the patient is unwell.
+    bp_interval_min: int
     labs: list[LabPoint]
     #: Results from before this admission, for the "historic normal" baseline.
     historic_labs: list[LabPoint]
@@ -125,6 +127,7 @@ SCENARIOS: dict[str, Scenario] = {
                    {"at_min": 200, "flow_l_min": 6, "device": "SM"}],
         "events": [],
         "obs_interval_min": 240,
+        "bp_interval_min": 30,
         "labs": [
             {"at_min": -1380, "test": "wcc", "value": 11.8}, {"at_min": -660, "test": "wcc", "value": 14.9},
             {"at_min": -60, "test": "wcc", "value": 18.6},
@@ -137,6 +140,11 @@ SCENARIOS: dict[str, Scenario] = {
             {"at_min": -1380, "test": "k", "value": 4.3}, {"at_min": -60, "test": "k", "value": 4.6},
             {"at_min": -1380, "test": "hb", "value": 138}, {"at_min": -60, "test": "hb", "value": 131},
             {"at_min": -1380, "test": "plt", "value": 268}, {"at_min": -60, "test": "plt", "value": 242},
+            {"at_min": -60, "test": "glucose", "value": 8.4}, {"at_min": -1380, "test": "glucose", "value": 6.2},
+            # arterial gas 30 minutes ago: the newest result, so "Current"
+            {"at_min": -30, "test": "ph", "value": 7.37}, {"at_min": -30, "test": "pco2", "value": 4.8},
+            {"at_min": -30, "test": "po2", "value": 8.6}, {"at_min": -30, "test": "be", "value": -2.4},
+            {"at_min": -30, "test": "lactate", "value": 2.9},
         ],
         "historic_labs": [
             {"at_min": -130000, "test": "wcc", "value": 6.8}, {"at_min": -130000, "test": "crp", "value": 3},
@@ -211,6 +219,7 @@ SCENARIOS: dict[str, Scenario] = {
         "events": [],
         "obs_interval_min": 240,
         "labs": [
+            {"at_min": -600, "test": "glucose", "value": 6.1},
             {"at_min": -600, "test": "k", "value": 3.3}, {"at_min": -600, "test": "na", "value": 139},
             {"at_min": -600, "test": "creat", "value": 71}, {"at_min": -600, "test": "hb", "value": 104},
             {"at_min": -600, "test": "wcc", "value": 10.2}, {"at_min": -600, "test": "crp", "value": 48},
@@ -268,6 +277,8 @@ SCENARIOS: dict[str, Scenario] = {
             {"at_min": -840, "test": "ph", "value": 7.34}, {"at_min": -840, "test": "pco2", "value": 7.1},
             {"at_min": -840, "test": "po2", "value": 7.6}, {"at_min": -840, "test": "bicarb", "value": 31},
             {"at_min": -840, "test": "wcc", "value": 9.4}, {"at_min": -840, "test": "crp", "value": 22},
+            {"at_min": -840, "test": "glucose", "value": 7.3}, {"at_min": -840, "test": "lactate", "value": 1.4},
+            {"at_min": -840, "test": "be", "value": 4.1},
         ],
         "historic_labs": [{"at_min": -90000, "test": "pco2", "value": 6.4},
                           {"at_min": -90000, "test": "bicarb", "value": 30}],
@@ -316,6 +327,10 @@ SCENARIOS: dict[str, Scenario] = {
             {"at_min": -420, "test": "k", "value": 2.9}, {"at_min": -30, "test": "k", "value": 2.4},
             {"at_min": -420, "test": "creat", "value": 96}, {"at_min": -420, "test": "na", "value": 136},
             {"at_min": -420, "test": "trop", "value": 38}, {"at_min": -30, "test": "trop", "value": 61},
+            {"at_min": -30, "test": "glucose", "value": 5.6},
+            {"at_min": -30, "test": "ph", "value": 7.41}, {"at_min": -30, "test": "pco2", "value": 5.1},
+            {"at_min": -30, "test": "po2", "value": 12.2}, {"at_min": -30, "test": "be", "value": 0.4},
+            {"at_min": -30, "test": "lactate", "value": 1.6},
         ],
         "historic_labs": [{"at_min": -40000, "test": "k", "value": 4.4},
                           {"at_min": -40000, "test": "trop", "value": 9}],
@@ -362,6 +377,7 @@ SCENARIOS: dict[str, Scenario] = {
             {"at_min": -1300, "test": "wcc", "value": 7.1}, {"at_min": -1300, "test": "hb", "value": 133},
             {"at_min": -1300, "test": "na", "value": 140}, {"at_min": -1300, "test": "k", "value": 4.1},
             {"at_min": -1300, "test": "creat", "value": 64}, {"at_min": -1300, "test": "crp", "value": 4},
+            {"at_min": -1300, "test": "glucose", "value": 5.4},
         ],
         "historic_labs": [],
         "imaging": [],
@@ -391,6 +407,7 @@ def standard_devices(*, chest: float = 78, limb: float = 64, cuff: bool = True) 
 for _s in SCENARIOS.values():
     _s.setdefault("devices", standard_devices())
     _s.setdefault("faults", [])
+    _s.setdefault("bp_interval_min", 60)
 
 SCENARIOS["scn-technical"] = {
     "id": "scn-technical",
@@ -412,7 +429,12 @@ SCENARIOS["scn-technical"] = {
     "oxygen": [{"at_min": -240, "flow_l_min": 0, "device": "A"}],
     "events": [],
     "obs_interval_min": 240,
-    "labs": [], "historic_labs": [], "imaging": [],
+    "bp_interval_min": 60,
+    # Bloods 50 hours ago: too old to show as recent, inside the 72 hour window.
+    "labs": [{"at_min": -3000, "test": "glucose", "value": 5.8}, {"at_min": -3000, "test": "wcc", "value": 7.0},
+             {"at_min": -3000, "test": "k", "value": 4.2}, {"at_min": -3000, "test": "ph", "value": 7.40},
+             {"at_min": -3000, "test": "lactate", "value": 1.1}],
+    "historic_labs": [], "imaging": [],
     "forecast_story": {"contributors": [], "suggested_causes": [], "what_if": None},
     # No cuff connected: blood pressure is selected for display but on STANDBY.
     # The limb sensor starts just above the low-battery threshold.

@@ -24,13 +24,14 @@ from app import clock, news2 as news2_mod, registry
 from app.ai import certainty
 from app.ai.interpretation import describe_resolved
 from app.models.clinical import (
+    LabResult, ObservationSet,
     AlarmEvent, AlarmState, Contributor, DeviceStatus, EventPrediction, Finding, Forecast,
     ForecastBundle, ForecastPoint, ImageEvidence, LabEvidence, ModelInfo, NewsBandProbabilities,
     OxygenTherapy, Patient, SignalQuality, SignalStatus, SuggestedCause, TrendEvidence,
     WaveformEvidence,
 )
 from app.models.example import (
-    ExampleScenarioInfo, ExampleSnapshot, ExampleStrip, FindingData, Highlight, News2Now,
+    BpReading, TempReading, ExampleScenarioInfo, ExampleSnapshot, ExampleStrip, FindingData, Highlight, News2Now,
     TimedValue, TraceMark, TrendSeries,
 )
 from app.scenarios import SCENARIOS
@@ -203,27 +204,43 @@ def _quality(waveform: str, samples: list[float], hz: float) -> SignalQuality:
 
 
 def _ecg_marks(reading: str, f: EcgFeatures, dur: float, fid: str | None) -> list[TraceMark]:
+    """Boxes over the parts of the strip the rule used, one or two words each (the AI overview).
+
+    Every beat gets a tinted box; a label is written on a box only when the last label is
+    far enough back (about a second) that two labels never sit on each other.
+    """
     marks: list[TraceMark] = []
+    last_label = -10.0
+
+    def box(start: float, end: float, text: str) -> None:
+        nonlocal last_label
+        label = ""
+        if start - last_label >= 1.0:
+            label, last_label = text, start
+        marks.append(TraceMark(kind="box", start_s=max(0.0, start), end_s=min(dur, end), label=label,
+                               finding_id=fid))
+
+    r = f.r_times
     if reading == "af":
+        mean_rr = mean(f.rr) if f.rr else 0.0
+        for a, b in zip(r, r[1:]):
+            if mean_rr and abs((b - a) - mean_rr) / mean_rr > 0.12:
+                box(a, b, "Irregular R-R")
         if f.p_judged:
-            marks.append(TraceMark(kind="bracket", start_s=0.0, end_s=dur, label="No P waves",
-                                   finding_id=fid))
-        if len(f.r_times) >= 4:
-            marks.append(TraceMark(kind="bracket", start_s=f.r_times[0], end_s=f.r_times[3],
-                                   label="Irregular R-R", finding_id=fid))
-    elif reading == "svt":
-        marks.append(TraceMark(kind="bracket", start_s=0.0, end_s=dur, label="Regular, narrow, fast",
-                               finding_id=fid))
+            for t in r:
+                box(t - 0.22, t - 0.10, "No P Wave")
+    elif reading in ("svt", "sinus-tachycardia"):
+        for a, b in zip(r, r[1:]):
+            box(a, b, "Fast Regular")
     elif reading == "vt":
-        r = f.r_times[1] if len(f.r_times) > 1 else 0.5
-        marks.append(TraceMark(kind="bracket", start_s=max(r - f.qrs_ms / 2000, 0),
-                               end_s=r + f.qrs_ms / 2000 + 0.04, label="Wide QRS", finding_id=fid))
-        marks.append(TraceMark(kind="bracket", start_s=0.0, end_s=dur, label="Regular, fast",
-                               finding_id=fid))
+        half = max(f.qrs_ms, 80) / 2000
+        for t in r:
+            box(t - half, t + half + 0.03, "Wide QRS")
     elif reading == "brady":
-        marks.append(TraceMark(kind="bracket", start_s=0.0, end_s=dur, label="Slow", finding_id=fid))
+        for a, b in zip(r, r[1:]):
+            box(a, b, "Slow")
     elif reading == "pause":
-        marks.append(TraceMark(kind="bracket", start_s=0.0, end_s=dur, label="No beats", finding_id=fid))
+        box(0.0, dur, "No Beats")
     return marks
 
 
@@ -253,10 +270,10 @@ def _ecg_strip(sc_id: str, minute: float, faults: list[dict], seconds: float = E
     q = _quality("ecg", tail, hz)
     feats = analyse_ecg(tail, hz)
     reading = classify_rhythm(feats) if q.grade == "good" else None
-    shift = seconds - read
+    # Marks cover the whole strip, so they travel with the beats as the trace sweeps.
     marks = _technical_mark(q, seconds) if q.grade != "good" else \
-        [m.model_copy(update={"start_s": m.start_s + shift, "end_s": m.end_s + shift})
-         for m in _ecg_marks(reading or "", feats, read, fid)]
+        _ecg_marks("sinus-tachycardia" if reading == "sinus" and feats.rate >= 100 else (reading or ""),
+                   analyse_ecg(samples, hz), seconds, fid)
     return ExampleStrip(waveform="ecg", hz=hz, seconds=seconds, ends_s_before_now=ends_before,
                         samples=samples, quality=q, reading=reading, marks=marks)
 
@@ -434,7 +451,7 @@ def _trend_points(sc_id: str, parameter: str, minute: float, minutes: int = TREN
             continue          # nothing was scripted before the scenario began
         v = scenario_values(sc_id, minute + off).get(parameter)
         if isinstance(v, (int, float)):
-            out.append(TimedValue(t=float(off), v=round(v, 1)))
+            out.append(TimedValue(t=float(off), v=round(v + (SKIN_OFFSET_C if parameter == "temp" else 0), 1)))
     return out
 
 
@@ -510,9 +527,9 @@ def _vitals_findings(sc, minute, now, v, quality: dict[str, float]):
         out.append(_trend_finding(
             sc_id, minute, now, code="fever", label="Raised temperature", parameter="temp",
             domain="temperature", severity="warning",
-            summary=f"Skin temperature {temp:.1f} °C",
-            explanation=f"Rule: temperature 38.0 °C or more. It is {temp:.1f} °C. "
-                        "Skin temperature reads lower than core temperature.",
+            summary=f"Temperature {temp:.1f} °C",
+            explanation=f"Rule: temperature 38.0 °C or more. It is {temp:.1f} °C (measured). "
+                        "Continuous skin temperature reads a little lower.",
             rows={"Temperature": f"{temp:.1f} °C"},
             reasons=_weights([("38.0 °C or more", True, (temp - 38) / 2)]),
             agree=1, considered=1, quality=0.9))
@@ -677,6 +694,87 @@ def _forecast_bundle(sc, minute, now, quality: float) -> ForecastBundle:
         minutes_to_news_threshold={"5": minutes_to}, events=events)
 
 
+# ----------------------------------------------------- readings, results, observation sets
+
+LAB_WINDOW_MIN = 72 * 60
+#: Continuous skin temperature reads a little below the measured temperature.
+SKIN_OFFSET_C = -0.4
+
+
+def _anchored(start: float, end: float, interval: int, minute: float, count: int) -> list[float]:
+    """The last ``count`` times at or before ``minute`` that fall on the interval grid, newest first."""
+    last = math.floor(minute / interval) * interval
+    out = []
+    t = last
+    while len(out) < count and t >= start:
+        out.append(float(t))
+        t -= interval
+    return out
+
+
+def _bp_readings(sc: dict, minute: float, now: datetime, cuff_connected: bool) -> list[BpReading]:
+    if not cuff_connected:
+        return []
+    out = []
+    for t in _anchored(sc["start_min"], sc["end_min"], sc["bp_interval_min"], minute, 5):
+        v = scenario_values(sc["id"], t)
+        sys_, dia = round(v["bp_sys"]), round(v["bp_dia"])
+        out.append(BpReading(at=_ts(now, minute, t), sys=sys_, dia=dia, map=round(dia + (sys_ - dia) / 3)))
+    return out
+
+
+def _obs_sets(sc: dict, minute: float, now: datetime, count: int = 8) -> list[ObservationSet]:
+    """Charted observation sets, oldest first: what a nurse would have written on the chart."""
+    sets = []
+    for t in reversed(_anchored(sc["start_min"], sc["end_min"], sc["obs_interval_min"], minute, count)):
+        v = scenario_values(sc["id"], t)
+        r = _news(v, sc["spo2_scale"])
+        ox = v["oxygen"]
+        sets.append(ObservationSet(
+            at=_ts(now, minute, t),
+            values={"rr": round(v["rr"]), "spo2": round(v["spo2"]), "o2_flow": ox["flow_l_min"],
+                    "bp_sys": round(v["bp_sys"]), "bp_dia": round(v["bp_dia"]), "hr": round(v["hr"]),
+                    "acvpu": v["acvpu"], "temp": round(v["temp"], 1)},
+            oxygen=OxygenTherapy(at=_ts(now, minute, t), flow_l_min=ox["flow_l_min"], device=ox["device"],
+                                 source="simulated"),
+            news2_total=r.total, news2_components=r.components, news2_risk=r.risk,
+            news2_complete=r.complete, monitoring_hours=r.monitoring_hours, source="charted"))
+    return sets
+
+
+def _temp_readings(sets: list[ObservationSet]) -> list[TempReading]:
+    return [TempReading(at=o.at, value=float(o.values["temp"])) for o in reversed(sets)][:5]  # type: ignore[arg-type]
+
+
+def _flag(test, value: float, sex: str | None) -> str:
+    lo, hi = registry.lab_range(test.id, sex)
+    if test.critical_low is not None and value < test.critical_low:
+        return "critical-low"
+    if test.critical_high is not None and value > test.critical_high:
+        return "critical-high"
+    if lo is not None and value < lo:
+        return "low"
+    if hi is not None and value > hi:
+        return "high"
+    return "normal"
+
+
+def _labs(sc: dict, minute: float, now: datetime) -> list[LabResult]:
+    """Results from the 72 hours up to the chosen minute, newest first."""
+    out = []
+    sex = sc["patient"].get("sex")
+    for x in sorted(sc["labs"], key=lambda x: -x["at_min"]):
+        if not (minute - LAB_WINDOW_MIN <= x["at_min"] <= minute):
+            continue
+        t = registry.LAB_TESTS[x["test"]]
+        lo, hi = registry.lab_range(t.id, sex)
+        out.append(LabResult(test=x["test"], value=x["value"], unit=t.unit, collected_at=_ts(now, minute, x["at_min"]),
+                             ref_low=lo, ref_high=hi, flag=_flag(t, x["value"], sex),  # type: ignore[arg-type]
+                             specimen="Arterial blood" if t.group == "gas" else "Blood",
+                             performed_at="Laboratory" if t.group != "gas" else "Point of care", source="simulated"))
+    return out
+
+
 # ------------------------------------------------------------------------- the snapshot
 
 def list_scenarios() -> list[ExampleScenarioInfo]:
@@ -755,7 +853,7 @@ def snapshot(scenario_id: str, minute: float, now: datetime | None = None) -> Ex
         "hr": round(v["hr"]), "pulse": round(v["hr"]), "spo2": round(v["spo2"]), "rr": round(v["rr"]),
         "bp_sys": round(v["bp_sys"]), "bp_dia": round(v["bp_dia"]),
         "bp_mean": round((v["bp_sys"] + 2 * v["bp_dia"]) / 3),
-        "temp": round(v["temp"], 1), "activity": round(v["activity"]), "position": v["position"],
+        "temp": round(v["temp"] + SKIN_OFFSET_C, 1), "activity": round(v["activity"]), "position": v["position"],
         "o2_flow": ox["flow_l_min"], "acvpu": v["acvpu"],
         "falls": sum(1 for e in sc["events"] if e["type"] == "fall" and e["at_min"] <= minute),
         "sleep": "Asleep" if v["asleep"] else "Awake",
@@ -892,10 +990,13 @@ def snapshot(scenario_id: str, minute: float, now: datetime | None = None) -> Ex
     all_q = [s.quality.sqi for s in strips] or [0.0]
     forecast = _forecast_bundle(sc, minute, now, mean(all_q))
 
+    cuff = next((d for d in devices if d.kind == "bp-cuff"), None)
+    obs_sets = _obs_sets(sc, minute, now)
     return ExampleSnapshot(
         scenario_id=scenario_id, title=sc["title"], minute=minute, generated_at=now, model=MODEL,
         patient=Patient(id=scenario_id, **sc["patient"]), numerics=numerics, oxygen=oxygen,
         news2=News2Now(total=n2.total, risk=n2.risk, complete=n2.complete, components=n2.components,
                        response=n2.response),
         devices=devices, signals=signals, quality=quality, alarms=alarm_state, strips=strips,
-        trends=trends, findings=findings, finding_data=data, forecast=forecast)
+        trends=trends, bp_readings=_bp_readings(sc, minute, now, bool(cuff and cuff.connection == "connected")),
+        temp_readings=_temp_readings(obs_sets), labs=_labs(sc, minute, now), obs_sets=obs_sets, findings=findings, finding_data=data, forecast=forecast)

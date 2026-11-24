@@ -92,6 +92,9 @@ class Parameter:
     #: waveform's label instead.
     method: str = ""
     note: str = ""
+    #: The y range of this parameter's trend and of anything drawn against it (an overlay on a
+    #: waveform, a spark). None = the usual alarm span with a margin.
+    trend_range: tuple[float, float] | None = None
 
 
 def _p(*args, **kw) -> Parameter:
@@ -113,7 +116,7 @@ _PARAMETERS: tuple[Parameter, ...] = (
        Coding(LOINC, "59408-5", "Oxygen saturation in Arterial blood by Pulse oximetry"),
        "continuous", ("anne-one", "simulated"), default_low=90, default_high=None,
        default_priority="high", min_value=50, max_value=100, waveforms=("pleth",), news2=True,
-       method="Pleth"),
+       method="Pleth", trend_range=(50, 100)),
     _p("rr", "Respiratory Rate", "RR", "/min", "/min",
        Coding(LOINC, "9279-1", "Respiratory rate"), "continuous", ("anne-one", "simulated"),
        default_low=8, default_high=25, min_value=0, max_value=70,
@@ -124,7 +127,7 @@ _PARAMETERS: tuple[Parameter, ...] = (
        ("manual", "simulated"), default_low=90, default_high=180, default_priority="high",
        min_value=40, max_value=280, news2=True,
        note="ANNE One does not measure BP; cuff device or manual entry.",
-       method="Cuff"),
+       method="Cuff", trend_range=(40, 200)),
     _p("bp_dia", "Diastolic Blood Pressure", "DIA", "mmHg", "mm[Hg]",
        Coding(LOINC, "8462-4", "Diastolic blood pressure"), "intermittent",
        ("manual", "simulated"), default_low=40, default_high=110,
@@ -142,7 +145,7 @@ _PARAMETERS: tuple[Parameter, ...] = (
        min_value=30.0, max_value=43.0, news2=True,
        note="ANNE One reports skin temperature (LOINC 39106-0, provisional); "
             "NEWS2 expects core temperature.",
-       method="Skin Sensor"),
+       method="Skin Sensor", trend_range=(34, 41)),
     _p("o2_flow", "Oxygen Flow", "O2", "L/min", "L/min",
        Coding(LOINC, "3151-8", "Inhaled oxygen flow rate"), "state",
        ("manual", "flow-meter", "simulated"), decimals=1,
@@ -169,7 +172,7 @@ _PARAMETERS: tuple[Parameter, ...] = (
        ("anne-one", "simulated"), min_value=0, max_value=100,
        note="Accelerometer-derived activity level, 0-100. No standard code chosen yet.",
        method="Accelerometer"),
-    _p("position", "Body Position", "Pos", "", None,
+    _p("position", "Body Position", "Position", "", None,
        Coding(LOINC, "8361-8", "Body position with respect to gravity", provisional=True),
        "state", ("anne-one", "simulated"),
        method="Accelerometer"),
@@ -203,6 +206,8 @@ WAVEFORMS: dict[str, dict] = {
                       #: wave about -0.5 mV. Larger signals are clipped at the edge.
                       "range": [-0.5, 1.0]}},
     "pleth": {"label": "Pleth", "hz": 62.5, "unit": "a.u.", "parameter": "spo2",
+              #: The row also draws this parameter's trend on a right-hand axis in its own units.
+              "overlay_parameter": "spo2",
               "scale": {"unit": "a.u.", "calibrated": False, "gains_mm_per_unit": [],
                         "default_gain": None, "tick": 0.5, "baseline": "mean",
                         "range": [-1.0, 1.0]}},
@@ -217,28 +222,31 @@ WAVEFORM_IDS: tuple[str, ...] = tuple(WAVEFORMS)
 
 #: What a module can show. 'spark' is a small trend with no axes; 'trace' is the full
 #: waveform or trend with its scale. A module shows the biggest form of each that fits.
-MODULE_CONTENT: tuple[str, ...] = ("number", "spark", "trace", "ai", "certainty", "explain", "forecast")
+MODULE_CONTENT: tuple[str, ...] = ("number", "spark", "trace", "ai", "certainty", "explain", "forecast",
+                                   "readings")
 
 #: Sizes of a module in the monitor grid, in grid cells. 'full' sizes span every column.
-#: `flow` is how the parts are arranged: tile alone, tile beside a spark, tile above a
-#: trace, or a trace beside its tile (the familiar monitor row). `fits` lists the content
+#: `flow` is how the parts are arranged: the number alone ('tile-only'); the number on the
+#: left half with its detail on the right ('split': tile, wide, large); the number above its
+#: detail where the module is too narrow to split ('stack': tall); or a trace beside its tile
+#: (the familiar monitor row, 'row'). `fits` lists the content
 #: that has room at that size; whatever the design asks for beyond it is dropped, lowest
 #: priority first, and the customisation tool says so.
 MODULE_SIZES: dict[str, dict] = {
     "compact": {"label": "Small Square", "cols": 1, "rows": 1, "full": False, "flow": "tile-only",
                 "fits": ["number"]},
-    "tile": {"label": "Tile", "cols": 2, "rows": 1, "full": False, "flow": "side",
+    "tile": {"label": "Tile", "cols": 2, "rows": 1, "full": False, "flow": "split",
              "fits": ["number", "spark", "ai"]},
     "tall": {"label": "Tall", "cols": 1, "rows": 2, "full": False, "flow": "stack",
-             "fits": ["number", "spark", "ai", "certainty"]},
-    "wide": {"label": "Wide", "cols": 3, "rows": 1, "full": False, "flow": "row",
+             "fits": ["number", "spark", "ai", "certainty", "readings"]},
+    "wide": {"label": "Wide", "cols": 3, "rows": 1, "full": False, "flow": "split",
              "fits": ["number", "trace", "ai"]},
-    "large": {"label": "Large", "cols": 2, "rows": 2, "full": False, "flow": "stack",
-              "fits": ["number", "trace", "ai", "certainty", "explain"]},
+    "large": {"label": "Large", "cols": 2, "rows": 2, "full": False, "flow": "split",
+              "fits": ["number", "trace", "ai", "certainty", "explain", "readings"]},
     "row": {"label": "Full Row", "cols": 0, "rows": 1, "full": True, "flow": "row",
             "fits": ["number", "trace", "ai", "certainty"]},
     "row-tall": {"label": "Full Row Double", "cols": 0, "rows": 2, "full": True, "flow": "row",
-                 "fits": ["number", "trace", "ai", "certainty", "explain", "forecast"]},
+                 "fits": ["number", "trace", "ai", "certainty", "explain", "forecast", "readings"]},
 }
 MODULE_SIZE_IDS: tuple[str, ...] = tuple(MODULE_SIZES)
 

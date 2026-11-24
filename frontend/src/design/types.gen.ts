@@ -29,7 +29,7 @@ export interface Design {
   tab_bar: TabBar;
   /**
    * @minItems 2
-   * @maxItems 9
+   * @maxItems 10
    */
   tabs:
     | [Button, Button]
@@ -39,7 +39,8 @@ export interface Design {
     | [Button, Button, Button, Button, Button, Button]
     | [Button, Button, Button, Button, Button, Button, Button]
     | [Button, Button, Button, Button, Button, Button, Button, Button]
-    | [Button, Button, Button, Button, Button, Button, Button, Button, Button];
+    | [Button, Button, Button, Button, Button, Button, Button, Button, Button]
+    | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button];
   theme: Theme1;
   tiles: TileDisplay;
   top_bar: TopBar;
@@ -384,7 +385,14 @@ export interface Menu {
  */
 export interface MenuItem {
   action:
-    ScreenAction | SheetAction | SilenceAction | SettingsAction | ThemeToggleAction | AiToggleAction | EditLayoutAction;
+    | ScreenAction
+    | SheetAction
+    | SilenceAction
+    | SettingsAction
+    | ThemeToggleAction
+    | AiToggleAction
+    | AiOverlayAction
+    | EditLayoutAction;
   icon:
     | "monitor"
     | "chart"
@@ -450,6 +458,8 @@ export interface SheetAction {
     | "finding-explain"
     | "underlying-data"
     | "explanation-examples"
+    | "trends"
+    | "abcde-assess"
     | "forecast-horizon"
     | "news2-variant"
     | "home-screen"
@@ -503,6 +513,16 @@ export interface ThemeToggleAction {
  */
 export interface AiToggleAction {
   type: "toggle-ai";
+}
+/**
+ * Turns the AI overview on or off for this screen: boxes on the traces, one or two words
+ * each, over what the AI used (no P wave, irregular R-R). A local preference of the screen.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "AiOverlayAction".
+ */
+export interface AiOverlayAction {
+  type: "toggle-ai-overlay";
 }
 /**
  * Enters Edit Layout: tap a module to change its size, content and place. Edits stay local
@@ -828,6 +848,10 @@ export interface ModuleContent {
    */
   forecast: boolean;
   /**
+   * The last five readings of an intermittent measurement (blood pressure) with time, date and MAP.
+   */
+  readings: boolean;
+  /**
    * The trace or trend (a small spark at small sizes).
    */
   trace: boolean;
@@ -871,6 +895,7 @@ export interface WidgetNode {
   widget:
     | MonitorGridWidget
     | News2ChartWidget
+    | AbcdeWidget
     | LabsWidget
     | ImagingWidget
     | AiSummaryWidget
@@ -946,6 +971,23 @@ export interface News2ChartWidget {
   title: string | null;
   type: "news2-chart";
   variant: "bands-light" | "bands-dark" | "trend-dark";
+}
+/**
+ * Airway, Breathing, Circulation, Disability, Exposure: each checked from the monitor's own
+ * data and prompts, then the most recent blood gas and bloods with when they were taken.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "AbcdeWidget".
+ */
+export interface AbcdeWidget {
+  /**
+   * Lowercase id: letters, digits, hyphens.
+   */
+  id: string;
+  show_bloods: boolean;
+  show_trends_button: boolean;
+  title: string | null;
+  type: "abcde";
 }
 /**
  * This interface was referenced by `Design`'s JSON-Schema
@@ -1135,6 +1177,7 @@ export interface Button {
     | SettingsAction
     | ThemeToggleAction
     | AiToggleAction
+    | AiOverlayAction
     | EditLayoutAction;
   colour: string | null;
   icon:
