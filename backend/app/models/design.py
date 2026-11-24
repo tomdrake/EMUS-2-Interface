@@ -380,13 +380,22 @@ class ThemeToggleAction(_Model):
     type: Literal["toggle-theme"] = "toggle-theme"
 
 
+class AiToggleAction(_Model):
+    """Turns every AI mark on this screen on or off (interpretation chips, certainty, trace
+    annotations). A local preference of the screen; it does not create a design version."""
+
+    type: Literal["toggle-ai"] = "toggle-ai"
+
+
 ButtonAction = Annotated[
-    Union[ScreenAction, MenuAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction],
+    Union[ScreenAction, MenuAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction,
+          AiToggleAction],
     Field(discriminator="type"),
 ]
 # Menu items cannot open another menu: that is what keeps everything within two touches.
 MenuItemAction = Annotated[
-    Union[ScreenAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction],
+    Union[ScreenAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction,
+          AiToggleAction],
     Field(discriminator="type"),
 ]
 
@@ -566,6 +575,12 @@ class TraceDisplay(_Model):
 # ---------------------------------------------------------- AI interpretation
 
 class AiDisplay(_Model):
+    enabled: bool = Field(True, description="Master switch for everything AI draws: chips, "
+                                            "certainty, trace annotations, explain links. A screen "
+                                            "can override it locally (the AI On/Off button).")
+    show_trace_annotations: bool = Field(True, description="Brackets and flags on traces saying what "
+                                                           "the AI saw there and why.")
+    show_explain_link: bool = Field(True, description="A 'Why?' tap on each finding.")
     show_row_chips: bool = True
     show_confidence: bool = True
     highlight_style: Literal["pill", "underline", "glow"] = "pill"
@@ -581,7 +596,7 @@ class CertaintyDisplay(_Model):
 
     metric: CertaintyMetricId = "prediction_interval"
     event_metric: CertaintyMetricId = "calibrated_probability"
-    finding_metric: CertaintyMetricId = "calibrated_probability"
+    finding_metric: CertaintyMetricId = "evidence_agreement"
     display: Literal[
         "percent", "natural-frequency", "interval", "badge", "bars", "opacity", "dash-density",
     ] = "percent"

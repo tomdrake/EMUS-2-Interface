@@ -13,7 +13,7 @@ tapping a row, and oxygen recorded as flow plus device.
 
 | File | Build |
 |---|---|
-| `app/sources/simulator.py` | `scenario_values`, `synth_ecg`, `synth_pleth`, `synth_resp`, `SimulatorSource`. Deterministic for a given seed. |
+| `app/sources/simulator.py` | `scenario_values`, `synth_ecg`, `synth_pleth`, `synth_resp`, `add_artefact` are **done** (used by `app/examples.py`). Still to build: `SimulatorSource`, playing them in real time. Deterministic for a given seed. |
 | `app/routers/patients.py` | patients list/detail, trend, oxygen get/post, alarm-limit put/delete (the M2 routes only). |
 | `app/routers/stream.py` | WebSocket fan-out (one source per patient, many screens), demo controls. |
 | `app/routers/alarms.py` | state, silence, unsilence, acknowledge, history. |

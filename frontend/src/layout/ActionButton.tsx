@@ -14,6 +14,7 @@ export function runAction(design: Design, action: Action): void {
   else if (r.kind === "menu") ui.showMenu(r.menu);
   else if (r.kind === "sheet") ui.showSheet(r.sheet);
   else if (r.kind === "theme") ui.toggleMode();
+  else if (r.kind === "ai") ui.toggleAi();
   // 'silence' is handled by SilenceButton itself.
 }
 
@@ -27,6 +28,7 @@ export function ActionButton({ button, where, showLabel }:
   const screenId = useUi((s) => s.screenId);
   const openMenu = useUi((s) => s.openMenu);
   const mode = useUi((s) => s.mode) ?? design.theme.mode;
+  const aiOn = useUi((s) => s.aiOverride) ?? design.ai.enabled;
 
   if (button.action.type === "silence-alarms") {
     return <SilenceButton tab={button} showLabel={showLabel} where={where} />;
@@ -34,11 +36,15 @@ export function ActionButton({ button, where, showLabel }:
   const r = resolveAction(design, button.action);
   const active = (r.kind === "screen" && r.screenId === screenId)
     || (r.kind === "menu" && openMenu?.id === r.menu.id);
-  const text = r.kind === "theme" ? (mode === "dark" ? "Light" : "Dark") : button.label;
+  const text = r.kind === "theme" ? (mode === "dark" ? "Light" : "Dark")
+    : r.kind === "ai" ? (aiOn ? "AI On" : "AI Off") : button.label;
   return (
     <button type="button" className={`${where === "tab" ? "tab" : "topbtn"}${active ? " is-active" : ""}`}
             data-testid={`${where}-${button.id}`} aria-current={active ? "page" : undefined}
-            aria-label={r.kind === "theme" ? `Switch to ${text.toLowerCase()} theme` : button.label}
+            aria-label={r.kind === "theme" ? `Switch to ${text.toLowerCase()} theme`
+              : r.kind === "ai" ? `AI interpretation is ${aiOn ? "on" : "off"}. Tap to turn ${aiOn ? "off" : "on"}`
+                : button.label}
+            aria-pressed={r.kind === "ai" ? aiOn : undefined}
             style={button.colour ? { color: button.colour } : undefined}
             onClick={() => (active && r.kind === "menu"
               ? useUi.getState().showMenu(null) : runAction(design, button.action))}>

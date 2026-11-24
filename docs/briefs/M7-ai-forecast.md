@@ -14,8 +14,8 @@ model is connected; the point of this milestone is the interface and the contrac
 
 | File | Build |
 |---|---|
-| `app/ai/certainty.py` | One builder per registry metric, normalised as documented in the module. |
-| `app/ai/interpretation.py` | `ScenarioInterpretation`, `RuleInterpretation`, `describe_resolved`. |
+| `app/ai/certainty.py` | **Done**: one builder per registry metric, normalised as documented in the module. |
+| `app/ai/interpretation.py` | `describe_resolved` is **done**. `app/examples.py` already reads the synthetic ECG with a transparent rule (`analyse_ecg`, `classify_rhythm`) and produces findings with evidence, reasons and certainty; M7 moves that behind `ScenarioInterpretation` and `RuleInterpretation` and serves it from the findings routes. |
 | `app/ai/forecaster.py` | `PlaceholderForecaster`, `HttpCausalModelProvider`. |
 | `app/routers/findings.py`, `predictions.py` | The stubbed routes. |
 | stream | Send `FindingsMessage` when findings change. |

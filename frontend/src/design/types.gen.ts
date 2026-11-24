@@ -50,15 +50,27 @@ export interface Design {
  * via the `definition` "AiDisplay".
  */
 export interface AiDisplay {
+  /**
+   * Master switch for everything AI draws: chips, certainty, trace annotations, explain links. A screen can override it locally (the AI On/Off button).
+   */
+  enabled: boolean;
   highlight_style: "pill" | "underline" | "glow";
   min_confidence: number;
   resolved_window_hours: number;
   show_confidence: boolean;
   /**
+   * A 'Why?' tap on each finding.
+   */
+  show_explain_link: boolean;
+  /**
    * e.g. 'Last run of AF 2 h 14 min ago'.
    */
   show_resolved: boolean;
   show_row_chips: boolean;
+  /**
+   * Brackets and flags on traces saying what the AI saw there and why.
+   */
+  show_trace_annotations: boolean;
 }
 /**
  * Design-level default limits. Per-patient overrides are patient data.
@@ -371,7 +383,7 @@ export interface Menu {
  * via the `definition` "MenuItem".
  */
 export interface MenuItem {
-  action: ScreenAction | SheetAction | SilenceAction | SettingsAction | ThemeToggleAction;
+  action: ScreenAction | SheetAction | SilenceAction | SettingsAction | ThemeToggleAction | AiToggleAction;
   icon:
     | "monitor"
     | "chart"
@@ -478,6 +490,16 @@ export interface SettingsAction {
  */
 export interface ThemeToggleAction {
   type: "toggle-theme";
+}
+/**
+ * Turns every AI mark on this screen on or off (interpretation chips, certainty, trace
+ * annotations). A local preference of the screen; it does not create a design version.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "AiToggleAction".
+ */
+export interface AiToggleAction {
+  type: "toggle-ai";
 }
 /**
  * The notification ticker: the one place alarms and monitoring problems are listed.
@@ -1092,7 +1114,7 @@ export interface TabBar {
  * via the `definition` "Button".
  */
 export interface Button {
-  action: ScreenAction | MenuAction | SheetAction | SilenceAction | SettingsAction | ThemeToggleAction;
+  action: ScreenAction | MenuAction | SheetAction | SilenceAction | SettingsAction | ThemeToggleAction | AiToggleAction;
   colour: string | null;
   icon:
     | "monitor"

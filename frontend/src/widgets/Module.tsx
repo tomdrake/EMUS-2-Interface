@@ -1,4 +1,7 @@
+import { AiCertainty, AiChip, AiExplain } from "@/ai/AiChip";
 import { useDesign, useUi } from "@/app/store";
+import type { ExampleSnapshot } from "@/contracts/types.gen";
+import { useSnapshot } from "@/examples/store";
 import { rowTitle } from "@/design/text";
 import { paramVar } from "@/design/theme";
 import type { Row } from "@/design/types";
@@ -7,14 +10,15 @@ import { RowStatus, Tile, type TileValue } from "@/safety/Tile";
 import { TraceFrame } from "@/traces/TraceFrame";
 
 /** The values a row's tile holds, primary first. Blood pressure reads as one value, "120/80 (93)". */
-export function tileValues(row: Row): TileValue[] {
+export function tileValues(row: Row, numerics?: ExampleSnapshot["numerics"]): TileValue[] {
   const n = row.numerics as string[];
+  const at = (p: string) => (numerics as Record<string, number | string | null | undefined> | undefined)?.[p];
   if (n.includes("bp_sys") && n.includes("bp_dia")) {
-    return [{ parameter: "bp_sys", name: "BP",
-              extra: [{ separator: "/" }, ...(n.includes("bp_mean")
-                ? [{ separator: " ", wrap: [" (", ")"] as [string, string] }] : [])] }];
+    return [{ parameter: "bp_sys", name: "BP", value: at("bp_sys"),
+              extra: [{ separator: "/", value: at("bp_dia") }, ...(n.includes("bp_mean")
+                ? [{ separator: " ", wrap: [" (", ")"] as [string, string], value: at("bp_mean") }] : [])] }];
   }
-  return n.map((parameter) => ({ parameter }));
+  return n.map((parameter) => ({ parameter, value: at(parameter) }));
 }
 
 /**
@@ -41,16 +45,33 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
   const spec = registry.module_sizes[placement.size] ?? registry.module_sizes.row!;
   const drawsTrace = row.trace === "waveform" || row.trace === "trend";
   const vis = visibleContent(spec, row.content, drawsTrace);
-  const values = tileValues(row);
+  const snapshot = useSnapshot();
+  const values = tileValues(row, snapshot?.numerics);
   const colour = row.colour ?? (row.parameter ? paramVar(row.parameter) : "var(--c-text)");
   const title = rowTitle(row, design, registry);
   const flow = spec.flow;
 
+  const example = snapshot ? <span className="example-mark" data-testid={`example-${row.id}`}>Example</span> : null;
+  // A single-height row has no room under its trace: its certainty rides in the chip. Taller
+  // modules and the double-height row show certainty (and the why line) as their own block.
+  const roomForBlock = flow !== "row" || placement.rowSpan > 1;
+  const blockCertainty = vis.certainty && roomForBlock;
+  const blockExplain = vis.explain && roomForBlock;
+  const chip = vis.ai ? <AiChip row={row} withCertainty={blockCertainty} /> : null;
+  // A stacked module (tall, large) has no room beside its title: its chip sits in the block under the trace.
+  const chipInBlock = flow === "stack";
+  const extras = (
+    <>
+      {blockCertainty && <AiCertainty row={row} />}
+      {blockExplain && <AiExplain row={row} />}
+    </>
+  );
   const head = (
     <div className="row-head">
       <span className="row-label" data-testid={`row-label-${row.id}`}>
         {title.name}{title.method && <span className="row-method"> - {title.method}</span>}
       </span>
+      {example}
       {row.parameter && <RowStatus parameter={row.parameter} />}
     </div>
   );
@@ -61,6 +82,7 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
   const titleOnly = !values.length && (
     <div className="module-title"><span className="row-label">{title.name}</span>
       {row.parameter && <RowStatus parameter={row.parameter} />}</div>);
+  const corner = flow === "side" || flow === "tile-only" ? example : null;
 
   return (
     <div className={`module module-${flow} size-${placement.size}${flow === "row" ? " row" : ""}`}
@@ -75,24 +97,30 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
               onClick={() => useUi.getState().showSheet("alarm-limits", row.id)} />
       {flow === "row" && (
         <>
-          <div className="row-trace">{head}{trace}</div>
+          <div className="row-trace">{head}{chip}{trace}{extras}</div>
           <div className="row-tiles">{tile}</div>
         </>
       )}
       {flow === "stack" && (
         <>
           {head}
+          {!chipInBlock && chip}
           <div className="module-tile">{tile}</div>
           <div className="module-trace">{trace}</div>
+          {(blockCertainty || blockExplain || (chipInBlock && chip)) && (
+            <div className="module-ai">{chipInBlock && chip}{extras}</div>
+          )}
         </>
       )}
       {flow === "side" && (
         <>
           <div className="module-tile">{titleOnly || tile}</div>
           <div className="module-trace">{trace}</div>
+          {chip}
+          {corner}
         </>
       )}
-      {flow === "tile-only" && <div className="module-tile">{titleOnly || tile}</div>}
+      {flow === "tile-only" && <><div className="module-tile">{titleOnly || tile}</div>{corner}</>}
     </div>
   );
 }

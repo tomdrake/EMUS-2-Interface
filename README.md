@@ -93,6 +93,15 @@ structures. A few things cannot be designed away: the patient's name, the clock,
 the alarm-silence button (always two minutes), the settings button, the
 notification box, and the warnings that say the monitoring itself has a problem.
 
+## Example data and AI
+
+With no live feed yet, the monitor shows **example data**: scripted scenarios at a chosen
+minute (Settings, Demo Controls), with synthesised ECG, pleth and respiration, labelled
+EXAMPLE DATA everywhere. The AI chip on each module says what the interpretation found and
+how sure it is; brackets on the trace say why. The interpretation is a short, readable
+rule over the synthetic signal (not a clinical model) so each finding can be explained.
+The AI button in the top bar turns every AI mark off for the screen.
+
 ## Data and standards
 
 - The monitor is a grid of modules: a small square, a tile (number and trend), tall, wide,

@@ -852,17 +852,7 @@
         },
         "highlights": {
           "items": {
-            "maxItems": 2,
-            "minItems": 2,
-            "prefixItems": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "string"
-              }
-            ],
-            "type": "array"
+            "$ref": "#/$defs/Highlight"
           },
           "title": "Highlights",
           "type": "array"
@@ -1405,17 +1395,7 @@
         },
         "values": {
           "items": {
-            "maxItems": 2,
-            "minItems": 2,
-            "prefixItems": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "number"
-              }
-            ],
-            "type": "array"
+            "$ref": "#/$defs/TimedValue"
           },
           "title": "Values",
           "type": "array"
@@ -1652,6 +1632,25 @@
         "intervals"
       ],
       "title": "ForecastPoint",
+      "type": "object"
+    },
+    "Highlight": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "minute": {
+          "title": "Minute",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "minute",
+        "label"
+      ],
+      "title": "Highlight",
       "type": "object"
     },
     "ImageEvidence": {
@@ -3245,6 +3244,26 @@
       "title": "SuggestedCause",
       "type": "object"
     },
+    "TimedValue": {
+      "additionalProperties": false,
+      "description": "A value at a time, in minutes relative to now (negative = past).",
+      "properties": {
+        "t": {
+          "title": "T",
+          "type": "number"
+        },
+        "v": {
+          "title": "V",
+          "type": "number"
+        }
+      },
+      "required": [
+        "t",
+        "v"
+      ],
+      "title": "TimedValue",
+      "type": "object"
+    },
     "TraceMark": {
       "additionalProperties": false,
       "description": "A bracket or flag drawn on a strip to say what the AI saw there.",
@@ -3400,17 +3419,7 @@
         },
         "points": {
           "items": {
-            "maxItems": 2,
-            "minItems": 2,
-            "prefixItems": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "number"
-              }
-            ],
-            "type": "array"
+            "$ref": "#/$defs/TimedValue"
           },
           "title": "Points",
           "type": "array"

@@ -232,6 +232,7 @@ _TOP_BUTTONS: list[dict] = [
      "action": {"type": "sheet", "sheet": "discharge-patient"}},
     {"id": "theme", "label": "Dark / Light", "icon": "theme",
      "action": {"type": "toggle-theme"}},
+    {"id": "ai", "label": "AI", "icon": "ai", "action": {"type": "toggle-ai"}},
     {"id": "settings", "label": "Settings", "icon": "settings",
      "action": {"type": "open-settings"}},
 ]
@@ -246,6 +247,7 @@ _MENUS: list[dict] = [
          "action": {"type": "sheet", "sheet": "news2-variant"}},
         {"id": "home", "label": "Choose Home Screen", "icon": "layout",
          "action": {"type": "sheet", "sheet": "home-screen"}},
+        {"id": "ai-toggle", "label": "AI On / Off", "icon": "ai", "action": {"type": "toggle-ai"}},
     ]},
     {"id": "patient", "title": "Patient", "items": [
         {"id": "details", "label": "Patient Details", "icon": "patient",
@@ -286,8 +288,7 @@ _MENUS: list[dict] = [
     ]},
 ]
 
-_TOP_BAR = {"fields": ["name", "dob", "age", "nhs_number", "bed", "oxygen", "news2",
-                       "alarm_status", "date", "clock"],
+_TOP_BAR = {"fields": ["name", "nhs_number", "bed", "alarm_status", "clock"],
             "buttons": _TOP_BUTTONS}
 
 _ALARM_DEFAULTS = {

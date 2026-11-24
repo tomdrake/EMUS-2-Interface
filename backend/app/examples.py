@@ -30,8 +30,8 @@ from app.models.clinical import (
     WaveformEvidence,
 )
 from app.models.example import (
-    ExampleScenarioInfo, ExampleSnapshot, ExampleStrip, FindingData, News2Now, TraceMark,
-    TrendSeries,
+    ExampleScenarioInfo, ExampleSnapshot, ExampleStrip, FindingData, Highlight, News2Now,
+    TimedValue, TraceMark, TrendSeries,
 )
 from app.scenarios import SCENARIOS
 from app import signal_quality
@@ -39,10 +39,11 @@ from app.sources.simulator import (
     add_artefact, scenario_values, synth_ecg, synth_pleth, synth_resp,
 )
 
-ECG_S, PLETH_S, RESP_S = 8.0, 8.0, 20.0
+ECG_S, PLETH_S, RESP_S = 30.0, 30.0, 30.0   # live strips; long enough to fill a row at any sweep speed
+READ_S = 8.0                                  # the rule reads the most recent 8 s
 HORIZONS = (60, 120, 240, 360)
-TREND_MINUTES = 240
-TREND_STEP = 5
+TREND_MINUTES = 1440
+TREND_STEP = 10
 
 MODEL = ModelInfo(
     name="Transparent rules (example)", version="0.1", placeholder=True,
@@ -246,11 +247,16 @@ def _ecg_strip(sc_id: str, minute: float, faults: list[dict], seconds: float = E
     samples = synth_ecg(rhythm, rate, hz, n, t0, seed)
     if use_faults:
         samples = _tag(samples, faults, "anne-chest", hz, t0, seed)
-    q = _quality("ecg", samples, hz)
-    feats = analyse_ecg(samples, hz)
+    # The rule reads, and the quality check grades, the most recent READ_S seconds.
+    read = min(seconds, READ_S)
+    tail = samples[-int(read * hz):]
+    q = _quality("ecg", tail, hz)
+    feats = analyse_ecg(tail, hz)
     reading = classify_rhythm(feats) if q.grade == "good" else None
+    shift = seconds - read
     marks = _technical_mark(q, seconds) if q.grade != "good" else \
-        _ecg_marks(reading or "", feats, seconds, fid)
+        [m.model_copy(update={"start_s": m.start_s + shift, "end_s": m.end_s + shift})
+         for m in _ecg_marks(reading or "", feats, read, fid)]
     return ExampleStrip(waveform="ecg", hz=hz, seconds=seconds, ends_s_before_now=ends_before,
                         samples=samples, quality=q, reading=reading, marks=marks)
 
@@ -266,7 +272,7 @@ def _simple_strip(waveform: str, sc_id: str, minute: float, faults: list[dict], 
     else:
         samples = synth_resp(v["rr"], hz, n, t0)
     samples = _tag(samples, faults, device, hz, t0, seed)
-    q = _quality(waveform, samples, hz)
+    q = _quality(waveform, samples[-int(min(seconds, READ_S) * hz):], hz)
     return ExampleStrip(waveform=waveform, hz=hz, seconds=seconds, samples=samples, quality=q,
                         marks=_technical_mark(q, seconds))
 
@@ -326,11 +332,25 @@ def _features_text(f: EcgFeatures) -> dict[str, str]:
             "Beats measured": str(len(f.r_times))}
 
 
+def _tail(strip: ExampleStrip, seconds: float) -> ExampleStrip:
+    """The last ``seconds`` of a strip, with its marks moved to match (the evidence the Why sheet draws)."""
+    if strip.seconds <= seconds:
+        return strip
+    shift = strip.seconds - seconds
+    marks = [m.model_copy(update={"start_s": max(0.0, m.start_s - shift), "end_s": max(0.0, m.end_s - shift)})
+             for m in strip.marks if m.end_s > shift]
+    return strip.model_copy(update={"samples": strip.samples[-int(seconds * strip.hz):],
+                                    "seconds": seconds, "marks": marks})
+
+
 def _rhythm_finding(sc_id: str, span: dict, minute: float, now: datetime, strip: ExampleStrip,
                     active: bool, baseline: ExampleStrip | None):
+    fid = f"{sc_id}-{span['rhythm']}-{span['from_min']}"
+    for m in strip.marks:
+        m.finding_id = fid
+    strip = _tail(strip, READ_S)
     reading = strip.reading or "unclear"
     f = analyse_ecg(strip.samples, strip.hz)
-    fid = f"{sc_id}-{span['rhythm']}-{span['from_min']}"
     items, rule = _rhythm_reasons(reading, f)
     reasons = _weights(items)
     agree, wins = _windows_agree(strip.samples, strip.hz, reading)
@@ -352,13 +372,35 @@ def _rhythm_finding(sc_id: str, span: dict, minute: float, now: datetime, strip:
             caption=f"{label}: " + (", ".join(m.label for m in strip.marks) or "no marks"))],
         model=MODEL, generated_at=now)
     ago = int(max(0, (now - onset).total_seconds() // 60))
-    finding.summary = (f"{label} now, started {ago} min ago" if active
+    finding.summary = ((f"{label} now, just started" if ago < 1 else f"{label} now, started {ago} min ago") if active
                        else describe_resolved(finding, now))
-    for m in strip.marks:
-        m.finding_id = fid
     data = FindingData(finding_id=fid, strip=strip, baseline_strip=baseline,
                        rr_intervals_s=[round(x, 3) for x in f.rr],
                        features=_features_text(f), rule=rule, reasons=reasons)
+    return finding, data
+
+
+def _sinus_tach_finding(sc_id: str, strip: ExampleStrip, f: EcgFeatures, now: datetime):
+    fid = f"{sc_id}-sinus-tachycardia"
+    ev = _tail(strip, READ_S)
+    agree, wins = _windows_agree(ev.samples, ev.hz, "sinus")
+    items = [(f"Rate {f.rate:.0f}/min (rule: 100 or more)", True, 1.0),
+             (f"Regular R-R (varies {f.rr_cv * 100:.0f}%)", f.rr_cv <= 0.12, 1.0),
+             ("QRS narrow", f.qrs_ms < 100, 1.0)]
+    finding = Finding(
+        id=fid, parameter="hr", domain="rhythm", code="sinus-tachycardia", label="Fast regular rhythm",
+        status="active", onset=now - timedelta(seconds=READ_S), severity="info",
+        summary=f"Fast regular rhythm, {f.rate:.0f}/min",
+        explanation=f"Rhythm is regular with narrow QRS and a rate of {f.rate:.0f}/min. "
+                    "The cause is not read from the ECG: check the patient.",
+        certainty=_certainty_rhythm(ev, agree, wins, (sum(1 for _, ok, _m in items if ok), len(items))),
+        evidence=[WaveformEvidence(waveform="ecg", start=now - timedelta(seconds=READ_S), end=now, marks=[],
+                                   caption="Fast regular rhythm")],
+        model=MODEL, generated_at=now)
+    data = FindingData(finding_id=fid, strip=ev, rr_intervals_s=[round(x, 3) for x in f.rr],
+                       features=_features_text(f),
+                       rule="Fast regular rhythm when the rate is 100 or more, R-R varies by 12% or less and the QRS is narrow.",
+                       reasons=_weights(items))
     return finding, data
 
 
@@ -384,12 +426,15 @@ def _poor_trace_finding(sc_id: str, strip: ExampleStrip, now: datetime):
 
 
 def _trend_points(sc_id: str, parameter: str, minute: float, minutes: int = TREND_MINUTES,
-                  step: int = TREND_STEP) -> list[tuple[float, float]]:
+                  step: int = TREND_STEP) -> list[TimedValue]:
     out = []
+    start = SCENARIOS[sc_id]["start_min"]
     for off in range(-minutes, 1, step):
+        if minute + off < start:
+            continue          # nothing was scripted before the scenario began
         v = scenario_values(sc_id, minute + off).get(parameter)
         if isinstance(v, (int, float)):
-            out.append((float(off), round(v, 1)))
+            out.append(TimedValue(t=float(off), v=round(v, 1)))
     return out
 
 
@@ -402,7 +447,7 @@ def _trend_finding(sc_id, minute, now, *, code, label, parameter, domain, severi
         explanation=explanation,
         certainty=[certainty.build("evidence_agreement", agreeing=agree, considered=considered),
                    certainty.build("input_quality", present=quality)],
-        evidence=[TrendEvidence(parameter=parameter, start=now - timedelta(minutes=TREND_MINUTES), end=now,
+        evidence=[TrendEvidence(parameter=parameter, start=now - timedelta(minutes=240), end=now,
                                 caption=label)],
         model=MODEL, generated_at=now)
     data = FindingData(finding_id=fid, features=rows, rule=explanation.split(". ")[0] + ".",
@@ -434,17 +479,20 @@ def _vitals_findings(sc, minute, now, v, quality: dict[str, float]):
             agree=int(spo2 < low) + int(drop >= 3), considered=2, quality=quality.get("spo2", 1.0)))
     rr = v["rr"]
     rr_before = scenario_values(sc_id, minute - 120)["rr"]
-    if rr >= 24 and rr - rr_before >= 3:
+    if rr >= 24:
+        rise = rr - rr_before
+        rising = rise >= 3
         out.append(_trend_finding(
-            sc_id, minute, now, code="fast-breathing", label="Fast and rising breathing rate",
+            sc_id, minute, now, code="fast-breathing",
+            label="Fast and rising breathing rate" if rising else "Fast breathing rate",
             parameter="rr", domain="respiration", severity="critical" if rr >= 27 else "warning",
-            summary=f"RR {rr:.0f}/min, up from {rr_before:.0f} two hours ago",
-            explanation=f"Rule: RR 24 or more and up 3 or more in two hours. It is {rr:.0f}/min now "
-                        f"and was {rr_before:.0f}/min two hours ago.",
+            summary=(f"RR {rr:.0f}/min, up from {rr_before:.0f} two hours ago" if rising
+                     else f"RR {rr:.0f}/min, 24 or more"),
+            explanation=f"Rule: RR 24 or more. It is {rr:.0f}/min now and was {rr_before:.0f}/min two hours ago.",
             rows={"RR now": f"{rr:.0f} /min", "RR two hours ago": f"{rr_before:.0f} /min"},
-            reasons=_weights([("RR 24 or more", True, (rr - 24) / 10),
-                              (f"Up {rr - rr_before:.0f} in two hours", True, (rr - rr_before) / 10)]),
-            agree=2, considered=2, quality=quality.get("rr", 1.0)))
+            reasons=_weights([("RR 24 or more", True, 1.0),
+                              (f"Up {rise:.0f} in two hours", rising, 1.0)]),
+            agree=1 + int(rising), considered=2, quality=quality.get("rr", 1.0)))
     sys_, sys_before = v["bp_sys"], scenario_values(sc_id, minute - 180)["bp_sys"]
     if sys_ < 105 and sys_before - sys_ >= 15:
         out.append(_trend_finding(
@@ -494,7 +542,7 @@ def _lab_findings(sc, minute, now):
                             rule="Latest result at least 25% above the first this admission.",
                             reasons=[Contributor(factor=f"{series[0]['value']:g} to {series[-1]['value']:g}",
                                                  direction="raises", weight=1.0)],
-                            values=[(float(x["at_min"] - minute), x["value"]) for x in series])))
+                            values=[TimedValue(t=float(x["at_min"] - minute), v=x["value"]) for x in series])))
     k = sorted([x for x in labs if x["test"] == "k"], key=lambda x: x["at_min"])
     if k and (k[-1]["value"] < 2.5 or k[-1]["value"] > 6.5):
         fid = f"{sc['id']}-k-critical"
@@ -508,7 +556,7 @@ def _lab_findings(sc, minute, now):
             FindingData(finding_id=fid, features={"Latest": f"{k[-1]['value']:g} mmol/L"},
                         rule="Potassium under 2.5 or over 6.5 mmol/L is critical.",
                         reasons=[Contributor(factor=f"{k[-1]['value']:g} mmol/L", direction="raises", weight=1.0)],
-                        values=[(float(x["at_min"] - minute), x["value"]) for x in k])))
+                        values=[TimedValue(t=float(x["at_min"] - minute), v=x["value"]) for x in k])))
     return out
 
 
@@ -636,7 +684,9 @@ def list_scenarios() -> list[ExampleScenarioInfo]:
     for sc in SCENARIOS.values():
         hl: list[tuple[int, str]] = [(0, "Now")]
         for r in sc["rhythms"]:
-            hl.append((r["from_min"] + 1, f"{SHORT.get(r['rhythm'], r['rhythm'])} starts"))
+            # A run shorter than two minutes can only be caught at its first minute.
+            at = r["from_min"] if r["to_min"] - r["from_min"] < 2 else r["from_min"] + 1
+            hl.append((at, f"{SHORT.get(r['rhythm'], r['rhythm'])} starts"))
         for f in sc.get("faults", []):
             hl.append((int(f["at_min"]) + 1, registry.DEMO_FAULTS[f["fault"]]))
         for e in sc["events"]:
@@ -645,7 +695,7 @@ def list_scenarios() -> list[ExampleScenarioInfo]:
         out.append(ExampleScenarioInfo(
             id=sc["id"], title=sc["title"], teaching_point=sc["teaching_point"],
             start_min=sc["start_min"], end_min=sc["end_min"],
-            highlights=sorted(set(hl))))
+            highlights=[Highlight(minute=m, label=l) for m, l in sorted(set(hl))]))
     return out
 
 
@@ -772,7 +822,7 @@ def snapshot(scenario_id: str, minute: float, now: datetime | None = None) -> Ex
     data: dict[str, FindingData] = {}
     ecg = by_wave.get("ecg")
     sinus_from = min((r["from_min"] for r in sc["rhythms"]), default=minute) - 30
-    baseline = _ecg_strip(scenario_id, sinus_from, [], ends_before=0, seed=3,
+    baseline = _ecg_strip(scenario_id, sinus_from, [], seconds=READ_S, ends_before=0, seed=3,
                           rhythm_override="sinus", use_faults=False)
     for span in sc["rhythms"]:
         if span["from_min"] > minute:
@@ -784,7 +834,7 @@ def snapshot(scenario_id: str, minute: float, now: datetime | None = None) -> Ex
             strip = ecg
         else:
             mid = (span["from_min"] + span["to_min"]) / 2
-            strip = _ecg_strip(scenario_id, mid, [], ends_before=0, seed=5,
+            strip = _ecg_strip(scenario_id, mid, [], seconds=READ_S, ends_before=0, seed=5,
                                rhythm_override=span["rhythm"], use_faults=False)
             strip.ends_s_before_now = (minute - mid) * 60
         if strip.reading in (None, "sinus", "unclear"):
@@ -792,6 +842,12 @@ def snapshot(scenario_id: str, minute: float, now: datetime | None = None) -> Ex
         f, d = _rhythm_finding(scenario_id, span, minute, now, strip, active_now, baseline)
         findings.append(f)
         data[f.id] = d
+    if ecg is not None and ecg.reading == "sinus":
+        feats = analyse_ecg(ecg.samples[-int(READ_S * ecg.hz):], ecg.hz)
+        if feats.rate >= 100:
+            f, d = _sinus_tach_finding(scenario_id, ecg, feats, now)
+            findings.append(f)
+            data[f.id] = d
     for s in strips:
         if s.quality.grade != "good" and s.quality.issue != "flatline":
             f, d = _poor_trace_finding(scenario_id, s, now)

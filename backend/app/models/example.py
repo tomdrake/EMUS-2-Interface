@@ -24,6 +24,18 @@ from app.models.clinical import (
 from app.models.design import ParameterId, WaveformId
 
 
+class TimedValue(_Model):
+    """A value at a time, in minutes relative to now (negative = past)."""
+
+    t: float
+    v: float
+
+
+class Highlight(_Model):
+    minute: int
+    label: str
+
+
 class TraceMark(_Model):
     """A bracket or flag drawn on a strip to say what the AI saw there."""
 
@@ -67,14 +79,14 @@ class FindingData(_Model):
     #: Reasons with weights summing to 1.
     reasons: list[Contributor] = Field(default_factory=list)
     #: Values behind a trend or lab finding, [minutes before now, value].
-    values: list[tuple[float, float]] = Field(default_factory=list)
+    values: list[TimedValue] = Field(default_factory=list)
 
 
 class TrendSeries(_Model):
     parameter: ParameterId
     unit: str
     #: [minutes relative to now (negative = past), value]
-    points: list[tuple[float, float]]
+    points: list[TimedValue]
     #: Device behind the numbers and the mean signal quality over the window.
     device_id: str | None = None
     quality: float | None = Field(None, ge=0, le=1)
@@ -87,7 +99,7 @@ class ExampleScenarioInfo(_Model):
     start_min: int
     end_min: int
     #: Minutes worth jumping to, with a short reason ('AF starts', 'VT').
-    highlights: list[tuple[int, str]] = Field(default_factory=list)
+    highlights: list[Highlight] = Field(default_factory=list)
 
 
 class News2Now(_Model):

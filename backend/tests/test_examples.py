@@ -16,7 +16,7 @@ def test_scenario_list_has_every_scenario_and_highlights(client):
     body = client.get("/api/examples").json()
     assert {s["id"] for s in body} == set(SCENARIOS)
     af = next(s for s in body if s["id"] == "scn-af")
-    assert any("AF" in label for _, label in af["highlights"])
+    assert any("AF" in h["label"] for h in af["highlights"])
     assert client.get("/api/examples/nope").status_code == 404
 
 
@@ -131,7 +131,30 @@ def test_forecast_has_intervals_certainty_and_reasons(client):
 def test_trends_and_every_metric_value_is_in_range(client):
     s = snap(client, "scn-pneumonia", 0)
     hr = s["trends"]["hr"]["points"]
-    assert hr[0][0] == -240 and hr[-1][0] == 0 and hr[0][1] < hr[-1][1]
+    assert hr[0]["t"] == -1440 and hr[-1]["t"] == 0 and hr[0]["v"] < hr[-1]["v"]
+    short = snap(client, "scn-technical", 0)["trends"]["hr"]["points"]
+    assert short[0]["t"] == -240, "no points from before the scenario began"
     for f in s["findings"]:
         assert all(0 <= c["score"] <= 1 for c in f["certainty"])
         assert {c["metric"] for c in f["certainty"]} <= set(registry.CERTAINTY_METRIC_IDS)
+
+
+def test_a_high_number_is_never_met_with_nothing_flagged(client):
+    """The AI chip must not say 'nothing flagged' beside an RR of 29 or a fast regular rhythm."""
+    late = snap(client, "scn-pneumonia", 360)
+    codes = {f["code"]: f for f in late["findings"]}
+    assert codes["fast-breathing"]["parameter"] == "rr" and codes["fast-breathing"]["severity"] == "critical"
+    assert codes["desaturation"]["parameter"] == "spo2"
+    tach = codes["sinus-tachycardia"]
+    assert tach["parameter"] == "hr" and "not read from the ECG" in tach["explanation"]
+    assert snap(client, "scn-stable", 0)["findings"] == [] or all(
+        f["domain"] == "lab" for f in snap(client, "scn-stable", 0)["findings"])
+
+
+def test_certainty_values_come_from_what_the_rule_measured(client):
+    s = snap(client, "scn-af", 20)
+    active = next(f for f in s["findings"] if f["code"] == "af" and f["status"] == "active")
+    by = {c["metric"]: c for c in active["certainty"]}
+    q = next(x for x in s["strips"] if x["waveform"] == "ecg")["quality"]["sqi"]
+    assert by["input_quality"]["score"] == pytest.approx(q, abs=0.001), "data quality is the trace's own grade"
+    assert by["sensitivity"]["raw"]["perturbations"] == 3, "stability is re-reading three windows of the strip"

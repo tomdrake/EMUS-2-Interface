@@ -1,3 +1,4 @@
+import type { ExampleScenarioInfo, ExampleSnapshot } from "@/contracts/types.gen";
 import type { Design, StoredDesign } from "@/design/types";
 
 /** Thrown for any non-2xx response. `milestone` is set for scaffolded (501) routes. */
@@ -93,6 +94,9 @@ export const api = {
   themePresets: () => get<Record<string, Design["theme"]>>("/api/theme-presets"),
   previewPatch: (id: string, ops: unknown[]) =>
     post<PatchPreview>(`/api/designs/${id}/preview-patch`, { ops }),
+  examples: () => get<ExampleScenarioInfo[]>("/api/examples"),
+  example: (scenario: string, minute: number) =>
+    get<ExampleSnapshot>(`/api/examples/${scenario}?minute=${minute}`),
   // Later milestones add their calls here (patients, stream, alarms, chat, ...).
   silence: (patientId: string, by = "") =>
     post<{ silenced_until: string | null }>(`/api/patients/${patientId}/alarms/silence`, { by }),

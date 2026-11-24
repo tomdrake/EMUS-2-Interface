@@ -3,6 +3,12 @@
     "AiDisplay": {
       "additionalProperties": false,
       "properties": {
+        "enabled": {
+          "default": true,
+          "description": "Master switch for everything AI draws: chips, certainty, trace annotations, explain links. A screen can override it locally (the AI On/Off button).",
+          "title": "Enabled",
+          "type": "boolean"
+        },
         "highlight_style": {
           "default": "pill",
           "enum": [
@@ -32,6 +38,12 @@
           "title": "Show Confidence",
           "type": "boolean"
         },
+        "show_explain_link": {
+          "default": true,
+          "description": "A 'Why?' tap on each finding.",
+          "title": "Show Explain Link",
+          "type": "boolean"
+        },
         "show_resolved": {
           "default": true,
           "description": "e.g. 'Last run of AF 2 h 14 min ago'.",
@@ -42,9 +54,18 @@
           "default": true,
           "title": "Show Row Chips",
           "type": "boolean"
+        },
+        "show_trace_annotations": {
+          "default": true,
+          "description": "Brackets and flags on traces saying what the AI saw there and why.",
+          "title": "Show Trace Annotations",
+          "type": "boolean"
         }
       },
       "required": [
+        "enabled",
+        "show_trace_annotations",
+        "show_explain_link",
         "show_row_chips",
         "show_confidence",
         "highlight_style",
@@ -105,6 +126,23 @@
         "include_resolved"
       ],
       "title": "AiSummaryWidget",
+      "type": "object"
+    },
+    "AiToggleAction": {
+      "additionalProperties": false,
+      "description": "Turns every AI mark on this screen on or off (interpretation chips, certainty, trace\nannotations). A local preference of the screen; it does not create a design version.",
+      "properties": {
+        "type": {
+          "const": "toggle-ai",
+          "default": "toggle-ai",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "AiToggleAction",
       "type": "object"
     },
     "AlarmDefault": {
@@ -264,6 +302,7 @@
               "screen": "#/$defs/ScreenAction",
               "sheet": "#/$defs/SheetAction",
               "silence-alarms": "#/$defs/SilenceAction",
+              "toggle-ai": "#/$defs/AiToggleAction",
               "toggle-theme": "#/$defs/ThemeToggleAction"
             },
             "propertyName": "type"
@@ -286,6 +325,9 @@
             },
             {
               "$ref": "#/$defs/ThemeToggleAction"
+            },
+            {
+              "$ref": "#/$defs/AiToggleAction"
             }
           ],
           "title": "Action"
@@ -420,7 +462,7 @@
           "type": "string"
         },
         "finding_metric": {
-          "default": "calibrated_probability",
+          "default": "evidence_agreement",
           "enum": [
             "prediction_interval",
             "conformal_interval",
@@ -1004,6 +1046,7 @@
               "screen": "#/$defs/ScreenAction",
               "sheet": "#/$defs/SheetAction",
               "silence-alarms": "#/$defs/SilenceAction",
+              "toggle-ai": "#/$defs/AiToggleAction",
               "toggle-theme": "#/$defs/ThemeToggleAction"
             },
             "propertyName": "type"
@@ -1023,6 +1066,9 @@
             },
             {
               "$ref": "#/$defs/ThemeToggleAction"
+            },
+            {
+              "$ref": "#/$defs/AiToggleAction"
             }
           ],
           "title": "Action"

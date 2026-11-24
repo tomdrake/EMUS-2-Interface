@@ -1,5 +1,11 @@
+import { useAiOn } from "@/ai/useAi";
 import { useDesign, useUi } from "@/app/store";
+import { useSnapshot } from "@/examples/store";
 import type { Row } from "@/design/types";
+
+import { AnnotationLayer } from "./AnnotationLayer";
+import { Spark, trendPath } from "./Spark";
+import { StripPath, stripWindow } from "./Strip";
 
 import {
   MIN_LABEL_HEIGHT_PX, gainText, niceTicks, thinTicks, trendRange, trendY, waveTransform,
@@ -31,6 +37,8 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
   const pxPerMm = useUi((s) => s.pxPerMm);
   const local = useUi((s) => s.xScale);
   const [ref, { w, h }] = useSize<HTMLDivElement>();
+  const snapshot = useSnapshot();
+  const aiOn = useAiOn(row) && design.ai.show_trace_annotations;
   const cfg = design.traces;
   const wanted = row.trace === "waveform" || row.trace === "trend";
   if (!wanted) return <div className="trace-area" ref={ref} data-testid={`trace-${row.id}`} />;
@@ -86,6 +94,13 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
           <text key="gain" className="trace-label trace-gain" data-testid={`trace-gain-${row.id}`}
                 x={x} y={h - 0.5} textAnchor="end">{gain}</text>);
       }
+      // The signal itself, at the same vertical scale as the marks above.
+      const strip = snapshot?.strips.find((s) => s.waveform === row.waveform);
+      if (strip && !mini) {
+        const win = stripWindow(strip, { x0: gutter + (cfg.show_calibration_bar && t.unitBarPx != null ? 30 : 2), x1: right, speedMmPerS: xs?.value ?? design.sweep.speed_mm_s, pxPerMm });
+        children.push(<StripPath key="signal" strip={strip} w={win} y={t.y} heightPx={h} rowId={row.id} />);
+        children.push(<AnnotationLayer key="marks" marks={strip.marks} w={win} height={h} aiOn={aiOn} rowId={row.id} />);
+      }
     } else if (row.trace === "trend" && row.parameter) {
       const p = registry.parameters[row.parameter]!;
       const range = trendRange(p);
@@ -102,7 +117,17 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
           children.push(<text key={`l${v}`} className="trace-label" x={GUTTER - 6} y={y + 3.5} textAnchor="end">{v}</text>);
         }
       });
+      const series = snapshot?.trends[row.parameter];
+      if (series && !mini && series.points.length > 1) {
+        const d = trendPath(series.points, gutter + 2, right, xs?.value ?? row.trend_window_min,
+                            (v) => trendY(v, range, h));
+        if (d) children.push(<path key="trend" className="trace-signal" data-testid={`trace-signal-${row.id}`} d={d} />);
+      }
     }
+    // Small modules: a spark of the item's trend in place of the full trace.
+    const sparkParam = row.parameter;
+    const spark = mini && sparkParam ? snapshot?.trends[sparkParam] : undefined;
+    if (spark) children.push(<Spark key="spark" points={spark.points} w={w} h={h} windowMin={Math.min(row.trend_window_min, 240)} rowId={row.id} />);
   }
 
   return (

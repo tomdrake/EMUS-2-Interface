@@ -103,7 +103,8 @@ def test_required_buttons_can_move_between_the_tab_bar_and_the_top_bar(icu_desig
 def test_default_top_bar_has_patient_theme_and_cog_buttons():
     for slug, d in validated_defaults().items():
         by_id = {b.id: b for b in d.top_bar.buttons}
-        assert list(by_id) == ["new-patient", "discharge", "theme", "settings"], slug
+        assert list(by_id) == ["new-patient", "discharge", "theme", "ai", "settings"], slug
+        assert by_id["ai"].action.type == "toggle-ai"
         assert by_id["settings"].icon == "settings" and by_id["settings"].action.type == "open-settings"
         assert by_id["theme"].action.type == "toggle-theme"
         assert by_id["new-patient"].action.sheet == "new-patient"

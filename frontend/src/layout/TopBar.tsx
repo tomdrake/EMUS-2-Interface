@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { useDesign, useUi } from "@/app/store";
+import { useSnapshot } from "@/examples/store";
 import { NotificationBox } from "@/safety/NotificationBox";
 
 import { ActionButton } from "./ActionButton";
@@ -47,6 +48,8 @@ export function TopBar() {
   const patientId = useUi((s) => s.patientId);
   const bar = design.top_bar;
   const now = useNow(bar.show_seconds);
+  const snapshot = useSnapshot();
+  const registry = useUi((s) => s.registry);
 
   const clock = now.toLocaleTimeString("en-GB", {
     hour: "2-digit", minute: "2-digit", second: bar.show_seconds ? "2-digit" : undefined,
@@ -59,14 +62,28 @@ export function TopBar() {
     consultant: "", alarm_status: "", oxygen: "", news2: "", allergies: "", weight: "",
   };
 
+  // With example data on, the patient fields come from the scripted patient; without it they say there is no feed.
+  const p = snapshot?.patient;
+  const ageYears = p?.birth_date ? Math.floor((Date.now() - new Date(p.birth_date).getTime()) / 31_557_600_000) : null;
+  const fromPatient: Partial<Record<Field, string>> = p ? {
+    name: `${p.family_name}, ${p.given_name}`,
+    dob: p.birth_date ? `DOB ${new Date(p.birth_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}` : "",
+    age: ageYears != null ? `${ageYears} y` : "", sex: p.sex === "unknown" ? "" : p.sex === "male" ? "M" : p.sex === "female" ? "F" : "Other",
+    nhs_number: p.nhs_number ? `NHS ${p.nhs_number}` : "", bed: p.bed ?? "", ward: p.ward ?? "",
+    consultant: p.consultant ?? "", allergies: p.allergies.length ? `Allergy: ${p.allergies.join(", ")}` : "",
+    weight: p.weight_kg ? `${p.weight_kg} kg` : "",
+    oxygen: snapshot ? (snapshot.oxygen.flow_l_min > 0
+      ? `O2 ${snapshot.oxygen.flow_l_min} L/min ${registry?.o2_devices[snapshot.oxygen.device] ?? snapshot.oxygen.device}` : "Room air") : "",
+    news2: snapshot && snapshot.news2.total != null ? `NEWS2 ${snapshot.news2.total}${snapshot.news2.complete ? "" : " (partial)"}` : "",
+  } : {};
   const render = (field: Field) => {
     switch (field) {
       case "clock": return <time className="tb-clock" data-testid="clock">{clock}</time>;
       case "date": return <span className="tb-date">{date}</span>;
       case "devices": return <DeviceChips />;
       case "alarm_status": return <AlarmStatus />;
-      case "name": return <strong className="tb-name" data-testid="patient-name">{PLACEHOLDER.name}</strong>;
-      default: return PLACEHOLDER[field] ? <span>{PLACEHOLDER[field]}</span> : null;
+      case "name": return <strong className="tb-name" data-testid="patient-name">{fromPatient.name || PLACEHOLDER.name}</strong>;
+      default: { const t = fromPatient[field] ?? PLACEHOLDER[field]; return t ? <span>{t}</span> : null; }
     }
   };
 
@@ -79,9 +96,17 @@ export function TopBar() {
             const node = render(f);
             return node ? <div key={f} className={`tb-field tb-${f.replace(/_/g, "-")}`}>{node}</div> : null;
           })}
-          <span className="badge badge-proto" title="Co-design prototype. Not a medical device.">
-            PROTOTYPE
-          </span>
+          {snapshot && (
+            <span className="badge badge-example" data-testid="example-badge"
+                  title="Co-design prototype, not a medical device. Simulated scenario: numbers, traces, AI findings and forecasts are examples, not measurements.">
+              EXAMPLE<span className="badge-long"> DATA</span>
+            </span>
+          )}
+          {!snapshot && (
+            <span className="badge badge-proto" title="Co-design prototype. Not a medical device.">
+              PROTOTYPE
+            </span>
+          )}
         </div>
       </div>
       {design.notifications.position === "top-bar" && <NotificationBox placement="bar" />}

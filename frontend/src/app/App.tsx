@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 
 import { applyTheme } from "@/design/theme";
+import { startExamples } from "@/examples/store";
 import { MenuSheet } from "@/layout/MenuSheet";
 import { ScreenRenderer } from "@/layout/ScreenRenderer";
 import { Sheet } from "@/layout/Sheet";
@@ -23,6 +24,9 @@ export function App() {
       .then(([stored, registry]) => useUi.getState().load(stored, registry))
       .catch((e) => useUi.getState().fail(String(e?.message ?? e)));
   }, []);
+
+  // Example data stands in for the live stream until the simulator exists (see examples/store.ts).
+  useEffect(() => startExamples(), []);
 
   const theme = useTheme();
   useEffect(() => { if (theme) applyTheme(theme); }, [theme]);

@@ -1,6 +1,8 @@
 import type { SheetId } from "@/design/types";
 import { Placeholder } from "@/widgets/Placeholder";
 
+import { DemoControls } from "./DemoControls";
+
 const stub = (name: string, milestone: string) => () => <Placeholder name={name} milestone={milestone} />;
 
 /**
@@ -15,7 +17,7 @@ export const SHEETS: Record<SheetId, { title: string; Component: () => JSX.Eleme
   "discharge-patient": { title: "Discharge Patient", Component: stub("Confirm by name, then stop monitoring and clear the screen", "M2") },
   "record-observations": { title: "Record Observations", Component: stub("Manual BP, temperature, ACVPU and other observations", "M3") },
   "finding-explain": { title: "Why the AI Says This", Component: stub("Evidence, certainty and questions for one finding", "M7") },
-  "demo-controls": { title: "Demo Controls", Component: stub("Scenario, replay speed, jump in time", "M2") },
+  "demo-controls": { title: "Demo Controls", Component: DemoControls },
   "news2-variant": { title: "NEWS2 Chart Style", Component: stub("Light bands / dark bands / dark trend", "M3") },
   "home-screen": { title: "Home Screen", Component: stub("Choose the home screen", "M3") },
   "studio-appearance": { title: "Appearance", Component: stub("Theme presets, colours, text size", "M4") },

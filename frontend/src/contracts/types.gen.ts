@@ -120,11 +120,19 @@ export interface AlarmEvent {
  */
 export interface ExampleScenarioInfo {
   end_min: number;
-  highlights: [unknown, unknown][];
+  highlights: Highlight[];
   id: string;
   start_min: number;
   teaching_point: string;
   title: string;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "Highlight".
+ */
+export interface Highlight {
+  label: string;
+  minute: number;
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema
@@ -214,7 +222,7 @@ export interface FindingData {
   rr_intervals_s: number[];
   rule: string;
   strip: ExampleStrip | null;
-  values: [unknown, unknown][];
+  values: TimedValue[];
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema
@@ -392,6 +400,16 @@ export interface ImageEvidence {
   }[];
   study_id: string;
   type: "image";
+}
+/**
+ * A value at a time, in minutes relative to now (negative = past).
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "TimedValue".
+ */
+export interface TimedValue {
+  t: number;
+  v: number;
 }
 /**
  * An AI interpretation of what is happening (or happened), with its evidence.
@@ -774,7 +792,7 @@ export interface TrendSeries {
     | "falls"
     | "sleep"
     | "timer";
-  points: [unknown, unknown][];
+  points: TimedValue[];
   quality: number | null;
   unit: string;
 }

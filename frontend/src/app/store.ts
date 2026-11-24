@@ -26,6 +26,8 @@ interface UiState {
   /** This screen's x scale per trace (row id to mm/s or minutes). Local, like dark / light;
    *  empty means "as the design says". The trace and its number both read this. */
   xScale: Record<string, number>;
+  /** AI on / off for this screen; null = as the design says (`ai.enabled`). Local, like dark / light. */
+  aiOverride: boolean | null;
   /** CSS pixels per millimetre used for trace gain and sweep speed. Nominal unless
    *  this screen has been calibrated (the calibration sheet is milestone M4). */
   pxPerMm: number;
@@ -39,6 +41,7 @@ interface UiState {
   showSheet(sheet: SheetId | null, context?: string | null): void;
   setEditMode(on: boolean): void;
   toggleMode(): void;
+  toggleAi(): void;
   /** Set (or with null, clear) one trace's x scale on this screen. */
   setXScale(rowId: string, value: number | null): void;
   setNotice(text: string | null): void;
@@ -69,6 +72,16 @@ export function readXScale(): Record<string, number> {
 function writeXScale(v: Record<string, number>): void {
   try { window.localStorage.setItem(XSCALE_KEY, JSON.stringify(v)); } catch { /* not persisted */ }
 }
+const AI_KEY = "emus.ai";
+function readAi(): boolean | null {
+  try {
+    const v = window.localStorage.getItem(AI_KEY);
+    return v === "on" ? true : v === "off" ? false : null;
+  } catch { return null; }
+}
+function writeAi(on: boolean): void {
+  try { window.localStorage.setItem(AI_KEY, on ? "on" : "off"); } catch { /* not persisted */ }
+}
 function writeMode(mode: ThemeMode): void {
   try { window.localStorage.setItem(MODE_KEY, mode); } catch { /* not persisted */ }
 }
@@ -76,7 +89,7 @@ function writeMode(mode: ThemeMode): void {
 export const useUi = create<UiState>((set) => ({
   stored: null, draft: null, registry: null, error: null,
   screenId: null, openMenu: null, openSheet: null, sheetContext: null,
-  editMode: false, mode: readMode(), xScale: readXScale(), pxPerMm: NOMINAL_PX_PER_MM, patientId: DEFAULT_PATIENT, notice: null,
+  editMode: false, mode: readMode(), aiOverride: readAi(), xScale: readXScale(), pxPerMm: NOMINAL_PX_PER_MM, patientId: DEFAULT_PATIENT, notice: null,
 
   load: (stored, registry) =>
     set((s) => ({ stored, registry, error: null,
@@ -98,6 +111,12 @@ export const useUi = create<UiState>((set) => ({
     const mode: ThemeMode = current === "dark" ? "light" : "dark";
     writeMode(mode);
     return { mode };
+  }),
+  toggleAi: () => set((s) => {
+    const design = s.draft ?? s.stored?.document;
+    const next = !(s.aiOverride ?? design?.ai.enabled ?? true);
+    writeAi(next);
+    return { aiOverride: next };
   }),
   setNotice: (notice) => set({ notice }),
   fail: (error) => set({ error }),

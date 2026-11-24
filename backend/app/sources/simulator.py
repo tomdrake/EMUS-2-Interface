@@ -87,21 +87,23 @@ def synth_ecg(rhythm: str, hr: float, hz: float, n: int, t0: float, seed: int = 
     t_end = t0 + n / hz
     beats = _r_times(rhythm, hr, t0, t_end, seed)
     kind = "sinus" if rhythm == "brady" else rhythm
-    out: list[float] = []
+    out = [0.0] * n
     fib = _rng(seed, "fib")
     f1, f2 = 5.3 + 2 * fib.random(), 7.9 + 2 * fib.random()
+    lead = 0.12 if kind == "vt" else 0.165
+    rr_s = 60.0 / max(hr, 1.0)
+    for b in beats:
+        start = b - lead
+        i0 = max(0, math.ceil((start - 0.05 - t0) * hz))
+        i1 = min(n - 1, math.floor((start + 0.7 - t0) * hz))
+        for i in range(i0, i1 + 1):
+            out[i] += _beat(t0 + i / hz - start, rr_s, kind)
     for i in range(n):
-        t = t0 + i / hz
-        # nearest preceding beat start: the R peak is 0.165 s into the cycle (0.12 for VT)
-        lead = 0.12 if kind == "vt" else 0.165
-        v = 0.0
-        for b in beats:
-            ph = t - (b - lead)
-            if -0.05 <= ph <= 0.7:
-                v += _beat(ph, 60.0 / max(hr, 1.0), kind)
+        v = out[i]
         if kind == "af":
+            t = t0 + i / hz
             v += 0.03 * math.sin(2 * math.pi * f1 * t) + 0.02 * math.sin(2 * math.pi * f2 * t)
-        out.append(round(v, 4))
+        out[i] = round(v, 4)
     return out
 
 

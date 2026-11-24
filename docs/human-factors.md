@@ -185,6 +185,28 @@ in turn on a well patient: BP on standby throughout, then low battery, movement
 artefact, low perfusion, sensor off, connection lost, and critical battery. Demo
 controls can also inject any single failure on any scenario (milestone M2).
 
+## Example data and the AI
+
+Until live data and the causal model are connected, the monitor can show **example data**:
+a scripted scenario at a minute chosen in Demo Controls. Anything that looks alive but is
+not is labelled: a blue **EXAMPLE DATA** badge in the top bar, and a small Example mark on
+every module. Turning example data off returns the screen to NO DATA and STANDBY.
+
+The AI chip on a module says what the interpretation found about that item and how sure it
+is, **and of what** ("80% agreement", never a bare percentage). Rules the example follows:
+
+- A trace that is poor is not interpreted. The chip says so, and the trace carries a dashed
+  technical bracket ("Poor trace: movement"). That bracket is about the trace, not the AI,
+  so it stays when AI is turned off.
+- No signal means "AI paused", never "nothing flagged".
+- "Nothing flagged" is not clearance. It appears only for items the interpretation reads,
+  and a high number is never met with it (RR 29 reads "Fast breathing rate").
+- Findings below the design's confidence floor are hidden, except poor-trace warnings.
+- A finding's Why sheet shows the rule, what was measured, and the reasons with weights.
+  The example rules need every criterion met, so the weights are equal; a trained model's
+  would differ.
+- AI On / Off is a choice of this screen (like dark / light), kept locally; it changes no layout.
+
 ## Traces
 
 Each waveform and trend carries the marks needed to read it (a design choice, all on

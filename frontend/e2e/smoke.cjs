@@ -21,6 +21,13 @@ async function main() {
 const browser = await chromium.launch();
 for (const vp of VIEWPORTS) {
   const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1 });
+  // The older checks below drive the safety store by hand and expect no feed, so example data
+  // starts OFF; the example-data section at the end turns it on.
+  await context.addInitScript(() => {
+    if (!localStorage.getItem("emus.example")) {
+      localStorage.setItem("emus.example", JSON.stringify({ enabled: false, scenario: "scn-pneumonia", minute: 0 }));
+    }
+  });
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
@@ -49,8 +56,8 @@ for (const vp of VIEWPORTS) {
     const r = b.getBoundingClientRect();
     return { id: b.dataset.testid, right: r.right, top: r.top, icon: b.querySelector("svg")?.dataset.icon };
   }));
-  check(top.map((b) => b.id).join() === "top-new-patient,top-discharge,top-theme,top-settings",
-        `${vp.name}: top bar has new patient, discharge, dark / light and settings, in that order`);
+  check(top.map((b) => b.id).join() === "top-new-patient,top-discharge,top-theme,top-ai,top-settings",
+        `${vp.name}: top bar has new patient, discharge, dark / light, AI and settings, in that order`);
   check(top.at(-1).icon === "settings" && top.at(-1).right >= vp.width - 2 && top.at(-1).top < 10,
         `${vp.name}: settings is a cog at the top right`);
   check(await T("tab-settings").count() === 0, `${vp.name}: settings is no longer in the tab bar`);
@@ -654,6 +661,157 @@ for (const vp of VIEWPORTS) {
   await page.evaluate(async () => { const st = window.__emus.ui.getState(); const s = await (await fetch("/api/designs/icu-monitor")).json(); st.load(s, st.registry); });
 
   // ===== milestone checks are added below this line =====
+
+  // --- example data: numbers, traces, AI marks and their switches (labelled EXAMPLE DATA)
+  const ex = (fn, ...args) => page.evaluate(async ([f, a]) => {
+    const st = window.__emus.examples.getState();
+    await st[f](...a);
+  }, [fn, args]);
+  const settle = async () => { await page.waitForFunction(() => window.__emus.examples.getState().status === "ready", null, { timeout: 8000 }); await page.waitForTimeout(400); };
+  await ex("setEnabled", true);
+  await ex("setScenario", "scn-af");
+  await ex("setMinute", 20);
+  await settle();
+  const badgeFit = await page.evaluate(() => { const b = document.querySelector('[data-testid="example-badge"]').getBoundingClientRect(),
+    btn = document.querySelector('[data-testid="top-buttons"]').getBoundingClientRect(), c = document.querySelector('[data-testid="clock"]').getBoundingClientRect();
+    return b.right <= btn.left + 1 && b.left >= c.right - 1 && b.width > 40; });
+  check(badgeFit, `${vp.name}: the EXAMPLE badge is whole, beside the clock and clear of the buttons`);
+  check(await T("example-badge").isVisible() && /EXAMPLE/.test(await T("example-badge").innerText()) && (vp.width > 1100 ? /DATA/.test(await T("example-badge").innerText()) : true), `${vp.name}: the top bar says EXAMPLE DATA`);
+  check((await T("patient-name").innerText()).includes("OKAFOR"), `${vp.name}: the scripted patient is named`);
+  const exMarks = await page.evaluate(() => ({ rows: document.querySelectorAll('[data-testid^="row-"][data-parameter]').length,
+    marks: document.querySelectorAll('[data-testid^="example-row"], .example-mark').length }));
+  check(exMarks.marks >= exMarks.rows, `${vp.name}: every module carries a small Example mark`);
+  check((await T("num-hr").innerText()).includes("144"), `${vp.name}: the heart rate tile shows the scripted value`);
+
+  // The trace is drawn at the same scale as its 1 mV calibration bar.
+  const sig = await page.evaluate(() => {
+    const frame = document.querySelector('[data-testid="trace-frame-ecg"]');
+    const path = document.querySelector('[data-testid="trace-signal-ecg"]');
+    const bar = document.querySelector('[data-testid="trace-bar-ecg"]');
+    if (!frame || !path || !bar) return null;
+    const ys = [...path.getAttribute("d").matchAll(/[ML][\d.]+ ([\d.-]+)/g)].map((m) => Number(m[1]));
+    const base = Number(frame.dataset.baselineY), px = Number(bar.dataset.px);
+    const fb = frame.getBoundingClientRect(), pb = path.getBoundingClientRect();
+    return { rAmp: (base - Math.min(...ys)) / px, inside: pb.left >= fb.left - 1 && pb.right <= fb.right + 1 && pb.top >= fb.top - 1 && pb.bottom <= fb.bottom + 1, n: ys.length };
+  });
+  check(sig && sig.n > 100, `${vp.name}: the ECG is drawn from the example strip`);
+  check(sig && sig.rAmp > 0.8 && sig.rAmp < 1.35, `${vp.name}: R waves are about 1 mV tall against the 1 mV bar (${sig && sig.rAmp.toFixed(2)})`);
+  check(sig && sig.inside, `${vp.name}: the signal stays inside its trace frame`);
+
+  // Annotations sit over the marked part of the strip and say why.
+  const ann = await page.evaluate(() => {
+    const m = document.querySelector('[data-testid="annotations-ecg"] .trace-mark');
+    const frame = document.querySelector('[data-testid="trace-frame-ecg"]').getBoundingClientRect();
+    if (!m) return null;
+    const r = m.querySelector(".trace-bracket").getBoundingClientRect();
+    return { label: m.dataset.label, w: r.width, inside: r.left >= frame.left - 1 && r.right <= frame.right + 1,
+             text: m.querySelector(".trace-mark-label").textContent };
+  });
+  check(ann && /Irregular R-R/.test(ann.text) && ann.w > 20 && ann.inside, `${vp.name}: the AI marks the irregular R-R on the trace, with its reason`);
+
+  // The AI chip: finding, certainty (named), and a touch target that opens Why.
+  const chip = T("ai-ecg");
+  check(/AF now/.test(await chip.innerText()) && /agreement/i.test(await chip.innerText()), `${vp.name}: the ECG chip says AF with how sure it is, and of what`);
+  const chipBox = await chip.boundingBox();
+  check(chipBox.height >= MIN_TOUCH - 1 && chipBox.width >= MIN_TOUCH - 1, `${vp.name}: the AI chip is a touch target`);
+  const chipInside = await page.evaluate(() => [...document.querySelectorAll('.module .ai-chip-pill')].every((p) => {
+    const m = p.closest(".module, .row").getBoundingClientRect(), b = p.getBoundingClientRect();
+    return b.left >= m.left - 1 && b.right <= m.right + 1 && b.top >= m.top - 1 && b.bottom <= m.bottom + 1; }));
+  check(chipInside, `${vp.name}: every AI chip sits inside its module`);
+  const smallest = await page.evaluate(() => Math.min(...[...document.querySelectorAll(".ai-chip-pill, .trace-mark-label, .example-mark")].map((e) => parseFloat(getComputedStyle(e).fontSize))));
+  check(smallest >= 10, `${vp.name}: the smallest AI and example text is readable (${smallest}px)`);
+  await shot("example-af");
+  await chip.click();
+  check(await page.getByRole("dialog").count() >= 0 && await page.evaluate(() => window.__emus.ui.getState().openSheet === "finding-explain"), `${vp.name}: tapping the chip opens the Why sheet`);
+  await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+
+  // Turning AI off removes every AI mark, moves nothing, and is kept.
+  const aiBoxes = () => page.evaluate(() => JSON.stringify([...document.querySelectorAll('[data-testid^="row-"][data-parameter]')].map((e) => { const r = e.getBoundingClientRect(); return [e.dataset.testid, Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)]; })));
+  const beforeAi = await aiBoxes();
+  const aiBtn = T("top-ai");
+  check(/AI On/.test(await aiBtn.innerText()) && await aiBtn.getAttribute("aria-pressed") === "true", `${vp.name}: the AI button shows AI is on`);
+  await aiBtn.click();
+  await page.waitForTimeout(200);
+  const off = await page.evaluate(() => ({ chips: document.querySelectorAll(".ai-chip").length, certainty: document.querySelectorAll(".certainty").length,
+    marks: document.querySelectorAll(".trace-mark:not(.is-technical)").length, pressed: document.querySelector('[data-testid="top-ai"]').getAttribute("aria-pressed") }));
+  check(off.chips === 0 && off.certainty === 0 && off.marks === 0 && off.pressed === "false", `${vp.name}: AI Off draws no chips, certainty or trace marks`);
+  check(await aiBoxes() === beforeAi, `${vp.name}: switching AI off moved and resized nothing`);
+  check((await T("num-hr").innerText()).includes("144") && await T("trace-signal-ecg").count() === 1, `${vp.name}: numbers and traces stay when AI is off`);
+  await shot("example-ai-off");
+  await page.reload({ waitUntil: "networkidle" });
+  await T("example-badge").waitFor();
+  check(await T("top-ai").getAttribute("aria-pressed") === "false", `${vp.name}: AI Off is remembered on this screen`);
+  await T("top-ai").click();
+  await settle();
+  check(await page.locator(".ai-chip").count() > 0, `${vp.name}: AI back on draws the chips again`);
+
+  // Failure modes with example data: told apart, and the AI says it is paused rather than reading a bad trace.
+  await ex("setScenario", "scn-technical");
+  await ex("setMinute", 4);
+  await settle();
+  const poor = await page.evaluate(() => ({ tech: document.querySelectorAll('[data-testid="annotations-ecg"] .is-technical').length,
+    chip: document.querySelector('[data-testid="ai-ecg"]')?.dataset.code, state: document.querySelector('[data-testid="num-hr"]').dataset.state }));
+  check(poor.tech === 1 && poor.chip === "poor-trace" && poor.state === "poor-signal", `${vp.name}: movement shows POOR TRACE, a technical mark, and no rhythm reading`);
+  await T("top-ai").click();
+  await page.waitForTimeout(200);
+  check(await page.locator('[data-testid="annotations-ecg"] .is-technical').count() === 1 && await page.locator(".ai-chip").count() === 0,
+        `${vp.name}: the poor-trace warning is not an AI mark and stays when AI is off`);
+  await T("top-ai").click();
+  await ex("setMinute", 11);
+  await settle();
+  check(await T("num-hr").getAttribute("data-state") === "sensor-off" && await T("num-rr").getAttribute("data-state") === "sensor-off", `${vp.name}: sensor off reads CHECK SENSOR on heart rate and respiratory rate`);
+  check(await T("ai-ecg").getAttribute("data-state") === "paused", `${vp.name}: the ECG chip says the AI is paused with no signal`);
+  await ex("setMinute", 14);
+  await settle();
+  check(await T("num-spo2").getAttribute("data-state") === "connection-lost" && await T("trace-signal-spo2").count() === 0, `${vp.name}: a lost limb sensor shows CONNECTION LOST and draws no pleth`);
+  check(await T("num-bp_sys").getAttribute("data-state") === "standby", `${vp.name}: the cuff that was never connected is on STANDBY`);
+  await shot("example-technical");
+
+  // Stepping through the scenario changes values, never the layout.
+  await ex("setScenario", "scn-pneumonia");
+  await ex("setMinute", 0);
+  await settle();
+  const l0 = await aiBoxes();
+  const rr0 = await T("num-rr").innerText();
+  await ex("setMinute", 360);
+  await settle();
+  check(await aiBoxes() === l0 && await T("num-rr").innerText() !== rr0, `${vp.name}: moving through time changes the values and nothing else`);
+  await shot("example-late");
+
+  // Demo Controls: pick a scenario and a time, and switch example data off.
+  await page.evaluate(() => window.__emus.ui.getState().showSheet("demo-controls"));
+  await T("demo-controls").waitFor();
+  check(await page.locator('[data-testid^="scenario-"]').count() === 6, `${vp.name}: Demo Controls lists the six scenarios`);
+  const demoTargets = await page.evaluate(() => [...document.querySelectorAll('[data-testid="demo-controls"] button, [data-testid="demo-controls"] input')].every((b) => { const r = b.getBoundingClientRect(); return r.height >= 47 || b.type === "checkbox"; }));
+  check(demoTargets, `${vp.name}: Demo Controls buttons are touch targets`);
+  await T("scenario-scn-vt").click();
+  await settle();
+  check((await T("patient-name").innerText()).includes("PATEL"), `${vp.name}: choosing a scenario changes the patient`);
+  await T("jump-5").click();
+  await settle();
+  check(/VT now/.test(await T("ai-ecg").innerText()), `${vp.name}: jumping to a highlight shows that moment (VT)`);
+  await shot("demo-controls");
+  await T("example-switch").uncheck();
+  await page.waitForTimeout(500);
+  check(await T("example-badge").count() === 0 && await T("app").getAttribute("data-link") === "down", `${vp.name}: example data off removes the badge and the feed`);
+  check((await page.evaluate(() => [...document.querySelectorAll('[data-testid^="num-"]')].map((e) => e.innerText))).every((t) => /NO\s+DATA/.test(t)), `${vp.name}: with no feed every tile says NO DATA`);
+  await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+  await ex("setEnabled", true);
+  await settle();
+
+  // The Modular Example with AI: every size shows what fits, and nothing overflows.
+  await page.evaluate(async () => { const st = window.__emus.ui.getState(); const d = await (await fetch("/api/designs/icu-modules")).json(); st.load(d, st.registry); st.go(d.document.home_screen); });
+  await ex("setScenario", "scn-pneumonia");
+  await ex("setMinute", 180);
+  await settle();
+  const modAi = await page.evaluate(() => [...document.querySelectorAll(".widget-monitor-grid .module")].map((m) => ({
+    id: m.dataset.testid, size: m.dataset.size, chip: !!m.querySelector(".ai-chip"), cert: !!m.querySelector(".ai-certainty"),
+    over: [...m.querySelectorAll(".ai-chip-pill, .ai-certainty, .ai-explain")].some((e) => { const a = m.getBoundingClientRect(), b = e.getBoundingClientRect(); return b.right > a.right + 1 || b.bottom > a.bottom + 1 || b.left < a.left - 1; }) })));
+  check(modAi.every((m) => !m.over), `${vp.name}: no AI mark overflows its module in the Modular Example`);
+  check(modAi.filter((m) => m.size === "compact").every((m) => !m.chip), `${vp.name}: small squares show no AI chip`);
+  check(modAi.some((m) => m.size === "large" && m.chip && m.cert), `${vp.name}: a large module shows the chip and its certainty block`);
+  await shot("modular-ai");
+  await page.evaluate(async () => { const st = window.__emus.ui.getState(); const s = await (await fetch("/api/designs/icu-monitor")).json(); st.load(s, st.registry); });
 
   check(errors.length === 0, `${vp.name}: no page errors ${errors.join(" | ")}`);
   await context.close();
