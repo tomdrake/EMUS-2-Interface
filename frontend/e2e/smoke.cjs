@@ -813,6 +813,83 @@ for (const vp of VIEWPORTS) {
   await shot("modular-ai");
   await page.evaluate(async () => { const st = window.__emus.ui.getState(); const s = await (await fetch("/api/designs/icu-monitor")).json(); st.load(s, st.registry); });
 
+  // --- Why sheet, underlying data and explanation examples
+  await ex("setScenario", "scn-af");
+  await ex("setMinute", 20);
+  await settle();
+  await T("ai-ecg").click();
+  await T("why-sheet").waitFor();
+  check(/AF now/.test(await T("why-summary").innerText()), `${vp.name}: tapping the chip opens the Why sheet for that finding`);
+  const why = await page.evaluate(() => {
+    const sheet = document.querySelector('[data-testid="sheet-finding-explain"] .sheet-body');
+    const ev = document.querySelector('[data-testid="why-evidence"] svg'), bar = document.querySelector('[data-testid="why-evidence-bar"]');
+    const path = document.querySelector('[data-testid="trace-signal-why-evidence"]');
+    const ys = [...path.getAttribute("d").matchAll(/[ML][\d.]+ ([\d.-]+)/g)].map((m) => Number(m[1]));
+    const line = document.querySelector('[data-testid="why-evidence"] .trace-baseline');
+    const base = Number(line.getAttribute("y1")), px = Number(bar.dataset.px);
+    const mark = document.querySelector('[data-testid="why-evidence"] .trace-mark-label');
+    const fr = ev.getBoundingClientRect(), mr = mark ? mark.getBoundingClientRect() : null;
+    return { rAmp: (base - Math.min(...ys)) / px, mark: mark?.textContent, markInside: mr && mr.left >= fr.left && mr.right <= fr.right,
+      baseline: !!document.querySelector('[data-testid="why-baseline"] path.trace-signal'),
+      reasons: document.querySelectorAll('[data-testid="why-reasons"] li').length, weights: [...document.querySelectorAll('[data-testid="why-reasons"] .reason-weight')].map((e) => parseInt(e.textContent)),
+      certRows: document.querySelectorAll('[data-testid="why-certainty"] tbody tr').length, rule: document.querySelector('[data-testid="why-rule"]').textContent.length,
+      example: !!document.querySelector('[data-testid="example-note"]'), askOff: document.querySelector('[data-testid="why-ask"]').disabled,
+      noOverflow: sheet.scrollWidth <= sheet.clientWidth + 1 };
+  });
+  check(why.rAmp > 0.8 && why.rAmp < 1.35, `${vp.name}: the evidence strip is at the scale of its 1 mV bar (${why.rAmp.toFixed(2)})`);
+  check(/Irregular R-R/.test(why.mark) && why.markInside, `${vp.name}: the evidence strip carries the AI's marks`);
+  check(why.baseline, `${vp.name}: the patient's own normal rhythm is drawn beside it`);
+  check(why.reasons >= 1 && why.weights.reduce((a, b) => a + b, 0) >= 99 && why.weights.reduce((a, b) => a + b, 0) <= 101, `${vp.name}: reasons carry weights that sum to 100%`);
+  check(why.certRows >= 3 && why.rule > 20 && why.example, `${vp.name}: every certainty measure, the rule and the example note are shown`);
+  check(why.askOff && why.noOverflow, `${vp.name}: the question box is disabled until a token exists, and nothing overflows`);
+  await shot("why");
+  // the sheet shows what the monitor showed: the same finding text and the same certainty figure
+  const monitorChip = await page.evaluate(() => window.__emus.ui.getState().sheetContext);
+  check(monitorChip && /af/.test(monitorChip), `${vp.name}: the sheet explains the finding id the chip pointed at`);
+  await T("why-data").click();
+  await T("ud-sheet").waitFor();
+  const ud = await page.evaluate(async () => {
+    const api = await (await fetch("/api/examples/scn-af?minute=20")).json();
+    const rows = [...document.querySelectorAll('[data-testid="ud-table"] tbody tr')].map((r) => r.children[1].textContent);
+    return { value: document.querySelector('[data-testid="ud-value"]').textContent, apiValue: String(api.numerics.hr), rows: rows.length, apiRows: api.trends.hr.points.length,
+      firstRowIsNow: document.querySelector('[data-testid="ud-table"] tbody tr td').textContent, lastApi: String(api.trends.hr.points.at(-1).v), firstTable: rows[0],
+      device: document.querySelector('[data-testid="ud-device"]').textContent, evidence: !!document.querySelector('[data-testid="ud-finding-af"]') };
+  });
+  check(ud.value === ud.apiValue && ud.rows === ud.apiRows && ud.firstRowIsNow === "Now" && ud.firstTable === ud.lastApi, `${vp.name}: underlying data matches the module's values (${ud.rows} values, newest first)`);
+  check(/Chest sensor/.test(ud.device) && ud.evidence, `${vp.name}: underlying data names the source device and the AI's raw evidence`);
+  await T("ud-copy").click();
+  await page.waitForTimeout(300);
+  check((await T("ud-copied").innerText()).length > 0, `${vp.name}: Copy as CSV answers either way`);
+  await shot("underlying-data");
+  await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+  // from the Views menu: two touches to the picker
+  await T("tab-split").click();
+  await page.getByText("Underlying Data").first().click();
+  await T("ud-pick").waitFor();
+  check(await page.locator('[data-testid^="ud-option-"]').count() >= 6, `${vp.name}: Views, then Underlying Data, offers every item (two touches)`);
+  await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+  // gallery from Settings: two touches
+  await T("top-settings").click();
+  await page.getByText("Explanation Examples").first().click();
+  await T("gallery").waitFor();
+  check(await page.locator('[data-testid="gallery"] article').count() === 7, `${vp.name}: Settings, then Explanation Examples, offers seven styles (two touches)`);
+  for (const id of ["sentence", "reasons", "trace", "baseline", "certainty", "frequency"]) await T(`style-${id}`).locator("button").click();
+  await T("style-baseline").locator("button").click();
+  const gal = await page.evaluate(() => { const body = document.querySelector('[data-testid="sheet-explanation-examples"] .sheet-body');
+    return { overflow: body.scrollWidth > body.clientWidth + 1, strips: document.querySelectorAll('[data-testid="ex-trace2"], [data-testid="ex-baseline"]').length,
+      btn: [...document.querySelectorAll('[data-testid="gallery"] .style-head')].every((b) => b.getBoundingClientRect().height >= 47) }; });
+  check(!gal.overflow && gal.strips === 2 && gal.btn, `${vp.name}: the gallery opens a style at a time, fits, and its buttons are touch targets`);
+  await shot("gallery");
+  await T("style-baseline").locator("button").click();
+  await ex("setScenario", "scn-pneumonia");
+  await ex("setMinute", 0);
+  await settle();
+  await T("style-whatif").locator("button").click();
+  await T("ex-whatif-whatif").waitFor({ timeout: 3000 }).catch(() => {});
+  check(await T("ex-whatif-whatif").count() === 1 && await T("ex-whatif-baseline").count() === 1, `${vp.name}: the what-if style draws both courses`);
+  await shot("gallery-whatif");
+  await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+
   check(errors.length === 0, `${vp.name}: no page errors ${errors.join(" | ")}`);
   await context.close();
 }

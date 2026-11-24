@@ -2,6 +2,9 @@ import type { SheetId } from "@/design/types";
 import { Placeholder } from "@/widgets/Placeholder";
 
 import { DemoControls } from "./DemoControls";
+import { ExplanationExamples } from "./ExplanationExamples";
+import { UnderlyingData } from "./UnderlyingData";
+import { WhySheet } from "./WhySheet";
 
 const stub = (name: string, milestone: string) => () => <Placeholder name={name} milestone={milestone} />;
 
@@ -16,7 +19,9 @@ export const SHEETS: Record<SheetId, { title: string; Component: () => JSX.Eleme
   "new-patient": { title: "New Patient", Component: stub("Admit a patient: name, date of birth, NHS number, bed; nothing carried over", "M2") },
   "discharge-patient": { title: "Discharge Patient", Component: stub("Confirm by name, then stop monitoring and clear the screen", "M2") },
   "record-observations": { title: "Record Observations", Component: stub("Manual BP, temperature, ACVPU and other observations", "M3") },
-  "finding-explain": { title: "Why the AI Says This", Component: stub("Evidence, certainty and questions for one finding", "M7") },
+  "finding-explain": { title: "Why the AI Says This", Component: WhySheet },
+  "underlying-data": { title: "Underlying Data", Component: UnderlyingData },
+  "explanation-examples": { title: "Explanation Examples", Component: ExplanationExamples },
   "demo-controls": { title: "Demo Controls", Component: DemoControls },
   "news2-variant": { title: "NEWS2 Chart Style", Component: stub("Light bands / dark bands / dark trend", "M3") },
   "home-screen": { title: "Home Screen", Component: stub("Choose the home screen", "M3") },

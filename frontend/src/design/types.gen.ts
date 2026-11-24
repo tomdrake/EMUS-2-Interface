@@ -447,6 +447,8 @@ export interface SheetAction {
     | "discharge-patient"
     | "record-observations"
     | "finding-explain"
+    | "underlying-data"
+    | "explanation-examples"
     | "forecast-horizon"
     | "news2-variant"
     | "home-screen"

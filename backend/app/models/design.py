@@ -344,7 +344,7 @@ class MenuAction(_Model):
 SheetId = Literal[
     # clinical
     "alarm-limits", "oxygen", "patient", "new-patient", "discharge-patient",
-    "record-observations", "finding-explain",
+    "record-observations", "finding-explain", "underlying-data", "explanation-examples",
     "forecast-horizon", "news2-variant", "home-screen",
     # design studio sections (each one touch from the Settings menu)
     "studio-appearance", "studio-layout", "studio-rows", "studio-navigation",

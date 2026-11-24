@@ -506,3 +506,42 @@ button.ai-chip { min-height: var(--touch); min-width: var(--touch); justify-cont
   background: var(--c-surface); display: flex; flex-direction: column; align-items: flex-start; }
 .demo-jump small { color: var(--c-text-muted); }
 button:disabled { opacity: 0.45; }
+
+/* Why sheet, underlying data and the explanation gallery */
+.why, .ud, .gallery { display: flex; flex-direction: column; gap: 10px; padding: 4px 20px 28px; }
+.why h3 { margin: 0; font-size: 1.25rem; }
+.why h4, .ud h4 { margin: 12px 0 4px; font-size: 0.95rem; letter-spacing: 0.02em; }
+.why-sub, .why-note, .example-note { margin: 0; color: var(--c-text-muted); font-size: 0.88rem; }
+.why-empty { padding: 20px; color: var(--c-text-muted); }
+.example-note .example-mark, .why-sub .example-mark { display: inline-block; vertical-align: baseline; }
+.evidence { margin: 0 0 8px; }
+.evidence figcaption { font-size: 0.85rem; color: var(--c-text-muted); margin-bottom: 2px; }
+.evidence-strip { position: relative; border: 1px solid var(--c-border); border-radius: var(--radius); color: var(--c-accent); background: var(--c-surface); }
+.evidence-strip svg { display: block; }
+.whatif-band { fill: currentColor; opacity: 0.15; stroke: none; }
+.whatif-line { stroke-dasharray: 7 5; }
+.reasons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.reasons li { display: grid; grid-template-columns: minmax(0, 2fr) minmax(60px, 1fr) 3.2em auto; gap: 10px; align-items: center; }
+.reason-bar { display: block; height: 12px; border: 1px solid var(--c-border); border-radius: 6px; overflow: hidden; }
+.reason-bar i { display: block; height: 100%; background: var(--c-accent); }
+.reason-weight { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.reason-dir { color: var(--c-text-muted); font-size: 0.8rem; }
+.why-measured { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 16px; margin: 6px 0; }
+.why-measured div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--c-border); padding: 2px 0; }
+.why-measured dt { color: var(--c-text-muted); } .why-measured dd { margin: 0; font-weight: 600; text-align: right; }
+.certainty-table, .ud-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.certainty-table th, .certainty-table td, .ud-table th, .ud-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--c-border); vertical-align: top; }
+.certainty-table tr.is-shown { background: var(--c-surface-alt); }
+.certainty-table small { color: var(--c-text-muted); font-weight: 400; }
+.why-ask { display: flex; gap: 8px; }
+.why-ask input { flex: 1; min-height: var(--touch); padding: 0 12px; border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--c-surface); color: var(--c-text); }
+.why-links, .ud-actions { display: flex; gap: 12px; align-items: center; }
+.ud-table-wrap { max-height: 260px; overflow: auto; border: 1px solid var(--c-border); border-radius: var(--radius); }
+.ud-finding { padding: 6px 0; border-bottom: 1px solid var(--c-border); }
+.style-card { border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--c-surface); }
+.style-head { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-height: var(--touch); padding: 8px 14px; text-align: left; color: var(--c-text); }
+.style-head span { color: var(--c-text-muted); font-size: 0.85rem; }
+.style-notes { display: flex; flex-wrap: wrap; gap: 4px 20px; padding: 0 14px 8px; font-size: 0.82rem; color: var(--c-text-muted); }
+.style-card.is-open { box-shadow: inset 4px 0 0 var(--c-accent); }
+.style-body { padding: 4px 14px 14px; }
+.ex-big { font-size: 1.6rem; font-weight: 700; margin: 0; }

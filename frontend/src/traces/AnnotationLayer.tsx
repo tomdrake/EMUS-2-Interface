@@ -42,8 +42,10 @@ export function placeMarks(marks: readonly TraceMark[], w: StripWindow): PlacedM
  * the trace itself ("Poor trace: movement") is a technical mark, not an AI one, and stays
  * visible when AI is turned off.
  */
-export function AnnotationLayer({ marks, w, height, aiOn, rowId }: {
+export function AnnotationLayer({ marks, w, height, aiOn, rowId, interactive = true }: {
   marks: readonly TraceMark[]; w: StripWindow; height: number; aiOn: boolean; rowId: string;
+  /** False where the marks are already inside the Why sheet: no tap target to open it again. */
+  interactive?: boolean;
 }) {
   const shown = marks.filter((m) => m.tone === "technical" || aiOn);
   const placed = placeMarks(shown, w);
@@ -64,7 +66,7 @@ export function AnnotationLayer({ marks, w, height, aiOn, rowId }: {
               <path d={`M${x1} ${y + 2}V${y + 10}`} className="trace-bracket" />
             )}
             <text x={x1 + 3} y={y + 14} className="trace-mark-label">{mark.label}</text>
-            {!tech && mark.finding_id && (
+            {interactive && !tech && mark.finding_id && (
               <rect x={x1} y={0} width={Math.max(x2 - x1, 24)} height={Math.min(48, height)} fill="transparent"
                     className="trace-mark-hit" role="button" tabIndex={0} aria-label={`Why: ${mark.label}`}
                     onClick={(e) => { e.stopPropagation(); openWhy(); }}

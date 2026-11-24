@@ -247,6 +247,8 @@ _MENUS: list[dict] = [
          "action": {"type": "sheet", "sheet": "news2-variant"}},
         {"id": "home", "label": "Choose Home Screen", "icon": "layout",
          "action": {"type": "sheet", "sheet": "home-screen"}},
+        {"id": "underlying-data", "label": "Underlying Data", "icon": "info",
+         "action": {"type": "sheet", "sheet": "underlying-data"}},
         {"id": "ai-toggle", "label": "AI On / Off", "icon": "ai", "action": {"type": "toggle-ai"}},
     ]},
     {"id": "patient", "title": "Patient", "items": [
@@ -275,6 +277,8 @@ _MENUS: list[dict] = [
          "action": {"type": "sheet", "sheet": "studio-alarms"}},
         {"id": "forecast", "label": "Forecast and Certainty", "icon": "forecast",
          "action": {"type": "sheet", "sheet": "studio-forecast"}},
+        {"id": "explanations", "label": "Explanation Examples", "icon": "ai",
+         "action": {"type": "sheet", "sheet": "explanation-examples"}},
         {"id": "assistant", "label": "Redesign With AI", "icon": "chat",
          "action": {"type": "sheet", "sheet": "assistant"}},
         {"id": "versions", "label": "Versions", "icon": "history",
