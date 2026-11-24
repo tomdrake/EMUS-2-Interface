@@ -25,17 +25,23 @@ export interface XScale {
   overridden: boolean;
 }
 
+/** Where this screen keeps the x scale of a trace; a small module's window is its own, apart from the waveform's speed. */
+export const xKey = (row: Pick<Row, "trace" | "id">, spark = false): string => (spark && row.trace === "waveform" ? `${row.id}:window` : row.id);
+
 /**
  * The x scale of one trace: a sweep speed for a waveform, a time window for a trend.
  * This screen's choice (a local preference, like dark / light) wins over the design's.
  * The M2 canvas must read the same value so the number and the trace always agree.
  */
 export function xScaleFor(row: Pick<Row, "trace" | "trend_window_min" | "id">,
-                          design: Pick<Design, "sweep">, local: Record<string, number>): XScale | null {
-  const waveform = row.trace === "waveform";
-  if (!waveform && row.trace !== "trend") return null;
+                          design: Pick<Design, "sweep">, local: Record<string, number>, spark = false): XScale | null {
+  const wave = row.trace === "waveform";
+  if (!wave && row.trace !== "trend") return null;
+  // A small module draws a trend of the item even when the full row draws a waveform, so its x scale is a window.
+  const waveform = wave && !spark;
+  const key = xKey(row, spark);
   const base = waveform ? design.sweep.speed_mm_s : row.trend_window_min;
-  const value = local[row.id] ?? base;
+  const value = local[key] ?? base;
   const list: readonly number[] = waveform ? SPEEDS_MM_S : WINDOWS_MIN;
   // The design may use a value that is not in the usual list: keep it available.
   const values = [...new Set([...list, base, value])].sort((a, b) => a - b);
@@ -43,6 +49,6 @@ export function xScaleFor(row: Pick<Row, "trace" | "trend_window_min" | "id">,
   return {
     kind: waveform ? "speed" : "window", value, label: label(value),
     options: values.map((v) => ({ value: v, label: label(v) })),
-    overridden: local[row.id] !== undefined && local[row.id] !== base,
+    overridden: local[key] !== undefined && local[key] !== base,
   };
 }

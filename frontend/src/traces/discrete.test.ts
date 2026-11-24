@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { bpDots, bpExtent, dotLine, keyCorner, keySize, lineSamples, tempDots } from "./Discrete";
+import { bpDots, bpExtent, bpLabelPlan, bpRange, dotLine, keyCorner, keySize, lineSamples, tempDots } from "./Discrete";
 import { fullWindow, sweepMotion } from "./Strip";
 import { trendRange } from "./traceScale";
 
@@ -37,7 +37,7 @@ describe("discrete measurements", () => {
     expect(keyCorner([], plot, k)).toBe("tl");
     expect(keyCorner([{ x: 20, y: 10 }], plot, k)).toBe("tr");
     expect(keyCorner([{ x: 20, y: 10 }, { x: 380, y: 10 }], plot, k)).toBe("bl");
-    expect(keySize(50)).toMatchObject({ compact: true, h: 15 });
+    expect(keySize(50)).toMatchObject({ compact: true, h: 14 });
     expect(keySize(120).compact).toBe(false);
   });
   it("samples the dashed line so a key never sits on a segment", () => {
@@ -63,5 +63,47 @@ describe("sweep and axes", () => {
     const p = { default_low: 90, default_high: null, min_value: 50, max_value: 100 };
     expect(trendRange({ ...p, trend_range: [50, 100] })).toEqual([50, 100]);
     expect(trendRange(p)[0]).toBeGreaterThan(50);
+  });
+});
+
+describe("blood pressure numbers and range", () => {
+  const readings = [60, 120, 180].map((m, i) => ({ at: ago(m), sys: 150 - i * 20, dia: 90 - i * 10, map: 110 - i * 13 }));
+  it("puts the systolic above the top of each tail and the diastolic below the bottom", () => {
+    const dots = bpDots(readings, NOW, frame);
+    const plan = bpLabelPlan(dots, 200);
+    expect(plan).toHaveLength(3);
+    plan.forEach((l) => {
+      const d = dots[l.i]!;
+      expect(l.sysY).toBeLessThan(d.tailTop!);
+      expect(l.diaY).toBeGreaterThan(d.tailBottom!);
+      expect(l.sys).toBe(d.sys);
+      expect(l.dia).toBe(d.dia);
+    });
+  });
+  it("writes systolic and diastolic together above the tail when the plot is too short for two numbers", () => {
+    const dots = bpDots(readings, NOW, frame);
+    const plan = bpLabelPlan(dots, 40);
+    expect(plan.every((l) => l.joined)).toBe(true);
+    expect(bpLabelPlan(dots, 120).every((l) => !l.joined)).toBe(true);
+  });
+  it("keeps every number inside the plot, even for a tail at the very top or bottom", () => {
+    const dots = bpDots([{ at: ago(10), sys: 199, dia: 41, map: 90 }], NOW, { ...frame, y: (v: number) => 200 - v });
+    const [l] = bpLabelPlan(dots, 120);
+    expect(l!.sysY).toBeGreaterThanOrEqual(10);
+    expect(l!.diaY).toBeLessThanOrEqual(117);
+  });
+  it("drops numbers that would touch their neighbours, keeping the newest", () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({ at: ago(i * 5), sys: 120, dia: 70, map: 87 }));
+    const plan = bpLabelPlan(bpDots(many, NOW, frame), 200, 26);
+    const xs = plan.map((l) => l.x);
+    xs.slice(1).forEach((x, i) => expect(x - xs[i]!).toBeGreaterThanOrEqual(26));
+    expect(plan[plan.length - 1]!.i).toBe(11);
+  });
+  it("sizes the y range to the readings in whole tens, with room for the numbers, within the registry range", () => {
+    expect(bpRange(readings, [40, 200])).toEqual([60, 160]);
+    expect(bpRange([], [40, 200])).toEqual([40, 200]);
+    const [lo, hi] = bpRange([{ at: ago(1), sys: 101, dia: 99, map: 100 }], [40, 200]);
+    expect(hi - lo).toBeGreaterThanOrEqual(60);
+    expect(bpRange([{ at: ago(1), sys: 250, dia: 30, map: 100 }], [40, 200])).toEqual([40, 200]);
   });
 });

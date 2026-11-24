@@ -1075,6 +1075,11 @@
           "title": "Signals",
           "type": "object"
         },
+        "spo2_scale": {
+          "default": 1,
+          "title": "Spo2 Scale",
+          "type": "integer"
+        },
         "strips": {
           "items": {
             "$ref": "#/$defs/ExampleStrip"
@@ -1134,6 +1139,7 @@
         "numerics",
         "oxygen",
         "news2",
+        "spo2_scale",
         "devices",
         "signals",
         "quality",

@@ -40,12 +40,12 @@ _PAPER_PARAM_COLOURS = {
 
 # NEWS2 chart band colours as printed on the RCP chart (white / yellow / orange / red).
 _NEWS_BANDS_LIGHT = {
-    "score_0": "#FFFFFF", "score_1": "#FFF1B8", "score_2": "#F6C99B", "score_3": "#EC9B85",
+    "score_0": "#FFFFFF", "score_1": "#FFF1B0", "score_2": "#F8C98F", "score_3": "#EC9B85",
     "grid": "#2B2B2B", "header": "#2A5DB8", "header_text": "#FFFFFF",
 }
 _NEWS_BANDS_DARK = {
-    "score_0": "#12161C", "score_1": "#4A4318", "score_2": "#5C3A1A", "score_3": "#6B2420",
-    "grid": "#3A424D", "header": "#1D2A44", "header_text": "#E8EEF7",
+    "score_0": "#12161C", "score_1": "#5B5220", "score_2": "#7A4B1E", "score_3": "#8C3329",
+    "grid": "#3A424D", "header": "#24407A", "header_text": "#E8EEF7",
 }
 
 THEME_PRESETS: dict[str, dict] = {

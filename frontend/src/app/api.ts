@@ -42,6 +42,9 @@ export interface ModuleSizeSpec {
   flow: "tile-only" | "split" | "stack" | "row"; fits: string[];
 }
 
+/** One row of the printed NEWS2 chart (backend/app/news2.py NEWS2_BANDS). */
+export interface Band { label: string; score: number; low: number | null; high: number | null; oxygen?: boolean; level?: string }
+
 /** Read-only clinical vocabulary (backend/app/registry.py). */
 export interface Registry {
   alarm_silence_seconds: number;
@@ -78,6 +81,7 @@ export interface Registry {
     low: number | null; high: number | null; decimals: number }>;
   event_types: Record<string, { label: string; parameter: string | null }>;
   rhythm_labels: Record<string, string>;
+  news2_bands: Record<string, Band[]>;
   certainty_metrics: Record<string, { id: string; group: string; label: string;
     tells_you: string; applies_to: string[]; note: string }>;
 }

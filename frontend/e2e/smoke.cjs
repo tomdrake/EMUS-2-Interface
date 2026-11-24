@@ -1124,6 +1124,47 @@ for (const vp of VIEWPORTS) {
   await T("tab-news2").click();
   check(await T("news2-chart").isVisible() && await page.locator('[data-testid^="news-cell-rr-"]').count() >= 3, `${vp.name}: the NEWS2 tab is the real chart`);
   await shot("news2");
+  // The chart is the printed RCP chart: every band row, a dot in the row of each value, a key, and a scale toggle
+  const comps = (await api("/api/examples/scn-pneumonia?minute=0")).obs_sets;
+  const cells = await page.evaluate(() => ["rr", "hr", "temp"].map((k) => [k, [...document.querySelectorAll(`[data-testid^="news-cell-${k}-"]`)].map((e) => +e.dataset.score)]));
+  for (const [k, got] of cells) {
+    check(got.length >= 3 && got.join() === comps.slice(-got.length).map((o) => o.news2_components[k]).join(), `${vp.name}: each ${k} dot sits in a row that scores what the API scored (${got.join(", ")})`);
+  }
+  check(await page.locator('[data-testid^="news-band-bp_sys-"]').count() === 14 && await page.locator('[data-testid^="news-band-hr-"]').count() === 12, `${vp.name}: the blood pressure and pulse blocks have every printed row`);
+  check(await page.locator('[data-testid="news-key"] .news2-key-box').count() === 4, `${vp.name}: the NEWS key shows 0, 1, 2 and 3`);
+  const tails = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-tail-"]')].map((e) => +e.dataset.diaRow - +e.dataset.sysRow));
+  check(tails.length >= 3 && tails.every((d) => d >= 0), `${vp.name}: each blood pressure on the chart has a tail from the systolic dot down to the diastolic number`);
+  check(await T("news2-chart").getAttribute("data-spo2-scale") === "1" && await page.locator('[data-testid^="news-band-spo2-"]').count() === 4, `${vp.name}: the chart shows SpO2 Scale 1 for this patient`);
+  await T("news-toggle-scale").click();
+  check(await T("news2-chart").getAttribute("data-spo2-scale") === "2" && await page.locator('[data-testid^="news-band-spo2-"]').count() === 8, `${vp.name}: Toggle SpO2 Scale shows Scale 2 and its eight rows`);
+  await T("news-toggle-scale").click();
+  const bandFills = await page.evaluate(() => { const f = (s) => getComputedStyle(document.querySelector(`[data-testid="${s}"] .n2-bandrow`)).fill; return [f("news-band-rr-2"), f("news-band-rr-5"), f("news-band-rr-1"), f("news-band-rr-0")]; });
+  check(new Set(bandFills).size === 4, `${vp.name}: rows are coloured by score, white, yellow, orange, red (${bandFills.join(" / ")})`);
+  const chartFits = await page.evaluate(() => { const c = document.querySelector('[data-testid="news2-chart"]').getBoundingClientRect(), s = document.querySelector(".news2-svg").getBoundingClientRect(); return s.right <= c.right + 1 && s.left >= c.left - 1; });
+  check(chartFits, `${vp.name}: the chart fits its box across`);
+
+  // Blood pressure numbers sit above and below the tails; every trace has its x scale, even on a small module
+  await goDesign("icu-monitor", "monitor"); await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 180); await settle();
+  const bpNums = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="bp-num-bp-"]')].map((g) => {
+    const i = g.dataset.testid.split("-").pop(), d = document.querySelector(`[data-testid="bp-dot-bp-${i}"]`);
+    return { above: +g.dataset.sysY < +d.dataset.top, below: g.dataset.diaY === undefined || +g.dataset.diaY > +d.dataset.bottom, sys: document.querySelector(`[data-testid="bp-sys-bp-${i}"]`).textContent };
+  }));
+  check(bpNums.length >= 3 && bpNums.every((n) => n.above && n.below), `${vp.name}: each cuff pressure has its systolic above the tail and its diastolic below it (${bpNums.length} labelled)`);
+  const bpApi = (await api("/api/examples/scn-pneumonia?minute=180")).bp_readings;
+  check(bpNums.some((n) => n.sys.startsWith(String(bpApi[0].sys))), `${vp.name}: the newest labelled systolic is the API's ${bpApi[0].sys}`);
+  await goDesign("icu-modules", "monitor"); await settle();
+  for (const id of ["bp", "temp", "resp"]) {
+    check(await T(`xscale-${id}`).count() === 1 && await T(`xscale-${id}`).isVisible(), `${vp.name}: the ${id} module has its x scale as a number`);
+  }
+  await T("xscale-bp").click();
+  await T("xscale-option-bp-720").click();
+  check((await T("xscale-bp").innerText()).trim() === "12 h", `${vp.name}: choosing a window on a small module changes its number`);
+  const bounds = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="trace-frame-"]')].filter((f) => f.getBoundingClientRect().width > 0).every((f) => {
+    const r = f.getBoundingClientRect();
+    return [...f.querySelectorAll("path.trace-signal, path.discrete-line, path.overlay-trend, circle")].filter((e) => !e.closest(".sweep")).every((e) => { const b = e.getBoundingClientRect(); return b.width === 0 || (b.left >= r.left - 1 && b.right <= r.right + 1 && b.top >= r.top - 1 && b.bottom <= r.bottom + 1); });
+  }));
+  check(bounds, `${vp.name}: every line and dot stays inside its graph (a sweeping strip is clipped to its plot)`);
+  await page.evaluate(() => window.__emus.ui.getState().setXScale("bp", null));
 
   // Nothing overlaps, nothing is cut off, everything has padding; and the words are capitalised
   const { audit } = require("./layout-audit.cjs");

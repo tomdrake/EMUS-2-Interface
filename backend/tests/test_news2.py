@@ -106,3 +106,41 @@ def test_scale_2_changes_the_total():
     assert n.news2(spo2=90, spo2_scale=1, **obs).total == 3 + 2
     assert n.news2(spo2=90, spo2_scale=2, **obs).total == 0 + 2
     assert n.news2(spo2=98, spo2_scale=2, **obs).total == 3 + 2  # over-oxygenated
+
+
+# --------------------------------------------------------- the chart's bands agree with the scoring
+
+def _sample(band):
+    lo, hi = band["low"], band["high"]
+    if lo is None and hi is None:
+        return []
+    if lo is None:
+        return [hi, hi - 1]
+    if hi is None:
+        return [lo, lo + 5]
+    return [lo, hi, (lo + hi) / 2]
+
+
+def test_every_band_on_the_printed_chart_scores_what_it_says():
+    from app import news2
+    fns = {"rr": news2.score_rr, "bp_sys": news2.score_systolic, "hr": news2.score_pulse, "temp": news2.score_temperature,
+           "spo2_1": lambda v: news2.score_spo2(v, 1), "o2_flow": lambda v: news2.score_oxygen(v > 0)}
+    for key, fn in fns.items():
+        for band in news2.NEWS2_BANDS[key]:
+            for v in _sample(band):
+                assert fn(v) == band["score"], (key, band["label"], v)
+    for band in news2.NEWS2_BANDS["spo2_2"]:
+        for v in _sample(band):
+            on = band.get("oxygen", False)
+            assert news2.score_spo2(v, 2, on_oxygen=on) == band["score"], (band["label"], v)
+    assert [b["score"] for b in news2.NEWS2_BANDS["acvpu"]] == [0, 3, 3, 3, 3]
+    assert [b["level"] for b in news2.NEWS2_BANDS["acvpu"]] == list("ACVPU")
+
+
+def test_bands_run_top_to_bottom_without_gaps():
+    from app import news2
+    for key in ("rr", "bp_sys", "hr", "temp", "spo2_1"):
+        bands = news2.NEWS2_BANDS[key]
+        for upper, lower in zip(bands, bands[1:]):
+            assert upper["low"] is not None and (lower["high"] is None or round(lower["high"], 1) < upper["low"])
+            assert abs(upper["low"] - (lower["high"] if lower["high"] is not None else upper["low"] - 1)) <= 1.01 or key == "temp"

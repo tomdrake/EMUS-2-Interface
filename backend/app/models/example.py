@@ -142,6 +142,8 @@ class ExampleSnapshot(_Model):
     numerics: dict[ParameterId, float | str | None]
     oxygen: OxygenTherapy
     news2: News2Now
+    #: The patient's SpO2 scale for NEWS2 (1 for most; 2 only under clinician direction).
+    spo2_scale: int = 1
     devices: list[DeviceStatus]
     signals: dict[ParameterId, SignalStatus]
     quality: list[SignalQuality]

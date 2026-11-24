@@ -696,20 +696,40 @@ button:disabled { opacity: 0.45; }
 .key-text { font-size: 10px; font-weight: 600; fill: currentColor; }
 .key-line { stroke-width: 1.5; }
 
-/* NEWS2 chart (RCP layout): scored cells coloured by the theme's band colours. */
+/* NEWS2 chart as printed: coloured band rows, the patient's values marked and joined. */
 .news2-chart { flex: 1 1 0; min-width: 0; min-height: 0; overflow: auto; padding: 6px; display: flex; flex-direction: column; gap: 6px; }
-.news2-chart table { border-collapse: collapse; width: 100%; table-layout: fixed; font-variant-numeric: tabular-nums; }
-.news2-chart th, .news2-chart td { border: 1px solid var(--news-grid, var(--c-border)); padding: 3px 2px; text-align: center; font-size: 0.8rem; overflow: hidden; }
-.news2-chart thead th { background: var(--news-header, var(--c-surface)); color: var(--news-header-text, var(--c-text)); line-height: 1.2; }
-.news2-chart thead th span { display: block; font-weight: 700; } .news2-chart thead th small { display: block; font-weight: 400; opacity: 0.85; font-size: 0.68rem; }
-.news2-chart th.n2-label { text-align: left; background: var(--news-header, var(--c-surface)); color: var(--news-header-text, var(--c-text)); position: sticky; left: 0; width: 26%; min-width: 92px; font-weight: 600; padding-left: 6px; }
-.news2-chart th.n2-label small { font-weight: 400; opacity: 0.85; }
-.news2-chart td { font-weight: 600; }
-.news2-chart tr[data-row="frequency"] td { font-size: 0.66rem; }
-.n2-total td strong { font-size: 1.15rem; }
-.n2-future { border-style: dashed !important; background: transparent; }
-.n2-future small { display: block; font-weight: 400; opacity: 0.85; }
-.n2-foot, .news2-empty { margin: 0; color: var(--c-text-muted); font-size: 0.8rem; padding: 6px; }
+.news2-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; flex: none; }
+.news2-title { margin: 0; font-size: 1.05rem; }
+.news2-key { display: flex; align-items: center; gap: 4px; }
+.news2-key-label { font-size: 0.8rem; font-weight: 600; margin-right: 4px; }
+.news2-key-box { min-width: 26px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--c-text); font-weight: 700; font-size: 0.85rem; }
+.news2-toggle { min-height: var(--touch); padding: 0 14px; white-space: nowrap; }
+.news2-svg { display: block; flex: none; font-variant-numeric: tabular-nums; }
+.news2-svg text { font-size: 9px; fill: var(--c-text); }
+.news2-svg .n2-time, .news2-svg .n2-date { font-weight: 700; font-size: 9.5px; }
+.news2-svg .n2-label { font-weight: 600; }
+.news2-svg .n2-bandlabel { fill: var(--c-background); stroke: rgba(128, 128, 128, 0.5); stroke-width: 0.5; }
+.news2-svg .n2-bandrow { stroke: rgba(128, 128, 128, 0.55); stroke-width: 0.5; }
+.news2-svg .n2-futureveil { fill: var(--c-background); fill-opacity: 0.45; }
+.news2-svg .n2-block { fill: none; stroke: var(--c-text); stroke-width: 1.3; }
+.news2-svg .n2-grid { stroke: rgba(128, 128, 128, 0.55); stroke-width: 0.5; }
+.news2-svg .n2-grid.is-future { stroke-dasharray: 3 3; }
+.news2-svg .n2-letter { fill: #ffffff; fill-opacity: 0.32; font-weight: 800; }
+.news2-svg .n2-nametext { font-weight: 700; }
+.news2-svg .n2-nametext.n2-warn, .news2-svg .n2-warn { fill: #ff8a78; }
+.news2-svg .n2-line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.news2-svg .n2-dot { stroke: var(--c-background); stroke-width: 0.8; }
+.news2-svg .n2-tail { stroke-width: 1.8; stroke-dasharray: 2 2; }
+.news2-svg .n2-value { font-weight: 700; font-size: 8.5px; paint-order: normal; }
+.news2-svg .n2-totalcell { stroke: var(--c-text); stroke-width: 0.8; }
+.news2-svg .n2-totaltext { font-size: 14px; font-weight: 800; }
+.news2-svg .n2-totaltext.n2-small { font-size: 11px; }
+.news2-svg .n2-futurecell { stroke: currentColor; stroke-dasharray: 3 2; stroke-width: 1; }
+.news2-svg .n2-range { font-size: 9.5px; font-weight: 500; }
+.news2-svg .n2-footlabel { fill: var(--c-surface-alt); stroke: var(--c-text); stroke-width: 0.8; }
+.news2-svg .n2-footcells { fill: none; stroke: var(--c-text); stroke-width: 0.8; }
+.news2-svg .n2-foot { font-weight: 700; font-size: 10px; }
+.n2-foot-note, .news2-empty { margin: 0; color: var(--c-text-muted); font-size: 0.8rem; padding: 6px; }
 
 /* ABCDE */
 .abcde { flex: 1 1 0; min-width: 0; min-height: 0; overflow-y: auto; padding: 6px 12px 24px; display: flex; flex-direction: column; gap: 8px; }
@@ -746,3 +766,9 @@ button:disabled { opacity: 0.45; }
 .ai-chip-pill { overflow: hidden; }
 
 .module-detail .row-status strong { flex: 0 1 auto; white-space: normal; }
+
+/* The numbers above and below a blood pressure tail: a halo keeps them legible over the dashed line and grid. */
+.discrete-num { font-size: 10px; font-weight: 700; fill: currentColor; font-variant-numeric: tabular-nums;
+  paint-order: stroke; stroke: var(--c-background); stroke-width: 3px; stroke-linejoin: round; }
+.xscale-spark { min-width: 56px; padding-left: 4px; }
+.trace-mini .xscale { min-height: min(var(--touch), 100%); }

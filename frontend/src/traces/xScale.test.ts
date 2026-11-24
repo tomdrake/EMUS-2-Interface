@@ -1,4 +1,4 @@
-import { SPEEDS_MM_S, WINDOWS_MIN, speedLabel, windowLabel, xScaleFor } from "./xScale";
+import { SPEEDS_MM_S, WINDOWS_MIN, speedLabel, windowLabel, xScaleFor, xKey } from "./xScale";
 
 const design = { sweep: { speed_mm_s: 25 } } as any;
 const wave = { id: "ecg", trace: "waveform", trend_window_min: 60 } as any;
@@ -46,5 +46,27 @@ describe("x scale of a trace", () => {
 
   it("treats a local value equal to the design's as not changed", () => {
     expect(xScaleFor(wave, design, { ecg: 25 })!.overridden).toBe(false);
+  });
+});
+
+describe("x scale of a small module", () => {
+  const design = { sweep: { speed_mm_s: 25 } } as never;
+  it("is a time window even when the full row is a waveform, and has its own place to keep it", () => {
+    const row = { id: "ecg", trace: "waveform", trend_window_min: 60 } as never;
+    const full = xScaleFor(row, design, {});
+    const small = xScaleFor(row, design, {}, true);
+    expect(full?.kind).toBe("speed");
+    expect(small?.kind).toBe("window");
+    expect(small?.label).toBe("1 h");
+    expect(xKey(row, true)).toBe("ecg:window");
+    expect(xKey(row)).toBe("ecg");
+    // a choice for the small module leaves the waveform's speed alone
+    expect(xScaleFor(row, design, { "ecg:window": 240 }, true)?.label).toBe("4 h");
+    expect(xScaleFor(row, design, { "ecg:window": 240 })?.label).toBe("25 mm/s");
+  });
+  it("is the same window as the full trace for a trend row", () => {
+    const row = { id: "temp", trace: "trend", trend_window_min: 240 } as never;
+    expect(xKey(row, true)).toBe("temp");
+    expect(xScaleFor(row, design, { temp: 720 }, true)?.label).toBe("12 h");
   });
 });

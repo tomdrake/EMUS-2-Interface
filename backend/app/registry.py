@@ -22,6 +22,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
+from app.news2 import NEWS2_BANDS
+
 LOINC = "http://loinc.org"
 SNOMED = "http://snomed.info/sct"
 UCUM = "http://unitsofmeasure.org"
@@ -608,4 +610,5 @@ def as_public_dict() -> dict:
         "event_types": EVENT_TYPES,
         "rhythm_labels": RHYTHM_LABELS,
         "certainty_metrics": {k: asdict(v) for k, v in CERTAINTY_METRICS.items()},
+        "news2_bands": NEWS2_BANDS,
     }

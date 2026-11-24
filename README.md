@@ -106,6 +106,10 @@ The AI button in the top bar turns every AI mark off for the screen.
 
 The **ABCDE** tab checks Airway, Breathing, Circulation, Disability and Exposure from the monitor's data and a few prompts, then shows the latest blood gas, bloods and glucose with when they were taken, a Trends button, and the NEWS2 chart on the other half of the screen. Airway, capillary refill, AVPU, GCS and exposure are recorded on the screen only.
 
+The NEWS2 chart is drawn like the printed Royal College of Physicians chart, filled in: blocks for Respirations, SpO2 (Scale 1 or 2, with a Toggle SpO2 Scale button), Air or Oxygen, Blood Pressure, Pulse, Consciousness and Temperature, every row coloured by its score (white 0, yellow 1, orange 2, red 3), a dot in the row of each value joined by a line, and the total, monitoring frequency and clinical risk underneath. Blood pressure is the systolic dot with a dotted tail to the diastolic number. It follows the light or dark theme (`news_bands` colours). The row bands come from `NEWS2_BANDS` in `backend/app/news2.py`, which the tests check against the scoring functions.
+
+Blood pressure on a trend is a dot at the MAP with a tail from diastolic to systolic, the systolic number above the tail and the diastolic below (written once as "sys/dia" above the tail when the graph is too short for two). Every trace, small modules included, has its x scale as a number you can tap; a small module's is a time window. Lines and numbers stay inside their graph, above a strip kept for the x scale.
+
 ## Customising the screen
 
 Settings, then **Edit Layout**: tap a module, choose its size from seven pictured shapes (small

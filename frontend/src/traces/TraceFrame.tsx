@@ -4,7 +4,7 @@ import { useSnapshot } from "@/examples/store";
 import type { Row } from "@/design/types";
 
 import { AnnotationLayer } from "./AnnotationLayer";
-import { BpLayer, TempKey, keySize, TempLayer, bpDots, keyCorner, lineSamples, tempDots } from "./Discrete";
+import { BpLayer, TempKey, bpExtent, bpRange, keySize, TempLayer, bpDots, keyCorner, lineSamples, tempDots } from "./Discrete";
 import { Spark, trendPath } from "./Spark";
 import { StripPath, fullWindow, stripWindow, sweepMotion } from "./Strip";
 import {
@@ -20,6 +20,8 @@ const AXIS_RIGHT = 52;      // room for a right-hand axis (the SpO2 % trend over
 const LABEL = 10.5;         // px, the smallest text on a trace
 const TREND_PAD = 16;       // keeps the top and bottom tick labels clear of the unit
 const padFor = (h: number) => (h >= 90 ? TREND_PAD : 7);
+const MIN_X_PX = 30;        // a trace area shorter than this has no room for the x scale number
+const X_STRIP = 14;         // room under the plot for the x scale number, so no line ever runs under it
 
 /**
  * The marks of a trace and, when the screen has data, the signal in them.
@@ -58,7 +60,9 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
   const right = w - 6;
   const plotRight = right - (overlayParam ? AXIS_RIGHT : 0);
   // Room the x scale number takes at the bottom right, so the gain sits beside it.
-  const xs = mini ? null : xScaleFor(row, design, local);
+  const xs = xScaleFor(row, design, local, mini);
+  // The plot stops above the x scale number: every line and box is drawn inside it.
+  const plotH = cfg.show_time_scale && h >= MIN_X_PX ? h - X_STRIP : h;
   const xWidth = (xs?.label.length ?? 0) * 6 + 18;
   const children: React.ReactNode[] = [];
   let meta: Record<string, string | number | boolean> = {};
@@ -68,7 +72,7 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
     if (wf && row.waveform) {
       const scale = wf.scale as WaveScale;
       // An uncalibrated trace fills its height, so its end labels need room inside it.
-      const t = waveTransform({ heightPx: h, scale, preferredGain: design.traces.ecg_gain_mm_per_mv, pxPerMm, padPx: scale.calibrated ? 3 : 10 });
+      const t = waveTransform({ heightPx: plotH, scale, preferredGain: design.traces.ecg_gain_mm_per_mv, pxPerMm, padPx: scale.calibrated ? 3 : 10 });
       meta = { "data-gain": t.gainMmPerUnit ?? "", "data-px-per-unit": t.pxPerUnit.toFixed(3),
                "data-baseline-y": t.baselineY.toFixed(2), "data-fitted": t.fitted };
 
@@ -117,15 +121,15 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
         const still = stripWindow(strip, { x0, x1: plotRight, speedMmPerS: speed, pxPerMm });
         const style = motion ? ({ "--travel": `${-motion.travelPx}px`, animationDuration: `${motion.seconds.toFixed(2)}s` } as React.CSSProperties) : undefined;
         children.push(
-          <clipPath key="clip" id={`clip-${row.id}`}><rect x={x0} y={0} width={Math.max(0, plotRight - x0)} height={h} /></clipPath>,
+          <clipPath key="clip" id={`clip-${row.id}`}><rect x={x0} y={0} width={Math.max(0, plotRight - x0)} height={plotH} /></clipPath>,
           <g key="sweep-clip" clipPath={`url(#clip-${row.id})`}>
             <g key={now} className={`sweep${motion ? " is-sweeping" : ""}`} style={style} data-testid={`sweep-${row.id}`}
                data-travel={motion ? motion.travelPx.toFixed(1) : "0"} data-seconds={motion ? motion.seconds.toFixed(2) : "0"}>
-              <StripPath strip={strip} w={full} y={t.y} heightPx={h} rowId={row.id} />
-              <AnnotationLayer marks={strip.marks} w={full} height={h} aiOn={aiOn && overlay} rowId={row.id} interactive={false} kinds="finding" />
+              <StripPath strip={strip} w={full} y={t.y} heightPx={plotH} rowId={row.id} />
+              <AnnotationLayer marks={strip.marks} w={full} height={plotH} aiOn={aiOn && overlay} rowId={row.id} interactive={false} kinds="finding" />
             </g>
           </g>,
-          <AnnotationLayer key="tech" marks={strip.marks} w={still} height={h} aiOn={false} rowId={row.id} kinds="technical" />,
+          <AnnotationLayer key="tech" marks={strip.marks} w={still} height={plotH} aiOn={false} rowId={row.id} kinds="technical" />,
         );
       }
 
@@ -133,11 +137,15 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
       if (overlayParam && wf?.overlay_parameter) {
         const range = trendRange(overlayParam);
         // A short row has no room for a title above the ticks: the unit goes on the ticks instead.
-        const roomy = h >= 70;
-        const showAxis = h >= 34;      // a very short plot keeps the line and drops the labels
-        const y = (v: number) => trendY(v, range, h, roomy ? 20 : 9);
+        const roomy = plotH >= 70;
+        const showAxis = h >= 34;          // a very short plot keeps the line and drops the labels
+        // On a short row the axis may use the strip too, but its lowest point stays clear of the x scale number.
+        const short = plotH < 34 && h >= 34;
+        const y = short
+          ? (v: number) => 8 + ((range[1] - v) / (range[1] - range[0])) * (h - 16)
+          : (v: number) => trendY(v, range, plotH, roomy ? 20 : 9);
         // Two ticks on a short row, three on a tall one, so the labels never touch.
-        const ticks = h >= 100 ? [range[0], (range[0] + range[1]) / 2, range[1]] : [range[0], range[1]];
+        const ticks = plotH >= 100 ? [range[0], (range[0] + range[1]) / 2, range[1]] : [range[0], range[1]];
         const series = snapshot?.trends[wf.overlay_parameter as keyof typeof snapshot.trends];
         children.push(
           <g key="overlay" className="overlay-axis" data-testid={`overlay-axis-${row.id}`} data-range={range.join(",")}>
@@ -158,14 +166,15 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
       }
     } else if (row.trace === "trend" && row.parameter) {
       const p = registry.parameters[row.parameter]!;
-      const range = trendRange(p);
+      const base = trendRange(p);
+      const range = row.parameter === "bp_sys" && snapshot ? bpRange(snapshot.bp_readings, base) : base;
       meta = { "data-range": range.map((x) => x.toFixed(1)).join(",") };
-      const pxPerUnit = (h - 2 * padFor(h)) / (range[1] - range[0]);
+      const pxPerUnit = (plotH - 2 * padFor(plotH)) / (range[1] - range[0]);
       const all = niceTicks(range[0], range[1], 3);
       let ticks = thinTicks(all, pxPerUnit);
       // Always keep the bottom and top tick when they fit, so the scale is never a single number.
       if (ticks.length < 2 && all.length >= 2 && (all[all.length - 1]! - all[0]!) * pxPerUnit >= 14) ticks = [all[0]!, all[all.length - 1]!];
-      const y = (v: number) => trendY(v, range, h, padFor(h));
+      const y = (v: number) => trendY(v, range, plotH, padFor(plotH));
       if (labels) {
         children.push(<text key="unit" className="trace-label trace-unit" x={2} y={LABEL}>{p.unit}</text>);
       }
@@ -176,16 +185,17 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
         }
       });
       const windowMin = xs?.value ?? row.trend_window_min;
-      const frame = { x0: gutter + 2, x1: right, windowMin, y };
+      // Discrete marks keep clear of the edges so their numbers are never cut off.
+      const frame = { x0: gutter + 24, x1: right - 24, windowMin, y };
       if (!mini && snapshot && now) {
         if (row.parameter === "bp_sys") {
           const dots = bpDots(snapshot.bp_readings, now, frame);
-          children.push(<BpLayer key="bp" dots={dots} rowId={row.id} />);
-          if (!dots.length) children.push(<text key="none" className="trace-label" x={(frame.x0 + frame.x1) / 2} y={h / 2} textAnchor="middle">No Reading</text>);
+          children.push(<BpLayer key="bp" dots={dots} rowId={row.id} plotH={plotH} />);
+          if (!dots.length) children.push(<text key="none" className="trace-label" x={(frame.x0 + frame.x1) / 2} y={plotH / 2} textAnchor="middle">No Reading</text>);
         } else {
           const series = snapshot.trends[row.parameter as keyof typeof snapshot.trends];
           if (series && series.points.length > 1) {
-            const d = trendPath(series.points, frame.x0, frame.x1, windowMin, y);
+            const d = trendPath(series.points, gutter + 2, right, windowMin, y);
             if (d) children.push(<path key="trend" className="trace-signal" data-testid={`trace-signal-${row.id}`} d={d} />);
           }
           if (row.parameter === "temp") {
@@ -193,27 +203,32 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
             children.push(<TempLayer key="temp" dots={dots} rowId={row.id} />);
             if (dots.length && series && series.points.length > 1) {
               // Points along the dashed line count too, so the key never sits on a segment.
-              const pts = [...dots, ...lineSamples(dots), ...series.points.filter((q) => q.t >= -windowMin).map((q) => ({ x: frame.x0 + ((q.t + windowMin) / windowMin) * (frame.x1 - frame.x0), y: y(q.v) }))];
-              const plot = { x0: frame.x0, x1: frame.x1, h };
-              children.push(<TempKey key="key" corner={keyCorner(pts, plot, keySize(h))} plot={plot} rowId={row.id} />);
+              const pts = [...dots, ...lineSamples(dots), ...series.points.filter((q) => q.t >= -windowMin).map((q) => ({ x: gutter + 2 + ((q.t + windowMin) / windowMin) * (right - gutter - 2), y: y(q.v) }))];
+              const plot = { x0: frame.x0, x1: frame.x1, h: plotH };
+              children.push(<TempKey key="key" corner={keySize(plotH).compact && plotH < h ? "strip" : keyCorner(pts, plot, keySize(plotH))} plot={plot} rowId={row.id} />);
             }
           }
         }
       }
     }
-    // Small modules: a spark of the item's trend in place of the full trace. Blood pressure is dots and a dashed line.
+    // Small modules: a spark of the item's trend in place of the full trace, over the same window as its x scale.
+    // Blood pressure is dots at the MAP with tails and numbers when the module is tall enough, dots and a dashed line when not.
     const sparkParam = row.parameter;
     if (mini && sparkParam && snapshot && now) {
+      const windowMin = xs?.value ?? Math.min(row.trend_window_min, 240);
       if (sparkParam === "bp_sys") {
-        const maps = snapshot.bp_readings.map((r) => r.map);
-        const lo = Math.min(...maps, 999), hi = Math.max(...maps, 0);
+        const roomy = plotH >= 56 && w >= 110;
+        const ext = bpExtent(snapshot.bp_readings.filter((r) => (Date.parse(now) - Date.parse(r.at)) / 60000 <= windowMin));
+        const lo = ext ? ext[0] : 60, hi = ext ? ext[1] : 140;
+        const top = roomy ? 14 : 4, bottom = roomy ? 16 : 4;
         const span = Math.max(hi - lo, 10);
-        const y = (v: number) => 4 + ((hi + span * 0.2 - v) / (span * 1.4)) * (h - 8);
-        const dots = bpDots(snapshot.bp_readings, now, { x0: 6, x1: w - 6, windowMin: Math.min(row.trend_window_min, 240), y });
-        children.push(<BpLayer key="spark-bp" dots={dots} rowId={row.id} tails={false} />);
+        const y = (v: number) => top + ((hi - v) / span) * (plotH - top - bottom);
+        const padX = roomy ? 24 : 6;
+        const dots = bpDots(snapshot.bp_readings, now, { x0: padX, x1: w - padX, windowMin, y });
+        children.push(<BpLayer key="spark-bp" dots={dots} rowId={row.id} tails={roomy} plotH={plotH} />);
       } else {
         const spark = snapshot.trends[sparkParam as keyof typeof snapshot.trends];
-        if (spark) children.push(<Spark key="spark" points={spark.points} w={w} h={h} windowMin={Math.min(row.trend_window_min, 240)} rowId={row.id} />);
+        if (spark) children.push(<Spark key="spark" points={spark.points} w={w} h={plotH} windowMin={windowMin} rowId={row.id} />);
       }
     }
   }
@@ -226,7 +241,7 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
           {children}
         </svg>
       )}
-      {!mini && cfg.show_time_scale && <XScaleButton row={row} />}
+      {cfg.show_time_scale && (!mini || h >= MIN_X_PX) && <XScaleButton row={row} spark={mini} />}
     </div>
   );
 }

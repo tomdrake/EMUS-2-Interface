@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { useDesign, useUi } from "@/app/store";
 import type { Row } from "@/design/types";
 
-import { xScaleFor } from "./xScale";
+import { xKey, xScaleFor } from "./xScale";
 
 /**
  * The x scale of a trace as a number ("25 mm/s", "4 h") in thin light text. One touch
@@ -14,11 +14,11 @@ import { xScaleFor } from "./xScale";
  * Its hit area is at least a touch target tall and wide even though the text is small.
  * It sits above the row's own tap area (which opens alarm limits), so the two never nest.
  */
-export function XScaleButton({ row }: { row: Row }) {
+export function XScaleButton({ row, spark = false }: { row: Row; spark?: boolean }) {
   const design = useDesign()!;
   const local = useUi((s) => s.xScale);
   const setXScale = useUi((s) => s.setXScale);
-  const spec = xScaleFor(row, design, local);
+  const spec = xScaleFor(row, design, local, spark);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const button = useRef<HTMLButtonElement>(null);
 
@@ -34,7 +34,7 @@ export function XScaleButton({ row }: { row: Row }) {
 
   return (
     <>
-      <button ref={button} type="button" className={`xscale${spec.overridden ? " is-changed" : ""}`}
+      <button ref={button} type="button" className={`xscale${spec.overridden ? " is-changed" : ""}${spark ? " xscale-spark" : ""}`}
               data-testid={`xscale-${row.id}`} aria-haspopup="menu" aria-expanded={!!anchor}
               aria-label={`${name} ${spec.kind === "speed" ? "sweep speed" : "time window"} ${spec.label}. Change.`}
               onClick={() => setAnchor(anchor ? null : button.current!.getBoundingClientRect())}>
@@ -50,7 +50,7 @@ export function XScaleButton({ row }: { row: Row }) {
               <button key={o.value} type="button" role="menuitemradio" aria-checked={o.value === spec.value}
                       className={`xscale-option${o.value === spec.value ? " is-current" : ""}`}
                       data-testid={`xscale-option-${row.id}-${o.value}`}
-                      onClick={() => { setXScale(row.id, o.value); setAnchor(null); }}>
+                      onClick={() => { setXScale(xKey(row, spark), o.value); setAnchor(null); }}>
                 {o.label}
               </button>
             ))}

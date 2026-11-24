@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useUi } from "@/app/store";
 import type { ExampleSnapshot } from "@/contracts/types.gen";
 import { useSnapshot } from "@/examples/store";
-import { BpLayer, TempKey, TempLayer, bpDots, keyCorner, keySize, tempDots } from "@/traces/Discrete";
+import { BpLayer, TempKey, TempLayer, bpDots, bpRange, keyCorner, keySize, tempDots } from "@/traces/Discrete";
 import { trendPath } from "@/traces/Spark";
 import { niceTicks, trendRange, trendY } from "@/traces/traceScale";
 import { useSize } from "@/traces/useSize";
@@ -18,10 +18,11 @@ function Plot({ param, windowMin, snapshot }: { param: string; windowMin: number
   const registry = useUi((s) => s.registry)!;
   const p = registry.parameters[param === "bp" ? "bp_sys" : param]!;
   const [ref, { w }] = useSize<HTMLDivElement>();
-  const range = trendRange(p);
+  const range = param === "bp" ? bpRange(snapshot.bp_readings, trendRange(p)) : trendRange(p);
   const y = (v: number) => trendY(v, range, H, PAD);
   const x1 = Math.max(w - 8, LEFT + 10);
-  const frame = { x0: LEFT, x1, windowMin, y };
+  // Discrete marks keep clear of the edges so their numbers are never cut off.
+  const frame = { x0: LEFT + 24, x1: x1 - 24, windowMin, y };
   const series = param === "bp" ? null : snapshot.trends[param as keyof typeof snapshot.trends];
   const bp = param === "bp" ? bpDots(snapshot.bp_readings, snapshot.generated_at, frame) : [];
   const temp = param === "temp" ? tempDots(snapshot.temp_readings, snapshot.generated_at, frame) : [];
@@ -40,7 +41,7 @@ function Plot({ param, windowMin, snapshot }: { param: string; windowMin: number
                 <text className="trace-label" x={LEFT - 6} y={y(v) + 3.5} textAnchor="end">{v}</text></g>
             ))}
             {series && series.points.length > 1 && <path className="trace-signal" d={trendPath(series.points, LEFT, x1, windowMin, y)} />}
-            {param === "bp" && <BpLayer dots={bp} rowId="trends" />}
+            {param === "bp" && <BpLayer dots={bp} rowId="trends" plotH={H} />}
             {param === "temp" && <TempLayer dots={temp} rowId="trends" />}
             {param === "temp" && temp.length > 0 && <TempKey corner={keyCorner(pts, plot, keySize(H))} plot={plot} rowId="trends" />}
             {param === "bp" && bp.length === 0 && <text className="trace-label" x={(LEFT + x1) / 2} y={H / 2} textAnchor="middle">No Reading</text>}

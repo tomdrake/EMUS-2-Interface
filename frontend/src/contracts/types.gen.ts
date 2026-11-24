@@ -165,6 +165,7 @@ export interface ExampleSnapshot {
   signals: {
     [k: string]: SignalStatus;
   };
+  spo2_scale: number;
   strips: ExampleStrip[];
   temp_readings: TempReading[];
   title: string;

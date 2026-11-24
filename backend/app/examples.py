@@ -995,7 +995,7 @@ def snapshot(scenario_id: str, minute: float, now: datetime | None = None) -> Ex
     obs_sets = _obs_sets(sc, minute, now)
     return ExampleSnapshot(
         scenario_id=scenario_id, title=sc["title"], minute=minute, generated_at=now, model=MODEL,
-        patient=Patient(id=scenario_id, **sc["patient"]), numerics=numerics, oxygen=oxygen,
+        patient=Patient(id=scenario_id, **sc["patient"]), spo2_scale=sc["spo2_scale"], numerics=numerics, oxygen=oxygen,
         news2=News2Now(total=n2.total, risk=n2.risk, complete=n2.complete, components=n2.components,
                        response=n2.response),
         devices=devices, signals=signals, quality=quality, alarms=alarm_state, strips=strips,
