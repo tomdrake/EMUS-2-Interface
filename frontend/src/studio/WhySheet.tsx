@@ -31,7 +31,6 @@ export function WhySheet() {
       <header className="why-head">
         <h3 data-testid="why-summary">{f.summary}</h3>
         <p className="why-sub">
-          <span className="example-mark">Example</span>{" "}
           {f.label} · {f.status === "active" ? "happening now" : "earlier"} · severity {f.severity}
           {" · read at "}{new Date(f.generated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
         </p>

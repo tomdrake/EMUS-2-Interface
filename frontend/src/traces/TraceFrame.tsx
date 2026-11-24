@@ -4,38 +4,46 @@ import { useSnapshot } from "@/examples/store";
 import type { Row } from "@/design/types";
 
 import { AnnotationLayer } from "./AnnotationLayer";
+import { BpLayer, TempKey, keySize, TempLayer, bpDots, keyCorner, lineSamples, tempDots } from "./Discrete";
 import { Spark, trendPath } from "./Spark";
-import { StripPath, stripWindow } from "./Strip";
-
+import { StripPath, fullWindow, stripWindow, sweepMotion } from "./Strip";
 import {
   MIN_LABEL_HEIGHT_PX, gainText, niceTicks, thinTicks, trendRange, trendY, waveTransform,
   type WaveScale,
 } from "./traceScale";
 import { useSize } from "./useSize";
 import { XScaleButton } from "./XScaleButton";
-import { xScaleFor } from "./xScale";
+import { windowLabel, xScaleFor } from "./xScale";
 
 const GUTTER = 44;          // room for the axis labels and the calibration bar
+const AXIS_RIGHT = 52;      // room for a right-hand axis (the SpO2 % trend over the pleth)
 const LABEL = 10.5;         // px, the smallest text on a trace
+const TREND_PAD = 16;       // keeps the top and bottom tick labels clear of the unit
+const padFor = (h: number) => (h >= 90 ? TREND_PAD : 7);
 
 /**
- * The reference marks of a trace, with no signal in them: the dashed baseline, the
- * axis in the trace's units, the 1 mV calibration bar and the one-second bar.
+ * The marks of a trace and, when the screen has data, the signal in them.
  *
- * Drawn in the row's colour. It fills the trace area under the row's name, so it
- * can never cover the name. M2 draws the waveform or trend INSIDE this frame using
- * `waveTransform` (or `trendY`) from ./traceScale, so the marks and the signal are
- * always at the same scale. Nothing here is data: an empty frame is honest.
+ * Reference marks, in the row's colour: the dashed baseline, the axis in the trace's units, the 1 mV
+ * calibration bar and the x scale as a number. The signal is drawn at the same vertical scale, so the
+ * marks and the signal agree by construction.
  *
- * `mini` is the small form for small modules: the baseline or gridlines only, with no axis,
- * calibration bar, gain or x scale. Bar and event rows have no frame. Which marks show is the design's `traces`
- * section; a row too short for labels still gets the baseline.
+ * A waveform sweeps: the whole strip is drawn once and slid across at the sweep speed (a looping CSS
+ * animation, so the page does no work per frame), with the AI overview's boxes in the same group so they
+ * travel with the beats. It holds still with reduced motion and while the layout is being edited.
+ *
+ * A pleth row also draws the SpO2 trend against a right-hand axis of 50 to 100 %. Blood pressure is a dot
+ * at each MAP with a tail to the systolic and diastolic values, joined by a dashed line; measured
+ * temperatures are dots on a dashed line, drawn with the continuous skin trace and a small key.
+ *
+ * `mini` is the small form for small modules: a spark, no axes, calibration bar or gain.
  */
 export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) {
   const design = useDesign()!;
   const registry = useUi((s) => s.registry)!;
   const pxPerMm = useUi((s) => s.pxPerMm);
   const local = useUi((s) => s.xScale);
+  const overlay = useUi((s) => s.aiOverlay);
   const [ref, { w, h }] = useSize<HTMLDivElement>();
   const snapshot = useSnapshot();
   const aiOn = useAiOn(row) && design.ai.show_trace_annotations;
@@ -43,26 +51,30 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
   const wanted = row.trace === "waveform" || row.trace === "trend";
   if (!wanted) return <div className="trace-area" ref={ref} data-testid={`trace-${row.id}`} />;
 
+  const wf = row.trace === "waveform" && row.waveform ? registry.waveforms[row.waveform] : undefined;
+  const overlayParam = !mini && wf?.overlay_parameter ? registry.parameters[wf.overlay_parameter] : undefined;
   const labels = !mini && cfg.show_scale && h >= MIN_LABEL_HEIGHT_PX;
   const gutter = !mini && (labels || (cfg.show_calibration_bar && h >= MIN_LABEL_HEIGHT_PX)) ? GUTTER : 0;
   const right = w - 6;
+  const plotRight = right - (overlayParam ? AXIS_RIGHT : 0);
   // Room the x scale number takes at the bottom right, so the gain sits beside it.
   const xs = mini ? null : xScaleFor(row, design, local);
   const xWidth = (xs?.label.length ?? 0) * 6 + 18;
   const children: React.ReactNode[] = [];
   let meta: Record<string, string | number | boolean> = {};
+  const now = snapshot?.generated_at;
 
   if (w > 0 && h > 0) {
-    if (row.trace === "waveform" && row.waveform) {
-      const wf = registry.waveforms[row.waveform]!;
+    if (wf && row.waveform) {
       const scale = wf.scale as WaveScale;
-      const t = waveTransform({ heightPx: h, scale, preferredGain: design.traces.ecg_gain_mm_per_mv, pxPerMm });
+      // An uncalibrated trace fills its height, so its end labels need room inside it.
+      const t = waveTransform({ heightPx: h, scale, preferredGain: design.traces.ecg_gain_mm_per_mv, pxPerMm, padPx: scale.calibrated ? 3 : 10 });
       meta = { "data-gain": t.gainMmPerUnit ?? "", "data-px-per-unit": t.pxPerUnit.toFixed(3),
                "data-baseline-y": t.baselineY.toFixed(2), "data-fitted": t.fitted };
 
       if (cfg.show_baseline) {
         children.push(<line key="base" className="trace-baseline" data-testid={`trace-baseline-${row.id}`}
-                            x1={gutter} x2={right} y1={t.baselineY} y2={t.baselineY} />);
+                            x1={gutter} x2={plotRight} y1={t.baselineY} y2={t.baselineY} />);
       }
       if (labels) {
         const ticks = thinTicks(niceTicks(scale.range[0], scale.range[1], 3), t.pxPerUnit);
@@ -89,49 +101,125 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
       const gain = gainText(t);
       if (!mini && cfg.show_scale && gain && h >= MIN_LABEL_HEIGHT_PX) {
         // Just the gain, in thin light text, to the left of the x scale number.
-        const x = cfg.show_time_scale ? right - xWidth : right;
+        const x = cfg.show_time_scale ? plotRight - xWidth : plotRight;
         children.push(
           <text key="gain" className="trace-label trace-gain" data-testid={`trace-gain-${row.id}`}
-                x={x} y={h - 0.5} textAnchor="end">{gain}</text>);
+                x={x} y={h - 3} textAnchor="end">{gain}</text>);
       }
-      // The signal itself, at the same vertical scale as the marks above.
+
+      // The signal: the whole strip, swept across the plot, with the AI's boxes travelling with it.
       const strip = snapshot?.strips.find((s) => s.waveform === row.waveform);
       if (strip && !mini) {
-        const win = stripWindow(strip, { x0: gutter + (cfg.show_calibration_bar && t.unitBarPx != null ? 30 : 2), x1: right, speedMmPerS: xs?.value ?? design.sweep.speed_mm_s, pxPerMm });
-        children.push(<StripPath key="signal" strip={strip} w={win} y={t.y} heightPx={h} rowId={row.id} />);
-        children.push(<AnnotationLayer key="marks" marks={strip.marks} w={win} height={h} aiOn={aiOn} rowId={row.id} />);
+        const x0 = gutter + (cfg.show_calibration_bar && t.unitBarPx != null ? 30 : 2);
+        const speed = xs?.value ?? design.sweep.speed_mm_s;
+        const full = fullWindow(strip, { x0, speedMmPerS: speed, pxPerMm });
+        const motion = sweepMotion(strip, plotRight - x0, full.pxPerSec);
+        const still = stripWindow(strip, { x0, x1: plotRight, speedMmPerS: speed, pxPerMm });
+        const style = motion ? ({ "--travel": `${-motion.travelPx}px`, animationDuration: `${motion.seconds.toFixed(2)}s` } as React.CSSProperties) : undefined;
+        children.push(
+          <clipPath key="clip" id={`clip-${row.id}`}><rect x={x0} y={0} width={Math.max(0, plotRight - x0)} height={h} /></clipPath>,
+          <g key="sweep-clip" clipPath={`url(#clip-${row.id})`}>
+            <g key={now} className={`sweep${motion ? " is-sweeping" : ""}`} style={style} data-testid={`sweep-${row.id}`}
+               data-travel={motion ? motion.travelPx.toFixed(1) : "0"} data-seconds={motion ? motion.seconds.toFixed(2) : "0"}>
+              <StripPath strip={strip} w={full} y={t.y} heightPx={h} rowId={row.id} />
+              <AnnotationLayer marks={strip.marks} w={full} height={h} aiOn={aiOn && overlay} rowId={row.id} interactive={false} kinds="finding" />
+            </g>
+          </g>,
+          <AnnotationLayer key="tech" marks={strip.marks} w={still} height={h} aiOn={false} rowId={row.id} kinds="technical" />,
+        );
+      }
+
+      // The trend of a related measurement on a right-hand axis (SpO2 % over the pleth).
+      if (overlayParam && wf?.overlay_parameter) {
+        const range = trendRange(overlayParam);
+        // A short row has no room for a title above the ticks: the unit goes on the ticks instead.
+        const roomy = h >= 70;
+        const showAxis = h >= 44;      // a very short plot keeps the line and drops the labels
+        const y = (v: number) => trendY(v, range, h, roomy ? 20 : 9);
+        // Two ticks on a short row, three on a tall one, so the labels never touch.
+        const ticks = h >= 100 ? [range[0], (range[0] + range[1]) / 2, range[1]] : [range[0], range[1]];
+        const series = snapshot?.trends[wf.overlay_parameter as keyof typeof snapshot.trends];
+        children.push(
+          <g key="overlay" className="overlay-axis" data-testid={`overlay-axis-${row.id}`} data-range={range.join(",")}>
+            {showAxis && roomy && <text className="trace-label trace-unit" x={right} y={LABEL} textAnchor="end">{overlayParam.short} {overlayParam.unit}</text>}
+            {showAxis && ticks.map((v) => (
+              <g key={v}>
+                <line className="trace-tick" x1={plotRight} x2={plotRight + 4} y1={y(v)} y2={y(v)} />
+                <text className="trace-label" x={right} y={y(v) + 3.5} textAnchor="end" data-testid={`overlay-tick-${v}`}>{roomy ? v : `${v}${overlayParam.unit}`}</text>
+              </g>
+            ))}
+            {series && series.points.length > 1 && (
+              <path className="overlay-trend" data-testid={`overlay-trend-${row.id}`}
+                    d={trendPath(series.points, gutter + 2, plotRight, row.trend_window_min, y)} />
+            )}
+            {showAxis && plotRight - gutter > 300 && <text className="trace-label trace-gain" data-testid={`overlay-window-${row.id}`} x={plotRight - xWidth - 16} y={h - 3} textAnchor="end">
+              {overlayParam.short} Trend {windowLabel(row.trend_window_min)}</text>}
+          </g>);
       }
     } else if (row.trace === "trend" && row.parameter) {
       const p = registry.parameters[row.parameter]!;
       const range = trendRange(p);
       meta = { "data-range": range.map((x) => x.toFixed(1)).join(",") };
-      const pxPerUnit = (h - 6) / (range[1] - range[0]);
-      const ticks = thinTicks(niceTicks(range[0], range[1], 3), pxPerUnit);
+      const pxPerUnit = (h - 2 * padFor(h)) / (range[1] - range[0]);
+      const all = niceTicks(range[0], range[1], 3);
+      let ticks = thinTicks(all, pxPerUnit);
+      // Always keep the bottom and top tick when they fit, so the scale is never a single number.
+      if (ticks.length < 2 && all.length >= 2 && (all[all.length - 1]! - all[0]!) * pxPerUnit >= 14) ticks = [all[0]!, all[all.length - 1]!];
+      const y = (v: number) => trendY(v, range, h, padFor(h));
       if (labels) {
         children.push(<text key="unit" className="trace-label trace-unit" x={2} y={LABEL}>{p.unit}</text>);
       }
       ticks.forEach((v) => {
-        const y = trendY(v, range, h);
-        children.push(<line key={`g${v}`} className="trace-grid" x1={gutter} x2={right} y1={y} y2={y} />);
-        if (labels && Math.abs(y - LABEL) > 8) {
-          children.push(<text key={`l${v}`} className="trace-label" x={GUTTER - 6} y={y + 3.5} textAnchor="end">{v}</text>);
+        children.push(<line key={`g${v}`} className="trace-grid" x1={gutter} x2={right} y1={y(v)} y2={y(v)} />);
+        if (labels && Math.abs(y(v) - LABEL) > 8) {
+          children.push(<text key={`l${v}`} className="trace-label" x={GUTTER - 6} y={y(v) + 3.5} textAnchor="end">{v}</text>);
         }
       });
-      const series = snapshot?.trends[row.parameter];
-      if (series && !mini && series.points.length > 1) {
-        const d = trendPath(series.points, gutter + 2, right, xs?.value ?? row.trend_window_min,
-                            (v) => trendY(v, range, h));
-        if (d) children.push(<path key="trend" className="trace-signal" data-testid={`trace-signal-${row.id}`} d={d} />);
+      const windowMin = xs?.value ?? row.trend_window_min;
+      const frame = { x0: gutter + 2, x1: right, windowMin, y };
+      if (!mini && snapshot && now) {
+        if (row.parameter === "bp_sys") {
+          const dots = bpDots(snapshot.bp_readings, now, frame);
+          children.push(<BpLayer key="bp" dots={dots} rowId={row.id} />);
+          if (!dots.length) children.push(<text key="none" className="trace-label" x={(frame.x0 + frame.x1) / 2} y={h / 2} textAnchor="middle">No Reading</text>);
+        } else {
+          const series = snapshot.trends[row.parameter as keyof typeof snapshot.trends];
+          if (series && series.points.length > 1) {
+            const d = trendPath(series.points, frame.x0, frame.x1, windowMin, y);
+            if (d) children.push(<path key="trend" className="trace-signal" data-testid={`trace-signal-${row.id}`} d={d} />);
+          }
+          if (row.parameter === "temp") {
+            const dots = tempDots(snapshot.temp_readings, now, frame);
+            children.push(<TempLayer key="temp" dots={dots} rowId={row.id} />);
+            if (dots.length && series && series.points.length > 1) {
+              // Points along the dashed line count too, so the key never sits on a segment.
+              const pts = [...dots, ...lineSamples(dots), ...series.points.filter((q) => q.t >= -windowMin).map((q) => ({ x: frame.x0 + ((q.t + windowMin) / windowMin) * (frame.x1 - frame.x0), y: y(q.v) }))];
+              const plot = { x0: frame.x0, x1: frame.x1, h };
+              children.push(<TempKey key="key" corner={keyCorner(pts, plot, keySize(h))} plot={plot} rowId={row.id} />);
+            }
+          }
+        }
       }
     }
-    // Small modules: a spark of the item's trend in place of the full trace.
+    // Small modules: a spark of the item's trend in place of the full trace. Blood pressure is dots and a dashed line.
     const sparkParam = row.parameter;
-    const spark = mini && sparkParam ? snapshot?.trends[sparkParam] : undefined;
-    if (spark) children.push(<Spark key="spark" points={spark.points} w={w} h={h} windowMin={Math.min(row.trend_window_min, 240)} rowId={row.id} />);
+    if (mini && sparkParam && snapshot && now) {
+      if (sparkParam === "bp_sys") {
+        const maps = snapshot.bp_readings.map((r) => r.map);
+        const lo = Math.min(...maps, 999), hi = Math.max(...maps, 0);
+        const span = Math.max(hi - lo, 10);
+        const y = (v: number) => 4 + ((hi + span * 0.2 - v) / (span * 1.4)) * (h - 8);
+        const dots = bpDots(snapshot.bp_readings, now, { x0: 6, x1: w - 6, windowMin: Math.min(row.trend_window_min, 240), y });
+        children.push(<BpLayer key="spark-bp" dots={dots} rowId={row.id} tails={false} />);
+      } else {
+        const spark = snapshot.trends[sparkParam as keyof typeof snapshot.trends];
+        if (spark) children.push(<Spark key="spark" points={spark.points} w={w} h={h} windowMin={Math.min(row.trend_window_min, 240)} rowId={row.id} />);
+      }
+    }
   }
 
   return (
-    <div className={`trace-area${mini ? " trace-mini" : ""}`} ref={ref} data-testid={`trace-${row.id}`}>
+    <div className={`trace-area${mini ? " trace-mini" : ""}${overlayParam ? " has-axis" : ""}`} ref={ref} data-testid={`trace-${row.id}`}>
       {w > 0 && h > 0 && (
         <svg className="trace-frame" width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true"
              data-testid={`trace-frame-${row.id}`} {...meta}>

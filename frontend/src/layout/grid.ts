@@ -59,8 +59,8 @@ export function emptyCells(p: { placements: Placement[]; rowCount: number }, col
   return p.rowCount * columns - p.placements.reduce((n, x) => n + x.colSpan * x.rowSpan, 0);
 }
 
-export interface ModuleContentFlags { trace: boolean; ai: boolean; certainty: boolean; explain: boolean; forecast: boolean }
-export type Dropped = "trace" | "ai" | "certainty" | "explain" | "forecast";
+export interface ModuleContentFlags { trace: boolean; ai: boolean; certainty: boolean; explain: boolean; forecast: boolean; readings?: boolean }
+export type Dropped = "trace" | "ai" | "certainty" | "explain" | "forecast" | "readings";
 
 export interface VisibleContent {
   /** A module always has its number. */
@@ -71,6 +71,7 @@ export interface VisibleContent {
   certainty: boolean;
   explain: boolean;
   forecast: boolean;
+  readings: boolean;
   /** What the design asked for that this size has no room for. */
   dropped: Dropped[];
 }
@@ -90,11 +91,11 @@ export function visibleContent(spec: Pick<ModuleSizeSpec, "fits">, content: Modu
     else dropped.push("trace");
   }
   const keep = (key: Exclude<Dropped, "trace">) => {
-    if (!content[key]) return false;
+    if (!content[key as keyof ModuleContentFlags]) return false;
     if (fits.has(key)) return true;
     dropped.push(key);
     return false;
   };
   return { number: true, trace, ai: keep("ai"), certainty: keep("certainty"), explain: keep("explain"),
-           forecast: keep("forecast"), dropped };
+           forecast: keep("forecast"), readings: keep("readings"), dropped };
 }

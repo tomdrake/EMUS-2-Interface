@@ -4,12 +4,13 @@ import type { Row } from "@/design/types";
 import { useSnapshot } from "@/examples/store";
 import { useSafety } from "@/safety/store";
 
+import { titleCase } from "@/design/text";
+
 import { Certainty } from "./Certainty";
-import { certaintyView, findingLine, findingsForRow, pickCertainty } from "./certainty";
+import { certaintyView, chipText, findingsForRow, pickCertainty } from "./certainty";
 import { useAiOn } from "./useAi";
 
-/** Items the example interpretation reads. The others (oxygen flow, activity ...) show no chip unless
- *  a finding names them, rather than eight identical "Nothing flagged" chips. */
+/** Items the interpretation reads. The others (oxygen flow, activity ...) show no chip unless a finding names them. */
 const INTERPRETED = new Set(["hr", "pulse", "spo2", "rr", "bp_sys", "temp", "falls"]);
 const NO_SIGNAL = new Set(["standby", "acquiring", "sensor-off", "connection-lost", "invalid"]);
 
@@ -34,40 +35,39 @@ export function useRowAi(row: Row) {
 }
 
 /**
- * The AI chip of a module: the most important finding about this item with its certainty,
- * or "Nothing flagged", or "AI paused" when there is no signal to read. Tapping a finding
- * opens its Why sheet. Off (master switch or this module's own) draws nothing.
+ * The AI chip of a module: the most important finding about this item and how sure the AI is,
+ * "AF - 80% Certainty". Nothing flagged shows nothing, but a module whose signal is missing says the
+ * AI is paused, so a gap is never silent. Tapping a finding opens the explanation sheet. Off (master
+ * switch or this module's own) draws nothing.
  *
- * The button is a full touch target tall, though the visible chip is smaller; the rest
- * is transparent.
+ * The button is a full touch target tall, though the visible chip is smaller; the rest is transparent.
  */
 export function AiChip({ row, withCertainty }: { row: Row; withCertainty: boolean }) {
-  const { on, top, more, paused, cfg, registry, design } = useRowAi(row);
+  const { on, top, paused, cfg, registry, design } = useRowAi(row);
   if (!on || !design.ai.show_row_chips) return null;
   const value = top ? pickCertainty(top.certainty, cfg.finding_metric) : null;
-  const opacity = value && cfg.display === "opacity" ? certaintyView(value, cfg, registry).opacity : 1;
-  const dash = value && cfg.display === "dash-density" ? certaintyView(value, cfg, registry).dash : "";
+  const view = value ? certaintyView(value, cfg, registry) : null;
+  const opacity = view && cfg.display === "opacity" ? view.opacity : 1;
+  const dash = view && cfg.display === "dash-density" ? view.dash : "";
 
   if (!top) {
-    if (!row.parameter || !INTERPRETED.has(row.parameter)) return null;
+    if (!paused || !row.parameter || !INTERPRETED.has(row.parameter)) return null;
     return (
-      <span className="ai-chip ai-quiet" data-testid={`ai-${row.id}`} data-state={paused ? "paused" : "none"}>
-        <span className="ai-chip-pill"><span className="ai-mark">AI</span>{paused ? "Paused: no signal" : "Nothing flagged"}</span>
+      <span className="ai-chip ai-quiet" data-testid={`ai-${row.id}`} data-state="paused">
+        <span className="ai-chip-pill"><span className="ai-mark">AI</span>AI Paused - No Signal</span>
       </span>
     );
   }
   const technical = top.code === "poor-trace";
+  const text = technical ? titleCase(top.label) : chipText(top, value, cfg, registry, design.ai.show_confidence && !withCertainty);
   return (
     <button type="button" className={`ai-chip ai-${top.severity}${technical ? " ai-technical" : ""}`}
             data-testid={`ai-${row.id}`} data-state="finding" data-code={top.code} data-severity={top.severity}
-            aria-label={`AI: ${findingLine(top)}. Why?`}
+            aria-label={`AI: ${text}. Open the explanation`}
             onClick={(e) => { e.stopPropagation(); useUi.getState().showSheet("finding-explain", top.id); }}>
       <span className="ai-chip-pill" style={{ opacity, borderStyle: dash ? "dashed" : undefined }}>
         <span className="ai-mark">AI</span>
-        <span className="ai-text">{technical ? top.label : top.status === "resolved" ? top.summary : top.summary}</span>
-        {value && !withCertainty && design.ai.show_confidence && <Certainty value={value} cfg={cfg} registry={registry} short />}
-        {more > 0 && <span className="ai-more">+{more}</span>}
-        {design.ai.show_explain_link && <span className="ai-why">Why?</span>}
+        <span className="ai-text">{text}</span>
       </span>
     </button>
   );
@@ -82,18 +82,13 @@ export function AiCertainty({ row }: { row: Row }) {
   return <div className="ai-certainty" data-testid={`ai-certainty-${row.id}`}><Certainty value={value} cfg={cfg} registry={registry} /></div>;
 }
 
-/** One sentence of why, for the largest sizes, with the Why sheet a tap away. */
+/** One sentence of why, for the largest sizes. The chip above it opens the full explanation. */
 export function AiExplain({ row }: { row: Row }) {
-  const { on, top, design } = useRowAi(row);
+  const { on, top } = useRowAi(row);
   if (!on || !top || !top.explanation) return null;
   return (
     <div className="ai-explain" data-testid={`ai-explain-${row.id}`}>
       <span className="ai-explain-text">{top.explanation}</span>
-      {design.ai.show_explain_link && (
-        <button type="button" className="ai-explain-link" onClick={(e) => {
-          e.stopPropagation(); useUi.getState().showSheet("finding-explain", top.id);
-        }}>Why?</button>
-      )}
     </div>
   );
 }

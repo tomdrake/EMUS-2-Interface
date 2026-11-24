@@ -1,6 +1,8 @@
 import type { Widget, WidgetOf, WidgetType } from "@/design/types";
 
 import { MonitorGrid } from "./MonitorGrid";
+import { Abcde } from "./Abcde";
+import { News2Chart } from "./News2Chart";
 import { Placeholder } from "./Placeholder";
 
 type WidgetComponent<T extends WidgetType> = (props: { widget: WidgetOf<T> }) => JSX.Element;
@@ -18,7 +20,8 @@ const stub = (name: string, milestone: string, detail?: (w: Widget) => string) =
  */
 export const WIDGETS: { [T in WidgetType]: WidgetComponent<T> } = {
   "monitor-grid": MonitorGrid,
-  "news2-chart": stub("NEWS2 chart", "M3", (w) => `variant: ${(w as WidgetOf<"news2-chart">).variant}`),
+  "news2-chart": News2Chart,
+  abcde: Abcde,
   "epr-labs": stub("Laboratory results", "M6"),
   "epr-imaging": stub("Imaging", "M6"),
   "ai-summary": stub("AI findings", "M7"),

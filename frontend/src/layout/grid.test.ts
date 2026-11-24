@@ -4,7 +4,7 @@ import { emptyCells, packGrid, spanOf, visibleContent } from "./grid";
 
 const sizes: Record<string, ModuleSizeSpec> = {
   compact: { label: "Small Square", cols: 1, rows: 1, full: false, flow: "tile-only", fits: ["number"] },
-  tile: { label: "Tile", cols: 2, rows: 1, full: false, flow: "side", fits: ["number", "spark", "ai"] },
+  tile: { label: "Tile", cols: 2, rows: 1, full: false, flow: "split", fits: ["number", "spark", "ai"] },
   tall: { label: "Tall", cols: 1, rows: 2, full: false, flow: "stack", fits: ["number", "spark", "ai", "certainty"] },
   wide: { label: "Wide", cols: 3, rows: 1, full: false, flow: "row", fits: ["number", "trace", "ai"] },
   large: { label: "Large", cols: 2, rows: 2, full: false, flow: "stack", fits: ["number", "trace", "ai", "certainty", "explain"] },

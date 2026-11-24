@@ -162,10 +162,11 @@ def test_certainty_values_come_from_what_the_rule_measured(client):
 
 # ------------------------------------------------- readings, results and observation sets
 
-def test_bp_readings_are_five_newest_first_with_a_correct_map(client):
+def test_bp_readings_are_newest_first_with_a_correct_map(client):
     s = snap(client, "scn-pneumonia", 180)
     r = s["bp_readings"]
-    assert len(r) == 5
+    assert len(r) == 12, "twelve for the trend; a card shows the newest five"
+    r = r[:5]
     times = [x["at"] for x in r]
     assert times == sorted(times, reverse=True)
     for x in r:

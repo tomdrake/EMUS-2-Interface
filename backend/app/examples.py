@@ -696,6 +696,7 @@ def _forecast_bundle(sc, minute, now, quality: float) -> ForecastBundle:
 
 # ----------------------------------------------------- readings, results, observation sets
 
+BP_HISTORY = 12      # readings kept for the trend; the list on a card shows the newest five
 LAB_WINDOW_MIN = 72 * 60
 #: Continuous skin temperature reads a little below the measured temperature.
 SKIN_OFFSET_C = -0.4
@@ -716,7 +717,7 @@ def _bp_readings(sc: dict, minute: float, now: datetime, cuff_connected: bool) -
     if not cuff_connected:
         return []
     out = []
-    for t in _anchored(sc["start_min"], sc["end_min"], sc["bp_interval_min"], minute, 5):
+    for t in _anchored(sc["start_min"], sc["end_min"], sc["bp_interval_min"], minute, BP_HISTORY):
         v = scenario_values(sc["id"], t)
         sys_, dia = round(v["bp_sys"]), round(v["bp_dia"])
         out.append(BpReading(at=_ts(now, minute, t), sys=sys_, dia=dia, map=round(dia + (sys_ - dia) / 3)))

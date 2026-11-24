@@ -28,6 +28,8 @@ interface UiState {
   xScale: Record<string, number>;
   /** AI on / off for this screen; null = as the design says (`ai.enabled`). Local, like dark / light. */
   aiOverride: boolean | null;
+  /** The AI overview overlay (boxes on traces saying what the AI used): on or off for this screen. */
+  aiOverlay: boolean;
   /** CSS pixels per millimetre used for trace gain and sweep speed. Nominal unless
    *  this screen has been calibrated (the calibration sheet is milestone M4). */
   pxPerMm: number;
@@ -42,6 +44,7 @@ interface UiState {
   setEditMode(on: boolean): void;
   toggleMode(): void;
   toggleAi(): void;
+  toggleAiOverlay(): void;
   /** Set (or with null, clear) one trace's x scale on this screen. */
   setXScale(rowId: string, value: number | null): void;
   setNotice(text: string | null): void;
@@ -82,6 +85,13 @@ function readAi(): boolean | null {
 function writeAi(on: boolean): void {
   try { window.localStorage.setItem(AI_KEY, on ? "on" : "off"); } catch { /* not persisted */ }
 }
+const OVERLAY_KEY = "emus.ai-overlay";
+function readOverlay(): boolean {
+  try { return window.localStorage.getItem(OVERLAY_KEY) === "on"; } catch { return false; }
+}
+function writeOverlay(on: boolean): void {
+  try { window.localStorage.setItem(OVERLAY_KEY, on ? "on" : "off"); } catch { /* not persisted */ }
+}
 function writeMode(mode: ThemeMode): void {
   try { window.localStorage.setItem(MODE_KEY, mode); } catch { /* not persisted */ }
 }
@@ -89,7 +99,7 @@ function writeMode(mode: ThemeMode): void {
 export const useUi = create<UiState>((set) => ({
   stored: null, draft: null, registry: null, error: null,
   screenId: null, openMenu: null, openSheet: null, sheetContext: null,
-  editMode: false, mode: readMode(), aiOverride: readAi(), xScale: readXScale(), pxPerMm: NOMINAL_PX_PER_MM, patientId: DEFAULT_PATIENT, notice: null,
+  editMode: false, mode: readMode(), aiOverride: readAi(), aiOverlay: readOverlay(), xScale: readXScale(), pxPerMm: NOMINAL_PX_PER_MM, patientId: DEFAULT_PATIENT, notice: null,
 
   load: (stored, registry) =>
     set((s) => ({ stored, registry, error: null,
@@ -117,6 +127,10 @@ export const useUi = create<UiState>((set) => ({
     const next = !(s.aiOverride ?? design?.ai.enabled ?? true);
     writeAi(next);
     return { aiOverride: next };
+  }),
+  toggleAiOverlay: () => set((s) => {
+    writeOverlay(!s.aiOverlay);
+    return { aiOverlay: !s.aiOverlay };
   }),
   setNotice: (notice) => set({ notice }),
   fail: (error) => set({ error }),

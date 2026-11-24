@@ -50,9 +50,8 @@ describe("AI on the monitor", () => {
   it("shows the finding with its certainty, named, and opens the Why sheet on a tap", () => {
     render(<Module row={row()} placement={place("row")} />);
     const chip = dom.getByTestId("ai-ecg");
-    expect(chip.textContent).toContain("AF now, started 11 min ago");
-    expect(chip.textContent).toContain("80%");
-    expect(chip.textContent).toContain("agreement");
+    expect(chip.textContent).toContain("AF - 80% Certainty");
+    expect(chip.textContent).not.toContain("Why?");
     fireEvent.click(chip);
     expect(useUi.getState().openSheet).toBe("finding-explain");
     expect(useUi.getState().sheetContext).toBe("f1");
@@ -86,9 +85,8 @@ describe("AI on the monitor", () => {
     unmount();
     setup({ ai: { enabled: true, show_row_chips: true, show_confidence: false, show_trace_annotations: true, show_explain_link: false, min_confidence: 0.5 } });
     render(<Module row={row()} placement={place("row")} />);
-    expect(dom.getByTestId("ai-ecg").textContent).toContain("AF now");
-    expect(dom.queryByTestId("certainty")).toBeNull();
-    expect(dom.getByTestId("ai-ecg").textContent).not.toContain("Why?");
+    expect(dom.getByTestId("ai-ecg").textContent).toContain("AF");
+    expect(dom.getByTestId("ai-ecg").textContent).not.toContain("Certainty");
   });
 
   it("a module's own switch turns AI off for that module only", () => {
@@ -117,7 +115,10 @@ describe("AI on the monitor", () => {
   it("the design's certainty display is what draws it", () => {
     setup({ forecast: { certainty: { display: "badge", finding_metric: "evidence_agreement", badge_medium_at: 0.5,
       badge_high_at: 0.8, show_metric_name: true } } });
-    render(<Module row={row()} placement={place("row")} />);
+    const { unmount } = render(<Module row={row()} placement={place("row")} />);
+    expect(dom.getByTestId("ai-ecg").textContent).toContain("AF - High Certainty");
+    unmount();
+    render(<Module row={row()} placement={place("large")} />);
     expect(dom.getByTestId("certainty").dataset.display).toBe("badge");
     expect(dom.getByTestId("certainty").textContent).toContain("High");
   });
@@ -133,7 +134,7 @@ describe("AI on the monitor", () => {
   it("hides a finding below the design's confidence floor, but never a poor-trace warning", () => {
     useExample.setState({ snapshot: { ...snapshot, findings: [{ ...finding, certainty: [{ ...finding.certainty[0], score: 0.2 }] }] } });
     const { unmount } = render(<Module row={row()} placement={place("row")} />);
-    expect(dom.getByTestId("ai-ecg").dataset.state).toBe("none");
+    expect(dom.queryByTestId("ai-ecg")).toBeNull();      // nothing flagged shows nothing
     unmount();
     useExample.setState({ snapshot: { ...snapshot, findings: [{ ...finding, code: "poor-trace", label: "Poor ECG trace",
       certainty: [{ ...finding.certainty[0], score: 0.2 }] }] } });

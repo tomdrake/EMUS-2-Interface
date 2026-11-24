@@ -39,7 +39,7 @@ export const del = <T>(path: string) => request<T>("DELETE", path);
 /** A module size in the monitor grid (backend/app/registry.py MODULE_SIZES). */
 export interface ModuleSizeSpec {
   label: string; cols: number; rows: number; full: boolean;
-  flow: "tile-only" | "side" | "stack" | "row"; fits: string[];
+  flow: "tile-only" | "split" | "stack" | "row"; fits: string[];
 }
 
 /** Read-only clinical vocabulary (backend/app/registry.py). */
@@ -59,10 +59,10 @@ export interface Registry {
     id: string; label: string; short: string; unit: string; decimals: number;
     kind: string; default_low: number | null; default_high: number | null;
     min_value: number | null; max_value: number | null; waveforms: string[]; note: string;
-    method: string;
+    method: string; trend_range: [number, number] | null;
   }>;
   waveforms: Record<string, {
-    label: string; hz: number; unit: string; parameter: string;
+    label: string; hz: number; unit: string; parameter: string; overlay_parameter?: string;
     scale: {
       unit: string; calibrated: boolean; gains_mm_per_unit: number[]; default_gain: number | null;
       tick: number; baseline: "isoelectric" | "mean"; range: [number, number];

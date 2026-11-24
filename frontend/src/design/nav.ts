@@ -7,7 +7,8 @@ export type Resolved =
   | { kind: "silence" }
   | { kind: "theme" }
   | { kind: "ai" }
-  | { kind: "edit" };
+  | { kind: "edit" }
+  | { kind: "overlay" };
 
 /** What a tab or menu item does. Settings opens the menu with id "settings". */
 export function resolveAction(design: Design, action: Action): Resolved {
@@ -28,6 +29,8 @@ export function resolveAction(design: Design, action: Action): Resolved {
       return { kind: "ai" };
     case "edit-layout":
       return { kind: "edit" };
+    case "toggle-ai-overlay":
+      return { kind: "overlay" };
   }
 }
 

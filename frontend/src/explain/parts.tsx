@@ -49,7 +49,7 @@ export function CertaintyTable({ values, cfg, registry, shownMetric, testId }: {
 export function ExampleNote({ model }: { model: { name: string; version: string; placeholder: boolean } }) {
   return (
     <p className="example-note" data-testid="example-note">
-      <span className="example-mark">Example</span>{" "}
+      
       {model.name} v{model.version}: {model.placeholder
         ? "a short readable rule over a simulated signal, not a clinical model. Certainty is derived from what the rule measured and is not calibrated."
         : "model output."}

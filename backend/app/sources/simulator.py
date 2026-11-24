@@ -122,7 +122,7 @@ def synth_pleth(pulse: float, spo2: float, hz: float, n: int, t0: float) -> list
     for i in range(n):
         ph = ((t0 + i / hz) % period) / period
         v = _pleth_shape(ph)
-        out.append(round(2 * v - _PLETH_MEAN, 4))
+        out.append(round(0.7 * (2 * v - _PLETH_MEAN), 4))   # normalised to about +-1, as the device reports it
     return out
 
 

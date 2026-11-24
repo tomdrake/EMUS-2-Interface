@@ -133,7 +133,7 @@ _ROWS: list[dict] = [
      "trend_window_min": 240, "content": {"forecast": False}},
     {"id": "sleep", "parameter": "sleep", "trace": "events", "trend_window_min": 720,
      "content": {"forecast": False}, "visible": False},
-    {"id": "falls", "parameter": "falls", "trace": "events", "trend_window_min": 720},
+    {"id": "falls", "parameter": "falls", "trace": "events", "trend_window_min": 720, "numerics": ["falls"]},
 ]
 
 #: The monitor rows, top to bottom, each full width: the familiar bedside monitor.
@@ -191,7 +191,7 @@ def _screens(news_variant: str, monitor: dict | None = None) -> list[dict]:
         {"id": "abcde", "name": "ABCDE",
          "layout": _split("horizontal", 0.5,
                           _w({"id": "abcde-panel", "type": "abcde"}),
-                          _news("news2-abcde", news_variant))},
+                          _w({"id": "news2-abcde", "type": "news2-chart", "variant": news_variant, "hours_visible": 12}))},
         {"id": "epr", "name": "Results",
          "layout": _split("horizontal", 0.6,
                           _w({"id": "labs", "type": "epr-labs", "title": "Laboratory"}),

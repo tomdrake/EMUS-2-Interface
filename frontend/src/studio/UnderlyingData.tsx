@@ -59,7 +59,7 @@ export function UnderlyingData() {
   const recent = [...trend.points].reverse();
   return (
     <div className="ud" data-testid="ud-sheet" data-parameter={parameter}>
-      <p className="why-sub"><span className="example-mark">Example</span> {snapshot.title}</p>
+      <p className="why-sub">{snapshot.title}</p>
       <dl className="why-measured" data-testid="ud-summary">
         <div><dt>Item</dt><dd>{p.label} ({p.unit || "no unit"})</dd></div>
         <div><dt>Current value</dt><dd data-testid="ud-value">{value ?? "none"}</dd></div>

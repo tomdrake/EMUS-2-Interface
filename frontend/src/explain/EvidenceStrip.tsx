@@ -39,7 +39,7 @@ export function EvidenceStrip({ strip, caption, testId }: { strip: ExampleStrip;
             )}
             <StripPath strip={strip} w={win} y={t.y} heightPx={H} rowId={testId} />
             <AnnotationLayer marks={strip.marks} w={win} height={H} aiOn interactive={false} rowId={testId} />
-            <text className="trace-label trace-gain" x={w - 6} y={H - 2} textAnchor="end">{gain ? `${gain}  25 mm/s` : "25 mm/s"}</text>
+            <text className="trace-label trace-gain" x={w - 6} y={H - 4} textAnchor="end">{gain ? `${gain}  25 mm/s` : "25 mm/s"}</text>
           </svg>
         )}
       </div>
@@ -72,8 +72,8 @@ export function SeriesChart({ points, unit, caption, testId, windowMin }: {
             <text className="trace-label" x={left - 6} y={12} textAnchor="end">{label(Math.max(...vs))}</text>
             <text className="trace-label" x={left - 6} y={h - 6} textAnchor="end">{label(Math.min(...vs))}</text>
             <text className="trace-label trace-unit" x={2} y={12}>{unit}</text>
-            <text className="trace-label" x={left} y={h - 1}>{`${span >= 120 ? `${Math.round(span / 60)} h` : `${span} min`} ago`}</text>
-            <text className="trace-label" x={w - 6} y={h - 1} textAnchor="end">now</text>
+            <text className="trace-label" x={left} y={h - 4}>{`${span >= 120 ? `${Math.round(span / 60)} h` : `${span} min`} ago`}</text>
+            <text className="trace-label" x={w - 6} y={h - 4} textAnchor="end">now</text>
           </svg>
         )}
       </div>

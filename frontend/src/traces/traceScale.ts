@@ -120,8 +120,9 @@ export function gainText(t: Pick<WaveTransform, "gainMmPerUnit">): string | null
 /** The range shown for a trend trace: the usual alarm span with a margin, inside the parameter's limits. */
 export function trendRange(p: {
   default_low: number | null; default_high: number | null;
-  min_value: number | null; max_value: number | null;
+  min_value: number | null; max_value: number | null; trend_range?: [number, number] | null;
 }): [number, number] {
+  if (p.trend_range) return [p.trend_range[0], p.trend_range[1]];
   const floor = p.min_value ?? 0;
   const ceil = p.max_value ?? 100;
   const lo = p.default_low ?? floor;

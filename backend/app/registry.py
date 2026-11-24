@@ -127,7 +127,7 @@ _PARAMETERS: tuple[Parameter, ...] = (
        ("manual", "simulated"), default_low=90, default_high=180, default_priority="high",
        min_value=40, max_value=280, news2=True,
        note="ANNE One does not measure BP; cuff device or manual entry.",
-       method="Cuff", trend_range=(40, 200)),
+       method="Cuff", trend_range=(40, 180)),
     _p("bp_dia", "Diastolic Blood Pressure", "DIA", "mmHg", "mm[Hg]",
        Coding(LOINC, "8462-4", "Diastolic blood pressure"), "intermittent",
        ("manual", "simulated"), default_low=40, default_high=110,

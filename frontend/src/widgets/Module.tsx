@@ -1,4 +1,5 @@
 import { AiCertainty, AiChip, AiExplain } from "@/ai/AiChip";
+import { BpReadings } from "./BpReadings";
 import { useDesign, useUi } from "@/app/store";
 import type { ExampleSnapshot } from "@/contracts/types.gen";
 import { useSnapshot } from "@/examples/store";
@@ -26,19 +27,15 @@ export function tileValues(row: Row, numerics?: ExampleSnapshot["numerics"]): Ti
  * One monitored item drawn at the size the grid gives it.
  *
  * Four arrangements (registry MODULE_SIZES `flow`):
- *   row        the trace beside its tile: the familiar monitor row (wide, full row, double)
- *   stack      the tile on top, the trace below (tall, large)
- *   side       the tile beside a small spark (tile)
- *   tile-only  just the tile (small square)
+ *   row        the trace beside its tile: the familiar monitor row (full row, double)
+ *   split      the number big on the left half, its detail on the right (tile, wide, large)
+ *   stack      the number big on top, its detail below (tall, too narrow to split)
+ *   tile-only  just the number, as large as will fit (small square)
  *
- * What it shows besides the number is what the design asked for, less what does not
- * fit this size (`visibleContent`); `data-content` and `data-dropped` say which. Text
- * takes the module's colour, as in every row. The whole module is tappable (alarm
- * limits) through a transparent button above its content; the x scale control sits
- * above that, so buttons never nest.
- *
- * Scaffold: number and trace. AI interpretation, certainty, the why line and the
- * forecast arrive with the AI layer; their room is already decided by `visibleContent`.
+ * What it shows besides the number is what the design asked for, less what does not fit this size
+ * (`visibleContent`); `data-content` and `data-dropped` say which. Text takes the module's colour, as
+ * in every row. The whole module is tappable (alarm limits) through a transparent button above its
+ * content; the x scale control and the AI chip sit above that, so buttons never nest.
  */
 export function Module({ row, placement }: { row: Row; placement: Placement }) {
   const design = useDesign()!;
@@ -53,16 +50,17 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
   const colour = row.colour ?? (row.parameter ? paramVar(row.parameter) : "var(--c-text)");
   const title = rowTitle(row, design, registry);
   const flow = spec.flow;
+  const tall = placement.rowSpan > 1;
 
-  const example = snapshot ? <span className="example-mark" data-testid={`example-${row.id}`}>Example</span> : null;
   // A single-height row has no room under its trace: its certainty rides in the chip. Taller
-  // modules and the double-height row show certainty (and the why line) as their own block.
-  const roomForBlock = flow !== "row" || placement.rowSpan > 1;
+  // modules show certainty (and the why line) as their own block.
+  const roomForBlock = flow !== "row" || tall;
   const blockCertainty = vis.certainty && roomForBlock;
   const blockExplain = vis.explain && roomForBlock;
   const chip = vis.ai ? <AiChip row={row} withCertainty={blockCertainty} /> : null;
-  // A stacked module (tall, large) has no room beside its title: its chip sits in the block under the trace.
-  const chipInBlock = flow === "stack";
+  // Stacked and double-height split modules have room for the chip in a block under the detail; a
+  // single-height tile or wide module floats it over the corner of its trace.
+  const chipInBlock = flow === "stack" || (flow === "split" && tall);
   const extras = (
     <>
       {blockCertainty && <AiCertainty row={row} />}
@@ -74,7 +72,6 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
       <span className="row-label" data-testid={`row-label-${row.id}`}>
         {title.name}{title.method && <span className="row-method"> - {title.method}</span>}
       </span>
-      {example}
       {row.parameter && <RowStatus parameter={row.parameter} />}
     </div>
   );
@@ -85,7 +82,10 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
   const titleOnly = !values.length && (
     <div className="module-title"><span className="row-label">{title.name}</span>
       {row.parameter && <RowStatus parameter={row.parameter} />}</div>);
-  const corner = flow === "side" || flow === "tile-only" ? example : null;
+  const readings = vis.readings && row.parameter === "bp_sys" && snapshot
+    ? <BpReadings readings={snapshot.bp_readings} nowIso={snapshot.generated_at} /> : null;
+  const block = (blockCertainty || blockExplain || (chipInBlock && chip)) && (
+    <div className="module-ai">{chipInBlock && chip}{extras}</div>);
 
   return (
     <div className={`module module-${flow} size-${placement.size}${flow === "row" ? " row" : ""}`}
@@ -93,7 +93,7 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
                   gridRow: `${placement.row} / span ${placement.rowSpan}`, color: colour }}
          data-testid={`row-${row.id}`} data-parameter={row.parameter ?? ""} data-size={placement.size} data-selected={selected || undefined}
          data-flow={flow} data-content={[vis.trace && "trace", vis.ai && "ai", vis.certainty && "certainty",
-                                          vis.explain && "explain", vis.forecast && "forecast"].filter(Boolean).join(" ")}
+                                          vis.explain && "explain", vis.forecast && "forecast", vis.readings && "readings"].filter(Boolean).join(" ")}
          data-dropped={vis.dropped.join(" ")}>
       <button type="button" className="row-hit" data-testid={`row-hit-${row.id}`}
               aria-label={editing ? `Edit ${title.name}` : `${title.name}: alarm limits`}
@@ -107,24 +107,28 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
       )}
       {flow === "stack" && (
         <>
-          {head}
-          {!chipInBlock && chip}
-          <div className="module-tile">{tile}</div>
-          <div className="module-trace">{trace}</div>
-          {(blockCertainty || blockExplain || (chipInBlock && chip)) && (
-            <div className="module-ai">{chipInBlock && chip}{extras}</div>
-          )}
+          <div className="module-tile">{titleOnly || tile}</div>
+          <div className="module-detail">
+            {head}
+            {readings}
+            <div className="module-trace">{trace}</div>
+            {block}
+          </div>
         </>
       )}
-      {flow === "side" && (
+      {flow === "split" && (
         <>
           <div className="module-tile">{titleOnly || tile}</div>
-          <div className="module-trace">{trace}</div>
-          {chip}
-          {corner}
+          <div className="module-detail">
+            {tall && head}
+            {readings}
+            <div className="module-trace">{trace}</div>
+            {block}
+            {!chipInBlock && chip}
+          </div>
         </>
       )}
-      {flow === "tile-only" && <><div className="module-tile">{titleOnly || tile}</div>{corner}</>}
+      {flow === "tile-only" && <div className="module-tile">{titleOnly || tile}</div>}
     </div>
   );
 }

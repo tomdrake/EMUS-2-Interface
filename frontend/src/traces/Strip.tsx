@@ -54,3 +54,15 @@ export function StripPath({ strip, w, y, heightPx, rowId }: {
   return <path className="trace-signal" data-testid={`trace-signal-${rowId}`}
                data-quality={strip.quality.grade} d={d} />;
 }
+
+/** The whole strip, from its first sample at x0, for a trace that sweeps (see TraceFrame). */
+export function fullWindow(strip: Pick<ExampleStrip, "seconds">, args: { x0: number; speedMmPerS: number; pxPerMm?: number }): StripWindow {
+  const pxPerSec = args.speedMmPerS * (args.pxPerMm ?? NOMINAL_PX_PER_MM);
+  return { startSec: 0, pxPerSec, x0: args.x0, x1: args.x0 + strip.seconds * pxPerSec };
+}
+
+/** How the sweep moves: how far the strip travels and how long that takes, so it moves at the sweep speed. */
+export function sweepMotion(strip: Pick<ExampleStrip, "seconds">, plotWidth: number, pxPerSec: number): { travelPx: number; seconds: number } | null {
+  const travelPx = strip.seconds * pxPerSec - plotWidth;
+  return travelPx > 1 ? { travelPx, seconds: travelPx / pxPerSec } : null;
+}

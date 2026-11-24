@@ -96,17 +96,9 @@ export function TopBar() {
             const node = render(f);
             return node ? <div key={f} className={`tb-field tb-${f.replace(/_/g, "-")}`}>{node}</div> : null;
           })}
-          {snapshot && (
-            <span className="badge badge-example" data-testid="example-badge"
-                  title="Co-design prototype, not a medical device. Simulated scenario: numbers, traces, AI findings and forecasts are examples, not measurements.">
-              EXAMPLE<span className="badge-long"> DATA</span>
-            </span>
-          )}
-          {!snapshot && (
-            <span className="badge badge-proto" title="Co-design prototype. Not a medical device.">
-              PROTOTYPE
-            </span>
-          )}
+          <span className="badge badge-proto" title="Co-design prototype. Not a medical device.">
+            PROTOTYPE
+          </span>
         </div>
       </div>
       {design.notifications.position === "top-bar" && <NotificationBox placement="bar" />}

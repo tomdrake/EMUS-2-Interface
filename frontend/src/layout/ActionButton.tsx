@@ -16,6 +16,7 @@ export function runAction(design: Design, action: Action): void {
   else if (r.kind === "theme") ui.toggleMode();
   else if (r.kind === "ai") ui.toggleAi();
   else if (r.kind === "edit") ui.setEditMode(true);
+  else if (r.kind === "overlay") ui.toggleAiOverlay();
   // 'silence' is handled by SilenceButton itself.
 }
 
@@ -30,13 +31,14 @@ export function ActionButton({ button, where, showLabel }:
   const openMenu = useUi((s) => s.openMenu);
   const mode = useUi((s) => s.mode) ?? design.theme.mode;
   const aiOn = useUi((s) => s.aiOverride) ?? design.ai.enabled;
+  const overlayOn = useUi((s) => s.aiOverlay);
 
   if (button.action.type === "silence-alarms") {
     return <SilenceButton tab={button} showLabel={showLabel} where={where} />;
   }
   const r = resolveAction(design, button.action);
   const active = (r.kind === "screen" && r.screenId === screenId)
-    || (r.kind === "menu" && openMenu?.id === r.menu.id);
+    || (r.kind === "menu" && openMenu?.id === r.menu.id) || (r.kind === "overlay" && overlayOn);
   const text = r.kind === "theme" ? (mode === "dark" ? "Light" : "Dark")
     : r.kind === "ai" ? (aiOn ? "AI On" : "AI Off") : button.label;
   return (
@@ -44,8 +46,9 @@ export function ActionButton({ button, where, showLabel }:
             data-testid={`${where}-${button.id}`} aria-current={active ? "page" : undefined}
             aria-label={r.kind === "theme" ? `Switch to ${text.toLowerCase()} theme`
               : r.kind === "ai" ? `AI interpretation is ${aiOn ? "on" : "off"}. Tap to turn ${aiOn ? "off" : "on"}`
-                : button.label}
-            aria-pressed={r.kind === "ai" ? aiOn : undefined}
+                : r.kind === "overlay" ? `AI overview is ${overlayOn ? "on" : "off"}. Tap to turn ${overlayOn ? "off" : "on"}`
+                  : button.label}
+            aria-pressed={r.kind === "ai" ? aiOn : r.kind === "overlay" ? overlayOn : undefined}
             style={button.colour ? { color: button.colour } : undefined}
             onClick={() => (active && r.kind === "menu"
               ? useUi.getState().showMenu(null) : runAction(design, button.action))}>

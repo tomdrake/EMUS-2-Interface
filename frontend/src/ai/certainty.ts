@@ -1,5 +1,6 @@
 import type { Registry } from "@/app/api";
 import type { CertaintyValue, Finding } from "@/contracts/types.gen";
+import { titleCase } from "@/design/text";
 import type { Design } from "@/design/types";
 
 /**
@@ -73,3 +74,28 @@ export const SHORT_NAMES: Record<string, string> = {
   horizon_decay: "ahead", sensitivity: "stable", evidence_agreement: "agreement", token_logprob: "token prob.",
   self_consistency: "consistent", semantic_entropy: "consistent", verbalised_confidence: "stated",
 };
+
+/** "2 h 4 min": a span of minutes in the units clinicians write. */
+export function spanText(minutes: number): string {
+  const m = Math.max(0, Math.round(minutes));
+  const h = Math.floor(m / 60);
+  return h ? `${h} h ${m % 60} min` : `${m} min`;
+}
+
+/** What a finding is called on a chip: "AF", or "Last Run of AF 2 h 4 min Ago" once it has ended. */
+export function findingName(f: Finding): string {
+  if (f.status === "resolved" && f.offset) {
+    const mins = (Date.parse(f.generated_at) - Date.parse(f.offset)) / 60000;
+    // A rhythm that has ended is its "last run"; anything else simply happened some time ago.
+    return f.domain === "rhythm" ? `Last Run of ${titleCase(f.label)} ${spanText(mins)} Ago` : `${titleCase(f.label)} ${spanText(mins)} Ago`;
+  }
+  return titleCase(f.label);
+}
+
+/** The whole chip: "AF - 80% Certainty". The figure follows the design's display style. */
+export function chipText(f: Finding, value: CertaintyValue | null, cfg: CertaintyConfig,
+                         registry: Pick<Registry, "certainty_metrics">, showFigure = true): string {
+  const name = findingName(f);
+  if (!value || !showFigure) return name;
+  return `${name} - ${certaintyView(value, cfg, registry).text} Certainty`;
+}

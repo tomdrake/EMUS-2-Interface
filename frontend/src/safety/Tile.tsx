@@ -3,6 +3,11 @@ import { useEffect, useState } from "react";
 import { useDesign, useUi } from "@/app/store";
 import type { DeviceStatus } from "@/contracts/types.gen";
 
+import { useSnapshot } from "@/examples/store";
+import { titleCase } from "@/design/text";
+
+import { spanText } from "@/ai/certainty";
+import { FallFigure, PositionFigure, breathPeriod, poseMeaning, poseOf, poseWord } from "./PositionFigure";
 import { displayFor, elapsed } from "./status";
 import { useSafety } from "./store";
 
@@ -13,6 +18,12 @@ function useTick(ms: number): number {
     return () => window.clearInterval(id);
   }, [ms]);
   return now;
+}
+
+/** How long ago the latest fall was, from the findings: "40 min", or null. */
+function fallAge(snapshot: ReturnType<typeof useSnapshot>): string | null {
+  const f = snapshot?.findings.find((x) => x.code === "fall");
+  return f ? spanText((Date.parse(snapshot!.generated_at) - Date.parse(f.onset)) / 60000) : null;
 }
 
 /** The device that supplies a parameter, whether or not it is connected. */
@@ -106,6 +117,7 @@ export function Tile({ values }: { values: TileValue[] }) {
   const alarms = useSafety((s) => s.alarms);
   const link = useSafety((s) => s.link);
   const now = useTick(1000);
+  const snapshot = useSnapshot();
 
   const cells = values.map((v) => ({
     v,
@@ -127,7 +139,7 @@ export function Tile({ values }: { values: TileValue[] }) {
     }
   }
   const fmt = (c: (typeof cells)[number], v: number | string | null | undefined) =>
-    (typeof v === "number" ? v.toFixed(c.p?.decimals ?? 0) : v ?? "");
+    (typeof v === "number" ? v.toFixed(c.p?.decimals ?? 0) : typeof v === "string" ? titleCase(v) : v ?? "");
 
   return (
     <span className={`tile tile-${kind}${cells.length > 1 ? " tile-multi" : ""}`}
@@ -145,11 +157,28 @@ export function Tile({ values }: { values: TileValue[] }) {
                 {c.alarmOff && <span className="tile-alarm-off" title="Alarm off for this parameter">ALARM OFF</span>}
               </span>
               <span className="tile-body">
-                {c.d.showValue ? (
+                {c.d.showValue && c.v.parameter === "position" ? (
+                  <span className="tile-value tile-position" data-testid="position-value">
+                    {poseOf(c.v.value) && <PositionFigure pose={poseOf(c.v.value)!} period={breathPeriod(Number(snapshot?.numerics.rr))} />}
+                    <span className="position-word">{poseWord(c.v.value)}</span>
+                    <span className="position-meaning">{poseMeaning(c.v.value)}</span>
+                  </span>
+                ) : c.d.showValue && c.v.parameter === "falls" ? (
+                  <span className="tile-value tile-position" data-testid="falls-value">
+                    <FallFigure fallen={Number(c.v.value) > 0} />
+                    <span className="position-word">{Number(c.v.value) > 0 ? "Fall Detected" : "No Falls"}</span>
+                    <span className="position-meaning">{Number(c.v.value) > 0 ? (fallAge(snapshot) ? `${fallAge(snapshot)} Ago` : "") : "None Detected"}</span>
+                  </span>
+                ) : c.d.showValue ? (
                   <span className="tile-value">
-                    {fmt(c, c.v.value)}
-                    {c.v.extra?.map((e, j) => (
-                      <span key={j} className="tile-extra">{e.wrap?.[0] ?? e.separator}{fmt(c, e.value)}{e.wrap?.[1]}</span>
+                    <span className="tile-main">
+                      {fmt(c, c.v.value)}
+                      {c.v.extra?.filter((e) => !e.wrap).map((e, j) => (
+                        <span key={j} className="tile-extra">{e.separator}{fmt(c, e.value)}</span>
+                      ))}
+                    </span>
+                    {c.v.extra?.filter((e) => e.wrap).map((e, j) => (
+                      <span key={`w${j}`} className="tile-extra tile-extra-wrap">{e.wrap![0]}{fmt(c, e.value)}{e.wrap![1]}</span>
                     ))}
                     {c.d.flagged && <span className="tile-flag" aria-label="poor trace">?</span>}
                   </span>

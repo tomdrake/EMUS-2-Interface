@@ -148,7 +148,8 @@ class ExampleSnapshot(_Model):
     alarms: AlarmState
     strips: list[ExampleStrip]
     trends: dict[ParameterId, TrendSeries]
-    #: The five most recent cuff pressures, newest first. Empty with no cuff connected.
+    #: Recent cuff pressures, newest first (up to twelve; a card lists the newest five).
+    #: Empty with no cuff connected.
     bp_readings: list[BpReading]
     #: Measured temperatures, newest first, as distinct from the continuous skin trend.
     temp_readings: list[TempReading]
