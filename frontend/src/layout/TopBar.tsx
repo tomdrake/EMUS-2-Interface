@@ -31,8 +31,8 @@ function AlarmStatus() {
   if (link !== "live") return <span className="alarm-status status-strong" data-testid="alarm-status">Alarms: No Data</span>;
   if (left > 0) return <span className="alarm-status tone-silenced" data-testid="alarm-status">Sound Paused {elapsed(left * 1000)}</span>;
   if (sound === "blocked") return <span className="alarm-status status-strong" data-testid="alarm-status">Sound Off</span>;
-  // Only claim alarms are audible once this screen has shown it can play sound.
-  if (sound !== "ready") return <span className="alarm-status status-strong" data-testid="alarm-status">Sound Not Confirmed</span>;
+  // Only claim alarms are audible once this screen has shown it can play sound; until then say nothing rather than claim it.
+  if (sound !== "ready") return null;
   return <span className="alarm-status" data-testid="alarm-status">{active ? `${active} Alarm${active > 1 ? "s" : ""}` : "Alarms On"}</span>;
 }
 
@@ -96,9 +96,6 @@ export function TopBar() {
             const node = render(f);
             return node ? <div key={f} className={`tb-field tb-${f.replace(/_/g, "-")}`}>{node}</div> : null;
           })}
-          <span className="badge badge-proto" title="Co-design prototype. Not a medical device.">
-            PROTOTYPE
-          </span>
         </div>
       </div>
       {design.notifications.position === "top-bar" && <NotificationBox placement="bar" />}

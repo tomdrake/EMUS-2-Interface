@@ -136,6 +136,20 @@ NEWS2_BANDS: dict[str, list[dict]] = {
 }
 
 
+#: The y axes of the chart's numeric blocks, for drawing them as continuous scales. ``min`` and ``max`` give
+#: the open-ended bands (">=25", "<=8") a visible width; ``step`` is the resolution of the values, so a band
+#: runs half a step beyond its printed limits (18-20 is 17.5 to 20.5) and the bands tile the axis with no gap;
+#: ``ticks`` is the side scale, at most half as many numbers as there are printed rows.
+NEWS2_AXES: dict[str, dict] = {
+    "rr": {"min": 6, "max": 28, "step": 1, "ticks": [8, 12, 21, 25]},
+    "spo2_1": {"min": 84, "max": 100, "step": 1, "ticks": [92, 96]},
+    "spo2_2": {"min": 80, "max": 100, "step": 1, "ticks": [84, 88, 93, 97]},
+    "bp_sys": {"min": 40, "max": 230, "step": 1, "ticks": [50, 70, 90, 110, 140, 180, 220]},
+    "hr": {"min": 25, "max": 140, "step": 1, "ticks": [30, 40, 50, 90, 110, 130]},
+    "temp": {"min": 34.0, "max": 40.0, "step": 0.1, "ticks": [35.0, 37.0, 39.0]},
+}
+
+
 @dataclass(frozen=True)
 class News2Result:
     total: int

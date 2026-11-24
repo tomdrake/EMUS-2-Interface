@@ -144,3 +144,40 @@ def test_bands_run_top_to_bottom_without_gaps():
         for upper, lower in zip(bands, bands[1:]):
             assert upper["low"] is not None and (lower["high"] is None or round(lower["high"], 1) < upper["low"])
             assert abs(upper["low"] - (lower["high"] if lower["high"] is not None else upper["low"] - 1)) <= 1.01 or key == "temp"
+
+
+def _spans(bands, axis):
+    half = axis["step"] / 2
+    return [((axis["min"] if b["low"] is None else b["low"] - half),
+             (axis["max"] if b["high"] is None else b["high"] + half)) for b in bands]
+
+
+def test_the_bands_tile_every_continuous_axis_without_a_gap():
+    from app import news2
+    for key, axis in news2.NEWS2_AXES.items():
+        variants = [("any", news2.NEWS2_BANDS[key])]
+        if key == "spo2_2":
+            variants = [(on, [b for b in news2.NEWS2_BANDS[key] if b.get("oxygen", on) == on]) for on in (True, False)]
+        for name, bands in variants:
+            spans = sorted(_spans(bands, axis), key=lambda s: -s[1])
+            assert round(spans[0][1], 6) == axis["max"], (key, name)
+            assert round(spans[-1][0], 6) == axis["min"], (key, name)
+            for upper, lower in zip(spans, spans[1:]):
+                assert round(upper[0] - lower[1], 6) == 0, (key, name, upper, lower)
+
+
+def test_the_side_scales_have_half_as_many_ticks_as_printed_rows_and_sit_on_the_axis():
+    from app import news2
+    for key, axis in news2.NEWS2_AXES.items():
+        rows = len(news2.NEWS2_BANDS[key])
+        assert 1 <= len(axis["ticks"]) <= -(-rows // 2), key
+        assert all(axis["min"] <= t <= axis["max"] for t in axis["ticks"]), key
+        assert axis["ticks"] == sorted(axis["ticks"]), key
+
+
+def test_every_observation_set_has_its_mean_pressure():
+    from app import examples
+    snap = examples.snapshot("scn-pneumonia", 0)
+    for s in snap.obs_sets:
+        sys_, dia = s.values["bp_sys"], s.values["bp_dia"]
+        assert s.values["bp_mean"] == round(dia + (sys_ - dia) / 3)

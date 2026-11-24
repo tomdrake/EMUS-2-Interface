@@ -674,7 +674,7 @@ for (const vp of VIEWPORTS) {
   await ex("setMinute", 20);
   await settle();
   check(await T("example-badge").count() === 0 && await page.locator(".example-mark").count() === 0, `${vp.name}: no module or bar carries an Example label`);
-  check(vp.width <= 1100 || await page.locator(".badge-proto").isVisible(), `${vp.name}: the prototype badge says this is not a medical device`);
+  check(await page.locator(".badge-proto").count() === 0 && !/Sound Not Confirmed|PROTOTYPE/.test(await page.locator(".topbar").innerText()), `${vp.name}: the top bar has no "Sound Not Confirmed" or "Prototype" label`);
   check((await T("patient-name").innerText()).includes("OKAFOR"), `${vp.name}: the scripted patient is named`);
   check((await T("num-hr").innerText()).includes("144"), `${vp.name}: the heart rate tile shows the scripted value`);
 
@@ -1121,6 +1121,8 @@ for (const vp of VIEWPORTS) {
   await shot("trends");
   await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
   await shot("abcde");
+  const halfChart = await page.evaluate(() => { const c = document.querySelector('[data-testid="news2-chart"]'), r = c.getBoundingClientRect(), last = document.querySelector('[data-testid="news-risks"]').getBoundingClientRect(); return last.bottom <= r.bottom - 1 && c.scrollHeight <= c.clientHeight + 1; });
+  check(halfChart, `${vp.name}: the ABCDE half shows the NEWS2 chart to its bottom row without scrolling`);
   await T("tab-news2").click();
   check(await T("news2-chart").isVisible() && await page.locator('[data-testid^="news-cell-rr-"]').count() >= 3, `${vp.name}: the NEWS2 tab is the real chart`);
   await shot("news2");
@@ -1132,16 +1134,39 @@ for (const vp of VIEWPORTS) {
   }
   check(await page.locator('[data-testid^="news-band-bp_sys-"]').count() === 14 && await page.locator('[data-testid^="news-band-hr-"]').count() === 12, `${vp.name}: the blood pressure and pulse blocks have every printed row`);
   check(await page.locator('[data-testid="news-key"] .news2-key-box').count() === 4, `${vp.name}: the NEWS key shows 0, 1, 2 and 3`);
-  const tails = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-tail-"]')].map((e) => +e.dataset.diaRow - +e.dataset.sysRow));
+  const tails = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-tail-"]')].map((e) => +e.dataset.diaY - +e.dataset.sysY));
   check(tails.length >= 3 && tails.every((d) => d >= 0), `${vp.name}: each blood pressure on the chart has a tail from the systolic dot down to the diastolic number`);
+  // continuous axes: an X at each MAP between the diastolic and systolic, half as many ticks, dots inside the band of their score
+  const maps = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-map-"]')].map((e) => { const t = e.parentElement; return { v: +e.dataset.value, y: +e.dataset.y, sys: +t.dataset.sysY, dia: +t.dataset.diaY }; }));
+  check(maps.length >= 3 && maps.every((m) => m.y >= m.sys && m.y <= m.dia), `${vp.name}: an X marks each MAP between its systolic and diastolic`);
+  check(maps.map((m) => m.v).join() === comps.slice(-maps.length).map((o) => o.values.bp_mean).join(), `${vp.name}: the X marks are the API's MAPs (${maps.map((m) => m.v).join(", ")})`);
+  const printed = { rr: 7, hr: 12, bp_sys: 14, temp: 6 };
+  const tickCounts = await page.evaluate((keys) => Object.fromEntries(keys.map((k) => [k, document.querySelectorAll(`[data-testid^="news-tick-${k}-"]`).length])), Object.keys(printed));
+  check(Object.entries(printed).every(([k, rows]) => tickCounts[k] >= 1 && tickCounts[k] <= Math.ceil(rows / 2)), `${vp.name}: the side scales have at most half as many ticks as printed rows (${JSON.stringify(tickCounts)})`);
+  const inBand = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-cell-hr-"]')].every((c) => {
+    const y = +c.dataset.y; const band = [...document.querySelectorAll('[data-testid^="news-band-hr-"]')].find((b) => +b.dataset.from - 0.6 <= y && y <= +b.dataset.to + 0.6);
+    return band && +band.dataset.score === +c.dataset.score;
+  }));
+  check(inBand, `${vp.name}: each pulse dot sits at its true height, inside the band of its score`);
+  // blood pressure: the trend follows the MAP, dashed lines link the systolic and diastolic, arrows mark them
+  const bpMarks = await page.evaluate(() => ({ sys: document.querySelectorAll('[data-testid^="news-sysmark-"]').length, dia: document.querySelectorAll('[data-testid^="news-diamark-"]').length,
+    solid: !!document.querySelector('[data-testid="news-line-bp_sys"]') && !document.querySelector('[data-testid="news-line-bp_sys"]').classList.contains("n2-dashed"),
+    dashed: [...document.querySelectorAll('[data-testid^="news-line-bp_sys-"]')].every((e) => e.classList.contains("n2-dashed")) && document.querySelectorAll('[data-testid^="news-line-bp_sys-"]').length === 2,
+    sysDown: [...document.querySelectorAll('[data-testid^="news-sysmark-"]')].every((e) => { const p = e.getAttribute("points").split(" ").map((q) => q.split(",").map(Number)); return p[2][1] > p[0][1]; }),
+    diaUp: [...document.querySelectorAll('[data-testid^="news-diamark-"]')].every((e) => { const p = e.getAttribute("points").split(" ").map((q) => q.split(",").map(Number)); return p[2][1] < p[0][1]; }),
+    mapLine: (document.querySelector('[data-testid="news-line-bp_sys"]')?.getAttribute("points") ?? "").split(" ").length }));
+  check(bpMarks.sys >= 3 && bpMarks.sys === bpMarks.dia && bpMarks.sysDown && bpMarks.diaUp, `${vp.name}: systolic is a down-facing arrow and diastolic an up-facing arrow (${bpMarks.sys} of each)`);
+  check(bpMarks.solid && bpMarks.dashed && bpMarks.mapLine === maps.length, `${vp.name}: a solid line follows the MAP and dashed lines link the systolic and diastolic trends`);
   check(await T("news2-chart").getAttribute("data-spo2-scale") === "1" && await page.locator('[data-testid^="news-band-spo2-"]').count() === 4, `${vp.name}: the chart shows SpO2 Scale 1 for this patient`);
   await T("news-toggle-scale").click();
   check(await T("news2-chart").getAttribute("data-spo2-scale") === "2" && await page.locator('[data-testid^="news-band-spo2-"]').count() === 8, `${vp.name}: Toggle SpO2 Scale shows Scale 2 and its eight rows`);
   await T("news-toggle-scale").click();
-  const bandFills = await page.evaluate(() => { const f = (s) => getComputedStyle(document.querySelector(`[data-testid="${s}"] .n2-bandrow`)).fill; return [f("news-band-rr-2"), f("news-band-rr-5"), f("news-band-rr-1"), f("news-band-rr-0")]; });
+  const bandFills = await page.evaluate(() => { const f = (s) => getComputedStyle(document.querySelector(`[data-testid="${s}"] .n2-bandcont, [data-testid="${s}"] .n2-bandrow`)).fill; return [f("news-band-rr-2"), f("news-band-rr-5"), f("news-band-rr-1"), f("news-band-rr-0")]; });
   check(new Set(bandFills).size === 4, `${vp.name}: rows are coloured by score, white, yellow, orange, red (${bandFills.join(" / ")})`);
   const chartFits = await page.evaluate(() => { const c = document.querySelector('[data-testid="news2-chart"]').getBoundingClientRect(), s = document.querySelector(".news2-svg").getBoundingClientRect(); return s.right <= c.right + 1 && s.left >= c.left - 1; });
   check(chartFits, `${vp.name}: the chart fits its box across`);
+  const wholeChart = await page.evaluate(() => { const c = document.querySelector('[data-testid="news2-chart"]'), r = c.getBoundingClientRect(), last = document.querySelector('[data-testid="news-risks"]').getBoundingClientRect(); return { bottomIn: last.bottom <= r.bottom - 1, noScroll: c.scrollHeight <= c.clientHeight + 1 }; });
+  check(wholeChart.bottomIn && wholeChart.noScroll, `${vp.name}: the whole chart, down to the clinical risk row, is on screen without scrolling`);
 
   // Blood pressure numbers sit above and below the tails; every trace has its x scale, even on a small module
   await goDesign("icu-monitor", "monitor"); await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 180); await settle();

@@ -43,6 +43,9 @@ export interface ModuleSizeSpec {
 }
 
 /** One row of the printed NEWS2 chart (backend/app/news2.py NEWS2_BANDS). */
+/** The y axis of a numeric NEWS2 block: its range, value resolution and the side-scale ticks. */
+export interface Axis { min: number; max: number; step: number; ticks: number[] }
+
 export interface Band { label: string; score: number; low: number | null; high: number | null; oxygen?: boolean; level?: string }
 
 /** Read-only clinical vocabulary (backend/app/registry.py). */
@@ -82,6 +85,7 @@ export interface Registry {
   event_types: Record<string, { label: string; parameter: string | null }>;
   rhythm_labels: Record<string, string>;
   news2_bands: Record<string, Band[]>;
+  news2_axes: Record<string, Axis>;
   certainty_metrics: Record<string, { id: string; group: string; label: string;
     tells_you: string; applies_to: string[]; note: string }>;
 }

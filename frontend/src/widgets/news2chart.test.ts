@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Band } from "@/app/api";
 
-import { bandIndex, chartGroups, fitLabel, frequencyText, readableOn, wrapText } from "./News2Chart";
+import { axisY, bandIndex, bandSpan, chartGroups, tickText, fitLabel, frequencyText, readableOn, wrapText } from "./News2Chart";
 
 const b = (label: string, score: number, low: number | null, high: number | null, extra: Partial<Band> = {}): Band => ({ label, score, low, high, ...extra });
 const HR = [b("≥131", 3, 131, null), b("111–130", 2, 111, 130), b("91–110", 1, 91, 110), b("51–90", 0, 51, 90), b("41–50", 1, 41, 50), b("≤40", 3, null, 40)];
@@ -51,5 +51,34 @@ describe("NEWS2 chart helpers", () => {
   });
   it("writes how often to monitor", () => {
     expect([frequencyText(0), frequencyText(0.5), frequencyText(1), frequencyText(12), frequencyText(null)]).toEqual(["Cont.", "30 min", "1 h", "12 h", ""]);
+  });
+});
+
+describe("continuous axes", () => {
+  const axis = { min: 25, max: 140, step: 1, ticks: [30, 40, 50, 90, 110, 130] };
+  it("puts a value at its true height inside the block, higher values higher, and clamps outside the axis", () => {
+    expect(axisY(140, axis, 100, 115)).toBe(100);
+    expect(axisY(25, axis, 100, 115)).toBe(215);
+    expect(axisY(82.5, axis, 100, 115)).toBeCloseTo(157.5);
+    expect(axisY(200, axis, 100, 115)).toBe(100);
+    expect(axisY(0, axis, 100, 115)).toBe(215);
+    expect(axisY(110, axis, 0, 115)).toBeLessThan(axisY(90, axis, 0, 115));
+  });
+  it("paints each band half a step beyond its printed limits, and open ends to the axis edge", () => {
+    expect(bandSpan(HR[0]!, axis)).toEqual([140, 130.5]);
+    expect(bandSpan(HR[3]!, axis)).toEqual([90.5, 50.5]);
+    expect(bandSpan(HR[5]!, axis)).toEqual([40.5, 25]);
+    const t = { min: 34, max: 40, step: 0.1, ticks: [] };
+    expect(bandSpan(b("38.1-39.0", 1, 38.1, 39.0), t)[0]).toBeCloseTo(39.05);
+  });
+  it("tiles the axis: every band starts where the one above stops", () => {
+    const spans = HR.map((x) => bandSpan(x, axis));
+    expect(spans[0]![0]).toBe(axis.max);
+    expect(spans[spans.length - 1]![1]).toBe(axis.min);
+    spans.slice(1).forEach((sp, i) => expect(sp[0]).toBe(spans[i]![1]));
+  });
+  it("writes temperature ticks to a tenth and the others as whole numbers", () => {
+    expect(tickText(38, { min: 34, max: 40, step: 0.1, ticks: [] })).toBe("38.0");
+    expect(tickText(90, axis)).toBe("90");
   });
 });

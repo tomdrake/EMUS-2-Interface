@@ -11,7 +11,14 @@ const PATHS: Record<Exclude<IconId, "none">, string[]> = {
   split: ["M3 4h18v16H3z", "M12 4v16"],
   labs: ["M9 3h6", "M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3", "M8 15h8"],
   imaging: ["M4 4h16v16H4z", "M9 7c-2 2-2 8 0 10", "M15 7c2 2 2 8 0 10", "M12 6v12"],
-  ai: ["M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z", "M18 15l1 2 2 1-2 1-1 2-1-2-2-1 2-1z"],
+  // A brain whose folds are circuit traces ending in nodes: the AI.
+  ai: [
+    "M12 4.5C10.5 3.4 8 3.7 7 5.4 5.3 5.5 4.3 7.1 4.7 8.6 3.5 9.5 3.5 11.6 4.6 12.5 4.2 14 5 15.6 6.4 16 6.6 17.8 8.4 19 10 18.6 10.7 19.3 11.4 19.5 12 19.5",
+    "M12 4.5C13.5 3.4 16 3.7 17 5.4 18.7 5.5 19.7 7.1 19.3 8.6 20.5 9.5 20.5 11.6 19.4 12.5 19.8 14 19 15.6 17.6 16 17.4 17.8 15.6 19 14 18.6 13.3 19.3 12.6 19.5 12 19.5",
+    "M12 4.5v15",
+    "M12 9H9.6L8.4 7.8", "M12 12.6H9.4L8 14", "M12 10.8h2.6l1.2-1.2", "M12 15.6h2.8l1.2 1.2",
+    "F:M7.6 7.2a1.1 1.1 0 1 0 0 .01z", "F:M7.2 14.5a1.1 1.1 0 1 0 0 .01z", "F:M16.4 9a1.1 1.1 0 1 0 0 .01z", "F:M16.8 17.3a1.1 1.1 0 1 0 0 .01z",
+  ],
   forecast: ["M3 17l5-5 3 3", "M11 15l2-2", "M15 11l2-2", "M19 7l2-2", "M17 5h4v4"],
   alarm: ["M6 16V11a6 6 0 0 1 12 0v5l2 2H4z", "M10 21h4"],
   bell: ["M6 16V11a6 6 0 0 1 12 0v5l2 2H4z", "M10 21h4"],
@@ -42,7 +49,7 @@ export function Icon({ id, size = 24 }: { id: IconId; size?: number }) {
   if (id === "none") return null;
   return (
     <svg className="icon" width={size} height={size} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"
+         stroke="currentColor" strokeWidth={id === "ai" ? 1.4 : 1.8} strokeLinecap="round" strokeLinejoin="round"
          aria-hidden="true" data-icon={id}>
       {PATHS[id].map((d, i) => (d.startsWith("F:")
         ? <path key={i} d={d.slice(2)} fill="currentColor" stroke="none" />

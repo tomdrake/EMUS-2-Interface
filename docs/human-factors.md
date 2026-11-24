@@ -111,7 +111,7 @@ bar, or a fixed strip (a design choice; removing it is not).
 | Ready | Silence button with a yellow outline and icon; top bar says "Alarms On" |
 | Sound paused (two minutes) | Button solid yellow with the time left; a solid yellow **SOUND PAUSED 1:45** mark inside the notification box beside its headline; top bar says "Sound Paused 1:45". The list says "Alarm sound paused for 1:45. Alarms still show on screen" with a Resume Sound button |
 | This screen cannot play sound | A MONITOR notification: "This screen cannot play alarm sounds. Tap to enable"; top bar says "Sound Off". Browsers block audio until someone touches the page, so this is a real failure mode for a tablet |
-| Sound not yet confirmed | Top bar says "Sound Not Confirmed" rather than claiming alarms are on |
+| Sound not yet confirmed | The top bar says nothing rather than claiming alarms are on ("Alarms On" appears only once sound is confirmed; "Sound Off" and "Sound Paused" always show) |
 | Alarm switched off for one parameter | "ALARM OFF" in that value's tile heading (yellow, the one exception to row colour) |
 | Alarm enabled but no valid data | A MONITOR notification: "Not monitored: SpO2, PR" |
 

@@ -734,7 +734,8 @@ def _obs_sets(sc: dict, minute: float, now: datetime, count: int = 8) -> list[Ob
         sets.append(ObservationSet(
             at=_ts(now, minute, t),
             values={"rr": round(v["rr"]), "spo2": round(v["spo2"]), "o2_flow": ox["flow_l_min"],
-                    "bp_sys": round(v["bp_sys"]), "bp_dia": round(v["bp_dia"]), "hr": round(v["hr"]),
+                    "bp_sys": round(v["bp_sys"]), "bp_dia": round(v["bp_dia"]),
+                    "bp_mean": round(round(v["bp_dia"]) + (round(v["bp_sys"]) - round(v["bp_dia"])) / 3), "hr": round(v["hr"]),
                     "acvpu": v["acvpu"], "temp": round(v["temp"], 1)},
             oxygen=OxygenTherapy(at=_ts(now, minute, t), flow_l_min=ox["flow_l_min"], device=ox["device"],
                                  source="simulated"),
