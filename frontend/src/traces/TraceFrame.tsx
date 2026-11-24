@@ -134,7 +134,7 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
         const range = trendRange(overlayParam);
         // A short row has no room for a title above the ticks: the unit goes on the ticks instead.
         const roomy = h >= 70;
-        const showAxis = h >= 44;      // a very short plot keeps the line and drops the labels
+        const showAxis = h >= 34;      // a very short plot keeps the line and drops the labels
         const y = (v: number) => trendY(v, range, h, roomy ? 20 : 9);
         // Two ticks on a short row, three on a tall one, so the labels never touch.
         const ticks = h >= 100 ? [range[0], (range[0] + range[1]) / 2, range[1]] : [range[0], range[1]];

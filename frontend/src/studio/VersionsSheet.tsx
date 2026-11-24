@@ -74,29 +74,29 @@ export function VersionsSheet() {
         ))}
       </ol>
 
-      <h4>Copy this design</h4>
+      <h4>Copy This Design</h4>
       <div className="inline-form">
         <input value={name} placeholder={`${stored.meta.name} copy`} maxLength={60} onChange={(e) => setName(e.target.value)} data-testid="copy-name" aria-label="Name of the copy" />
         <button type="button" className="btn" disabled={dirty} data-testid="copy-design"
                 onClick={() => run(async () => { const s = await api.duplicate(id, name || `${stored.meta.name} copy`, author()); show(s, `Made "${s.meta.name}".`); setName(""); })}>Copy</button>
       </div>
 
-      <h4>Start-up design</h4>
-      <div className="choice choice-col" role="radiogroup" aria-label="Start-up design">
+      <h4>Start-Up Design</h4>
+      <div className="choice choice-col" role="radiogroup" aria-label="Start-Up Design">
         {designs.map((d) => (
           <button key={d.id} type="button" role="radio" aria-checked={d.id === active} className={`choice-opt${d.id === active ? " is-current" : ""}`}
                   data-testid={`startup-${d.id}`} disabled={dirty}
                   onClick={() => run(async () => { const s = await api.setActive(d.id, author()); show(s, `"${s.meta.name}" will show when the monitor starts.`); })}>
-            {d.name}{d.builtin ? " (built in)" : ""}
+            {d.name}{d.builtin ? " (Built In)" : ""}
           </button>
         ))}
       </div>
 
-      <h4>Export and import</h4>
+      <h4>Export and Import</h4>
       <div className="panel-buttons">
         <button type="button" className="btn" onClick={exportJson} data-testid="export-design">Export JSON</button>
       </div>
-      <label className="field">Paste a design to import
+      <label className="field">Paste A Design To Import
         <textarea value={paste} rows={4} onChange={(e) => setPaste(e.target.value)} data-testid="import-text" />
       </label>
       <button type="button" className="btn" disabled={!paste.trim() || dirty} data-testid="import-design"

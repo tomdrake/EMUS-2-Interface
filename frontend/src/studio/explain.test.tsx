@@ -19,7 +19,7 @@ const strip = (reading: string) => ({ waveform: "ecg", hz: 100, seconds: 2, ends
 const snapshot = {
   title: "Paroxysmal AF after surgery", numerics: { hr: 144, spo2: 95 }, findings: [finding],
   finding_data: { f1: { finding_id: "f1", strip: strip("af"), baseline_strip: strip("sinus"), rr_intervals_s: [0.4, 0.6],
-    features: { "Mean rate": "147 /min" }, rule: "AF when R-R varies by more than 12%.",
+    features: { "Mean Rate": "147 /min" }, rule: "AF when R-R varies by more than 12%.",
     reasons: [{ factor: "R-R varies by 17%", direction: "raises", weight: 1, parameter: null, evidence: [] }], values: [] } },
   trends: { hr: { parameter: "hr", unit: "bpm", device_id: "anne-chest", quality: 0.9, points: [{ t: -10, v: 80 }, { t: 0, v: 144 }] } },
   signals: { hr: { state: "ok", quality: 0.9, issue: null } },

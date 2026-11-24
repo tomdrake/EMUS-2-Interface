@@ -1,3 +1,4 @@
+import { titleCase } from "@/design/text";
 import { CertaintyTable, ExampleNote, ReasonBars } from "@/explain/parts";
 import { EvidenceStrip, SeriesChart } from "@/explain/EvidenceStrip";
 import { pickCertainty } from "@/ai/certainty";
@@ -29,7 +30,7 @@ export function WhySheet() {
   return (
     <div className="why" data-testid="why-sheet" data-finding={f.id}>
       <header className="why-head">
-        <h3 data-testid="why-summary">{f.summary}</h3>
+        <h3 data-testid="why-summary" data-prose>{f.summary}</h3>
         <p className="why-sub">
           {f.label} · {f.status === "active" ? "happening now" : "earlier"} · severity {f.severity}
           {" · read at "}{new Date(f.generated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
@@ -38,7 +39,7 @@ export function WhySheet() {
 
       {data?.strip && (
         <section aria-label="What the AI looked at">
-          <h4>What it looked at</h4>
+          <h4>What It Looked at</h4>
           <EvidenceStrip strip={data.strip} testId="why-evidence"
                          caption={`${registry.waveforms[data.strip.waveform]?.label ?? "Trace"}, the marked part is what the rule read`} />
           {data.baseline_strip && (
@@ -49,7 +50,7 @@ export function WhySheet() {
       )}
       {!data?.strip && data && data.values.length > 1 && f.parameter && (
         <section aria-label="What the AI looked at">
-          <h4>What it looked at</h4>
+          <h4>What It Looked at</h4>
           <SeriesChart points={data.values} unit={param?.unit ?? ""} testId="why-evidence" caption={f.label} />
         </section>
       )}
@@ -69,10 +70,10 @@ export function WhySheet() {
 
       {data && (
         <section aria-label="Rule and measurements">
-          <h4>The rule</h4>
+          <h4>The Rule</h4>
           <p data-testid="why-rule">{data.rule || f.explanation}</p>
           <dl className="why-measured" data-testid="why-measured">
-            {Object.entries(data.features).map(([k, v]) => (<div key={k}><dt>{k}</dt><dd>{v}</dd></div>))}
+            {Object.entries(data.features).map(([k, v]) => (<div key={k}><dt>{titleCase(k)}</dt><dd>{v}</dd></div>))}
           </dl>
           {data.rr_intervals_s.length > 0 && (
             <p className="why-note" data-testid="why-rr">R-R intervals (s): {data.rr_intervals_s.map((x) => x.toFixed(2)).join(", ")}</p>
@@ -80,15 +81,15 @@ export function WhySheet() {
         </section>
       )}
 
-      <section aria-label="How sure">
-        <h4>How sure</h4>
+      <section aria-label="How Sure">
+        <h4>How Sure</h4>
         <CertaintyTable values={f.certainty} cfg={cfg} registry={registry} shownMetric={shown} testId="why-certainty" />
       </section>
 
       <ExampleNote model={f.model} />
 
-      <section aria-label="Ask a question">
-        <h4>Ask a question</h4>
+      <section aria-label="Ask a Question">
+        <h4>Ask a Question</h4>
         <label className="why-ask">
           <input type="text" disabled placeholder="Why do you think this was AF?" data-testid="why-ask" />
           <button type="button" className="btn" disabled>Ask</button>

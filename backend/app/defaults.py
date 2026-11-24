@@ -344,16 +344,16 @@ def _design(name: str, description: str, preset: str, home: str, news_variant: s
 #: slug -> design document (dict). Slugs are stable ids used for seeding.
 DEFAULT_DESIGNS: dict[str, dict] = {
     "icu-monitor": _design(
-        "ICU monitor", "Familiar bedside monitor: waveforms and numbers, tabs along the bottom.",
+        "ICU Monitor", "Familiar bedside monitor: waveforms and numbers, tabs along the bottom.",
         "icu-dark", "monitor", "bands-dark"),
     "news2-chart": _design(
-        "NEWS2 chart", "The RCP NEWS2 chart as the home screen.",
+        "NEWS2 Chart", "The RCP NEWS2 chart as the home screen.",
         "news-paper", "news2", "bands-light"),
     "split-side": _design(
-        "NEWS2 beside monitor", "NEWS2 chart on the left, continuous observations on the right.",
+        "NEWS2 Beside Monitor", "NEWS2 chart on the left, continuous observations on the right.",
         "icu-dark", "split-h", "bands-dark"),
     "split-stacked": _design(
-        "Monitor above NEWS2", "Continuous observations above, NEWS2 trend below.",
+        "Monitor Above NEWS2", "Continuous observations above, NEWS2 trend below.",
         "icu-dark", "split-v", "trend-dark"),
     "icu-modules": _design(
         "Modular Example",

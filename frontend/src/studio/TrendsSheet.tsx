@@ -44,7 +44,7 @@ function Plot({ param, windowMin, snapshot }: { param: string; windowMin: number
             {param === "temp" && <TempLayer dots={temp} rowId="trends" />}
             {param === "temp" && temp.length > 0 && <TempKey corner={keyCorner(pts, plot, keySize(H))} plot={plot} rowId="trends" />}
             {param === "bp" && bp.length === 0 && <text className="trace-label" x={(LEFT + x1) / 2} y={H / 2} textAnchor="middle">No Reading</text>}
-            <text className="trace-label" x={LEFT} y={H - 4}>{windowMin >= 120 ? `${windowMin / 60} h` : `${windowMin} min`} ago</text>
+            <text className="trace-label" x={LEFT} y={H - 4}>{windowMin >= 120 ? `${windowMin / 60} h` : `${windowMin} min`} Ago</text>
             <text className="trace-label" x={x1} y={H - 4} textAnchor="end">Now</text>
           </svg>
         )}

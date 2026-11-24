@@ -102,6 +102,10 @@ how sure it is; brackets on the trace say why. The interpretation is a short, re
 rule over the synthetic signal (not a clinical model) so each finding can be explained.
 The AI button in the top bar turns every AI mark off for the screen.
 
+## ABCDE and the NEWS2 chart
+
+The **ABCDE** tab checks Airway, Breathing, Circulation, Disability and Exposure from the monitor's data and a few prompts, then shows the latest blood gas, bloods and glucose with when they were taken, a Trends button, and the NEWS2 chart on the other half of the screen. Airway, capillary refill, AVPU, GCS and exposure are recorded on the screen only.
+
 ## Customising the screen
 
 Settings, then **Edit Layout**: tap a module, choose its size from seven pictured shapes (small

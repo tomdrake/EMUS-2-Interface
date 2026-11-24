@@ -48,7 +48,7 @@ export function AppearanceSheet() {
       <Choice testId="density" label="Spacing" value={design.theme.density}
               options={[{ value: "compact", label: "Compact" }, { value: "comfortable", label: "Comfortable" }, { value: "large", label: "Large" }]}
               onChange={(v) => apply((d) => bothThemes(d, { density: v }))} />
-      <h4>Accent colour ({theme.mode} theme)</h4>
+      <h4>Accent Colour ({theme.mode === "dark" ? "Dark" : "Light"} Theme)</h4>
       <div className="swatches" role="radiogroup" aria-label="Accent colour">
         {ACCENTS.map((c) => (
           <button key={c} type="button" role="radio" aria-checked={theme.colours.accent.toUpperCase() === c} aria-label={`Accent ${c}`}

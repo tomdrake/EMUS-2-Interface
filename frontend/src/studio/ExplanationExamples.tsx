@@ -72,7 +72,7 @@ export function ExplanationExamples() {
         <article key={s.id} className={`style-card${open === s.id ? " is-open" : ""}`} data-testid={`style-${s.id}`}>
           <button type="button" className="style-head" aria-expanded={open === s.id}
                   onClick={() => setOpen(open === s.id ? null : s.id)}>
-            <strong>{s.title}</strong><span>{s.shows}</span>
+            <strong>{s.title}</strong><span data-prose>{s.shows}</span>
           </button>
           <div className="style-notes"><span><b>Good for:</b> {s.goodFor}</span><span><b>Watch for:</b> {s.watch}</span></div>
           {open === s.id && <div className="style-body">{body(s.id)}</div>}

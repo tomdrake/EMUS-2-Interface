@@ -4,7 +4,7 @@ import type { CertaintyValue, Finding } from "@/contracts/types.gen";
 
 import { certaintyView, findingsForRow, levelOf, pickCertainty, type CertaintyConfig } from "./certainty";
 
-const registry = { certainty_metrics: { evidence_agreement: { label: "Agreement of evidence" },
+const registry = { certainty_metrics: { evidence_agreement: { label: "Agreement of Evidence" },
                                         prediction_interval: { label: "Prediction interval" } } } as any;
 const cfg = (display: CertaintyConfig["display"]): CertaintyConfig =>
   ({ display, badge_medium_at: 0.5, badge_high_at: 0.8, show_metric_name: true } as CertaintyConfig);
@@ -33,7 +33,7 @@ describe("certainty display", () => {
     expect([0.2, 0.5, 0.79, 0.8].map((s) => levelOf(s, cfg("badge")))).toEqual(["low", "medium", "medium", "high"]);
   });
   it("names the metric from the registry", () => {
-    expect(certaintyView(value(0.5), cfg("percent"), registry).metricLabel).toBe("Agreement of evidence");
+    expect(certaintyView(value(0.5), cfg("percent"), registry).metricLabel).toBe("Agreement of Evidence");
   });
   it("picks the design's metric, else the first the finding has", () => {
     const vs = [value(0.4, "input_quality"), value(0.9, "evidence_agreement")];

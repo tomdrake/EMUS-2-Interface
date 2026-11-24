@@ -1,4 +1,5 @@
 import type { Registry } from "@/app/api";
+import { titleCase } from "@/design/text";
 import { Certainty } from "@/ai/Certainty";
 import type { CertaintyConfig } from "@/ai/certainty";
 import type { CertaintyValue, Contributor } from "@/contracts/types.gen";
@@ -28,13 +29,13 @@ export function CertaintyTable({ values, cfg, registry, shownMetric, testId }: {
 }) {
   return (
     <table className="certainty-table" data-testid={testId}>
-      <thead><tr><th>Measure</th><th>Value</th><th>What it tells you</th></tr></thead>
+      <thead><tr><th>Measure</th><th>Value</th><th>What It Tells You</th></tr></thead>
       <tbody>
         {values.map((v) => {
           const m = registry.certainty_metrics[v.metric];
           return (
             <tr key={v.metric} data-metric={v.metric} className={v.metric === shownMetric ? "is-shown" : ""}>
-              <th scope="row">{m?.label ?? v.metric}{v.metric === shownMetric && <small> shown on the monitor</small>}</th>
+              <th scope="row">{titleCase(m?.label ?? v.metric)}{v.metric === shownMetric && <small> shown on the monitor</small>}</th>
               <td><Certainty value={v} cfg={cfg} registry={registry} showName={false} /> <small>{v.text}</small></td>
               <td>{m?.tells_you ?? ""}</td>
             </tr>

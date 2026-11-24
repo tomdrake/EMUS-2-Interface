@@ -232,7 +232,7 @@ describe("settings sheets", () => {
   it("navigation settings edit the design's notification box and bars", () => {
     setup();
     render(<NavigationSheet />);
-    fireEvent.click(dom.getByText("Top bar", { selector: ".choice-opt" }));
+    fireEvent.click(dom.getByText("Top Bar", { selector: ".choice-opt" }));
     expect(useUi.getState().draft!.notifications.position).toBe("top-bar");
     fireEvent.click(dom.getByTestId("top-seconds"));
     expect(useUi.getState().draft!.top_bar.show_seconds).toBe(false);
@@ -244,7 +244,7 @@ describe("settings sheets", () => {
     render(<AiSettingsSheet />);
     fireEvent.click(dom.getByTestId("ai-annotations"));
     expect(useUi.getState().draft!.ai.show_trace_annotations).toBe(false);
-    fireEvent.click(dom.getByLabelText("Increase Hide findings below"));
+    fireEvent.click(dom.getByLabelText("Increase Hide Findings Below"));
     expect(useUi.getState().draft!.ai.min_confidence).toBe(0.6);
     fireEvent.click(dom.getByText("Bars"));
     expect(useUi.getState().draft!.forecast.certainty.display).toBe("bars");

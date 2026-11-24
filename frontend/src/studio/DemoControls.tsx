@@ -1,3 +1,4 @@
+import { titleCase } from "@/design/text";
 import { useExample } from "@/examples/store";
 
 /**
@@ -26,7 +27,7 @@ export function DemoControls() {
           <button key={s.id} type="button" role="radio" aria-checked={s.id === scenario} disabled={!enabled}
                   className={`demo-option${s.id === scenario ? " is-current" : ""}`} data-testid={`scenario-${s.id}`}
                   onClick={() => set.setScenario(s.id)}>
-            <strong>{s.title}</strong>
+            <strong>{titleCase(s.title)}</strong>
             <span>{s.teaching_point}</span>
           </button>
         ))}
@@ -34,7 +35,7 @@ export function DemoControls() {
 
       {info && (
         <>
-          <h3 className="demo-h">Time in the scenario: <span data-testid="minute-label">{fmt(Math.round(minute))}</span></h3>
+          <h3 className="demo-h">Time In The Scenario: <span data-testid="minute-label">{fmt(Math.round(minute))}</span></h3>
           <input type="range" className="demo-slider" min={info.start_min} max={info.end_min} step={1}
                  value={Math.round(minute)} disabled={!enabled} data-testid="minute-slider"
                  aria-label="Minutes from now in the scenario"
@@ -43,7 +44,7 @@ export function DemoControls() {
             {info.highlights.map((h) => (
               <button key={`${h.minute}-${h.label}`} type="button" className="demo-jump" disabled={!enabled}
                       data-testid={`jump-${h.minute}`} onClick={() => set.setMinute(h.minute)}>
-                {h.label}<small>{fmt(h.minute)}</small>
+                {titleCase(h.label)}<small>{fmt(h.minute)}</small>
               </button>
             ))}
           </div>

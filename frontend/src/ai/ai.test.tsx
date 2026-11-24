@@ -33,7 +33,7 @@ function setup(design: object = {}) {
       forecast: { certainty: { display: "percent", finding_metric: "evidence_agreement", badge_medium_at: 0.5, badge_high_at: 0.8, show_metric_name: true } },
       ...design } as any } as any,
     registry: { parameters: { hr: { label: "Heart Rate", short: "HR", unit: "bpm", method: "ECG" } },
-      module_sizes: sizes, certainty_metrics: { evidence_agreement: { label: "Agreement of evidence" } },
+      module_sizes: sizes, certainty_metrics: { evidence_agreement: { label: "Agreement of Evidence" } },
       waveforms: { ecg: { label: "ECG", unit: "mV", scale: { unit: "mV", calibrated: true, gains_mm_per_unit: [5, 10, 20],
         default_gain: 10, tick: 0.5, baseline: "isoelectric", range: [-0.5, 1] } } },
       signal_states: { ok: { text: "", tone: "normal" } }, signal_issues: {} } as any,
@@ -103,7 +103,7 @@ describe("AI on the monitor", () => {
     expect(dom.queryByTestId("ai-certainty-ecg")).toBeNull();
     unmount();
     render(<Module row={row()} placement={place("row-tall")} />);
-    expect(dom.getByTestId("ai-certainty-ecg").textContent).toContain("Agreement of evidence");
+    expect(dom.getByTestId("ai-certainty-ecg").textContent).toContain("Agreement of Evidence");
     expect(dom.getByTestId("ai-explain-ecg").textContent).toContain("R-R intervals vary by 17%");
   });
 

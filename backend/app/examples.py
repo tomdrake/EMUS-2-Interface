@@ -342,11 +342,11 @@ def _weights(items: list[tuple[str, bool, float]]) -> list[Contributor]:
 
 
 def _features_text(f: EcgFeatures) -> dict[str, str]:
-    return {"Mean rate": f"{f.rate:.0f} /min",
-            "R-R variation": f"{f.rr_cv * 100:.0f}%",
-            "P waves present": f"{f.p_fraction * 100:.0f}% of beats" if f.p_judged else "not judged above 110 /min",
-            "QRS width": f"{f.qrs_ms:.0f} ms",
-            "Beats measured": str(len(f.r_times))}
+    return {"Mean Rate": f"{f.rate:.0f} /min",
+            "R-R Variation": f"{f.rr_cv * 100:.0f}%",
+            "P Waves Present": f"{f.p_fraction * 100:.0f}% of beats" if f.p_judged else "not judged above 110 /min",
+            "QRS Width": f"{f.qrs_ms:.0f} ms",
+            "Beats Measured": str(len(f.r_times))}
 
 
 def _tail(strip: ExampleStrip, seconds: float) -> ExampleStrip:
@@ -435,7 +435,7 @@ def _poor_trace_finding(sc_id: str, strip: ExampleStrip, now: datetime):
                     "Rhythm findings return when the trace is clean.",
         certainty=[certainty.build("input_quality", present=q.sqi)],
         evidence=[], model=MODEL, generated_at=now)
-    data = FindingData(finding_id=fid, strip=strip, features={"Signal quality": f"{q.sqi:.2f}",
+    data = FindingData(finding_id=fid, strip=strip, features={"Signal Quality": f"{q.sqi:.2f}",
                                                               "Issue": q.label or q.issue or ""},
                        rule="The trace is graded first. Below the 'poor' threshold, interpretation is paused.",
                        reasons=[Contributor(factor=q.label or "Poor trace", direction="raises", weight=1.0)])
@@ -488,9 +488,9 @@ def _vitals_findings(sc, minute, now, v, quality: dict[str, float]):
                      else f"SpO2 {spo2:.0f}%, below {low}%"),
             explanation=f"Rule: SpO2 below {low}% or down 3 points in an hour. "
                         f"It is {spo2:.0f}% now and was {before:.0f}% an hour ago.",
-            rows={"SpO2 now": f"{spo2:.0f}%", "SpO2 an hour ago": f"{before:.0f}%",
+            rows={"SpO2 Now": f"{spo2:.0f}%", "SpO2 An Hour Ago": f"{before:.0f}%",
                   "Threshold": f"{low}% (scale {scale})",
-                  "On oxygen": f"{v['oxygen']['flow_l_min']:g} L/min" if v["oxygen"]["flow_l_min"] else "Room air"},
+                  "On Oxygen": f"{v['oxygen']['flow_l_min']:g} L/min" if v["oxygen"]["flow_l_min"] else "Room air"},
             reasons=_weights([(f"Below {low}%", spo2 < low, (low - spo2) / 10),
                               (f"Down {drop:.0f} points in an hour", drop >= 3, drop / 10)]),
             agree=int(spo2 < low) + int(drop >= 3), considered=2, quality=quality.get("spo2", 1.0)))
@@ -506,7 +506,7 @@ def _vitals_findings(sc, minute, now, v, quality: dict[str, float]):
             summary=(f"RR {rr:.0f}/min, up from {rr_before:.0f} two hours ago" if rising
                      else f"RR {rr:.0f}/min, 24 or more"),
             explanation=f"Rule: RR 24 or more. It is {rr:.0f}/min now and was {rr_before:.0f}/min two hours ago.",
-            rows={"RR now": f"{rr:.0f} /min", "RR two hours ago": f"{rr_before:.0f} /min"},
+            rows={"RR Now": f"{rr:.0f} /min", "RR Two Hours Ago": f"{rr_before:.0f} /min"},
             reasons=_weights([("RR 24 or more", True, 1.0),
                               (f"Up {rise:.0f} in two hours", rising, 1.0)]),
             agree=1 + int(rising), considered=2, quality=quality.get("rr", 1.0)))
@@ -518,7 +518,7 @@ def _vitals_findings(sc, minute, now, v, quality: dict[str, float]):
             summary=f"Systolic {sys_:.0f} mmHg, down {sys_before - sys_:.0f} in three hours",
             explanation=f"Rule: systolic under 105 and down 15 or more in three hours. "
                         f"It is {sys_:.0f} now and was {sys_before:.0f} three hours ago.",
-            rows={"Systolic now": f"{sys_:.0f} mmHg", "Three hours ago": f"{sys_before:.0f} mmHg"},
+            rows={"Systolic Now": f"{sys_:.0f} mmHg", "Three Hours Ago": f"{sys_before:.0f} mmHg"},
             reasons=_weights([("Systolic under 105", True, (105 - sys_) / 30),
                               (f"Down {sys_before - sys_:.0f} in three hours", True, (sys_before - sys_) / 40)]),
             agree=2, considered=2, quality=0.9))
@@ -785,7 +785,7 @@ def list_scenarios() -> list[ExampleScenarioInfo]:
         for r in sc["rhythms"]:
             # A run shorter than two minutes can only be caught at its first minute.
             at = r["from_min"] if r["to_min"] - r["from_min"] < 2 else r["from_min"] + 1
-            hl.append((at, f"{SHORT.get(r['rhythm'], r['rhythm'])} starts"))
+            hl.append((at, f"{SHORT.get(r['rhythm'], r['rhythm'])} Starts"))
         for f in sc.get("faults", []):
             hl.append((int(f["at_min"]) + 1, registry.DEMO_FAULTS[f["fault"]]))
         for e in sc["events"]:

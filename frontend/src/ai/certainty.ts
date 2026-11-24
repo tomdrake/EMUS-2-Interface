@@ -53,7 +53,7 @@ export function certaintyView(value: CertaintyValue, cfg: CertaintyConfig,
     bars: Math.max(s > 0 ? 1 : 0, Math.round(s * 5)),
     opacity: Number((0.45 + 0.55 * s).toFixed(2)),
     dash: s >= 0.95 ? "" : `${dashLen} ${Math.round(2 + (1 - s) * 10)}`,
-    metricLabel: registry.certainty_metrics[value.metric]?.label ?? value.metric,
+    metricLabel: titleCase(registry.certainty_metrics[value.metric]?.label ?? value.metric),
   };
 }
 

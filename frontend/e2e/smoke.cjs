@@ -562,11 +562,12 @@ for (const vp of VIEWPORTS) {
       smallest: Math.min(...tiles.map((t) => parseFloat(getComputedStyle(t.querySelector(".tile-state, .tile-value")).fontSize))),
       clipped: tiles.filter((t) => { const a = t.querySelector(".tile-state, .tile-value").getBoundingClientRect(), b = t.getBoundingClientRect();
         return a.top < b.top - 1 || a.bottom > b.bottom + 1 || a.left < b.left - 1 || a.right > b.right + 1; }).length,
-      head: Math.max(...[...document.querySelectorAll(".row")].filter((r) => r.querySelector(".tile:not(.tile-empty)")).map((r) =>
-        Math.abs(mid(r.querySelector(".row-label").getBoundingClientRect()) - mid(r.querySelector(".tile:not(.tile-empty) .tile-head").getBoundingClientRect())))),
+      // a short tile puts the name beside its value, on one line
+      head: Math.max(...tiles.filter((t) => t.querySelector(".tile-value")).map((t) =>
+        Math.abs(mid(t.querySelector(".tile-name").getBoundingClientRect()) - mid(t.querySelector(".tile-value").getBoundingClientRect())))),
     };
   });
-  check(shortTiles.sizes === 1 && shortTiles.smallest >= 12 && shortTiles.clipped === 0 && shortTiles.head <= 1,
+  check(shortTiles.sizes === 1 && shortTiles.smallest >= 12 && shortTiles.clipped === 0 && shortTiles.head <= 12,
         `${vp.name}: short tiles on a split screen stay identical, readable and level (${shortTiles.smallest}px)`);
   await shot("split-v");
 
@@ -646,7 +647,7 @@ for (const vp of VIEWPORTS) {
   check(mod.scroll, `${vp.name}: the grid fits the screen without scrolling`);
   check(mod.mods.every((m) => m.hit[0] >= 48 && m.hit[1] >= 48), `${vp.name}: every module is a touch target`);
   check(mod.tiles.every((t) => !t.clipped) && mod.tiles.every((t) => t.min >= 12), `${vp.name}: every module's tile fits and its text is readable (${Math.min(...mod.tiles.map((t) => t.min))}px)`);
-  check(byId.ecg.flow === "row" && byId.spo2.flow === "stack" && byId.oxygen.flow === "tile-only" && byId.falls.flow === "side",
+  check(byId.ecg.flow === "row" && byId.spo2.flow === "split" && byId.temp.flow === "stack" && byId.oxygen.flow === "tile-only" && byId.falls.flow === "split",
         `${vp.name}: each size is arranged its own way`);
   check(/trace/.test(byId.ecg.content) && byId.ecg.dropped === "" && byId.oxygen.dropped.includes("ai") && byId.oxygen.content === "",
         `${vp.name}: a module shows what fits and records what was left out`);
@@ -672,15 +673,9 @@ for (const vp of VIEWPORTS) {
   await ex("setScenario", "scn-af");
   await ex("setMinute", 20);
   await settle();
-  const badgeFit = await page.evaluate(() => { const b = document.querySelector('[data-testid="example-badge"]').getBoundingClientRect(),
-    btn = document.querySelector('[data-testid="top-buttons"]').getBoundingClientRect(), c = document.querySelector('[data-testid="clock"]').getBoundingClientRect();
-    return b.right <= btn.left + 1 && b.left >= c.right - 1 && b.width > 40; });
-  check(badgeFit, `${vp.name}: the EXAMPLE badge is whole, beside the clock and clear of the buttons`);
-  check(await T("example-badge").isVisible() && /EXAMPLE/.test(await T("example-badge").innerText()) && (vp.width > 1100 ? /DATA/.test(await T("example-badge").innerText()) : true), `${vp.name}: the top bar says EXAMPLE DATA`);
+  check(await T("example-badge").count() === 0 && await page.locator(".example-mark").count() === 0, `${vp.name}: no module or bar carries an Example label`);
+  check(vp.width <= 1100 || await page.locator(".badge-proto").isVisible(), `${vp.name}: the prototype badge says this is not a medical device`);
   check((await T("patient-name").innerText()).includes("OKAFOR"), `${vp.name}: the scripted patient is named`);
-  const exMarks = await page.evaluate(() => ({ rows: document.querySelectorAll('[data-testid^="row-"][data-parameter]').length,
-    marks: document.querySelectorAll('[data-testid^="example-row"], .example-mark').length }));
-  check(exMarks.marks >= exMarks.rows, `${vp.name}: every module carries a small Example mark`);
   check((await T("num-hr").innerText()).includes("144"), `${vp.name}: the heart rate tile shows the scripted value`);
 
   // The trace is drawn at the same scale as its 1 mV calibration bar.
@@ -692,33 +687,39 @@ for (const vp of VIEWPORTS) {
     const ys = [...path.getAttribute("d").matchAll(/[ML][\d.]+ ([\d.-]+)/g)].map((m) => Number(m[1]));
     const base = Number(frame.dataset.baselineY), px = Number(bar.dataset.px);
     const fb = frame.getBoundingClientRect(), pb = path.getBoundingClientRect();
-    return { rAmp: (base - Math.min(...ys)) / px, inside: pb.left >= fb.left - 1 && pb.right <= fb.right + 1 && pb.top >= fb.top - 1 && pb.bottom <= fb.bottom + 1, n: ys.length };
+    return { rAmp: (base - Math.min(...ys)) / px, inside: pb.top >= fb.top - 1 && pb.bottom <= fb.bottom + 1, n: ys.length };
   });
   check(sig && sig.n > 100, `${vp.name}: the ECG is drawn from the example strip`);
   check(sig && sig.rAmp > 0.8 && sig.rAmp < 1.35, `${vp.name}: R waves are about 1 mV tall against the 1 mV bar (${sig && sig.rAmp.toFixed(2)})`);
-  check(sig && sig.inside, `${vp.name}: the signal stays inside its trace frame`);
+  check(sig && sig.inside, `${vp.name}: the signal stays inside its trace frame, top and bottom`);
 
-  // Annotations sit over the marked part of the strip and say why.
+  // The AI overview is off until asked for; then boxes with one or two words sit over what the AI used.
+  check(await page.locator('[data-testid="annotations-ecg"] .trace-box').count() === 0, `${vp.name}: with the AI overview off the trace carries no boxes`);
+  check(await T("tab-overview").getAttribute("aria-pressed") === "false", `${vp.name}: the AI Overview button shows it is off`);
+  await T("tab-overview").click();
+  await page.waitForTimeout(300);
   const ann = await page.evaluate(() => {
-    const m = document.querySelector('[data-testid="annotations-ecg"] .trace-mark');
-    const frame = document.querySelector('[data-testid="trace-frame-ecg"]').getBoundingClientRect();
-    if (!m) return null;
-    const r = m.querySelector(".trace-bracket").getBoundingClientRect();
-    return { label: m.dataset.label, w: r.width, inside: r.left >= frame.left - 1 && r.right <= frame.right + 1,
-             text: m.querySelector(".trace-mark-label").textContent };
+    const boxes = [...document.querySelectorAll('[data-testid="annotations-ecg"] .trace-box')];
+    const clip = document.querySelector('[data-testid="trace-frame-ecg"]').getBoundingClientRect();
+    const labelled = boxes.filter((b) => b.dataset.label);
+    return { n: boxes.length, labels: [...new Set(labelled.map((b) => b.dataset.label))], words: labelled.every((b) => b.dataset.label.split(" ").length <= 3), inFrame: boxes.every((b) => { const r = b.querySelector("rect").getBoundingClientRect(); return r.top >= clip.top - 1 && r.bottom <= clip.bottom + 1; }) };
   });
-  check(ann && /Irregular R-R/.test(ann.text) && ann.w > 20 && ann.inside, `${vp.name}: the AI marks the irregular R-R on the trace, with its reason`);
+  check(ann.n > 5 && ann.labels.includes("Irregular R-R") && ann.words && ann.inFrame, `${vp.name}: the overview boxes the irregular R-R, in one or two words (${ann.labels.join(", ")})`);
+  const movedA = await page.evaluate(async () => { const g = document.querySelector('[data-testid="sweep-ecg"]'); const t = () => new DOMMatrix(getComputedStyle(g).transform).m41; const a = t(); await new Promise((r) => setTimeout(r, 600)); return { a, b: t(), travel: Number(g.dataset.travel) }; });
+  check(movedA.travel > 100 && movedA.b < movedA.a - 5, `${vp.name}: the trace sweeps across (moved ${(movedA.a - movedA.b).toFixed(0)} px in 0.6 s)`);
+  await shot("overview-on");
+  await T("tab-overview").click();
 
   // The AI chip: finding, certainty (named), and a touch target that opens Why.
   const chip = T("ai-ecg");
-  check(/AF now/.test(await chip.innerText()) && /agreement/i.test(await chip.innerText()), `${vp.name}: the ECG chip says AF with how sure it is, and of what`);
+  check(/AF - \d+% Certainty/.test(await chip.innerText()) && !/Why\?/.test(await chip.innerText()), `${vp.name}: the ECG chip reads "AF - X% Certainty" with no Why link`);
   const chipBox = await chip.boundingBox();
   check(chipBox.height >= MIN_TOUCH - 1 && chipBox.width >= MIN_TOUCH - 1, `${vp.name}: the AI chip is a touch target`);
   const chipInside = await page.evaluate(() => [...document.querySelectorAll('.module .ai-chip-pill')].every((p) => {
     const m = p.closest(".module, .row").getBoundingClientRect(), b = p.getBoundingClientRect();
     return b.left >= m.left - 1 && b.right <= m.right + 1 && b.top >= m.top - 1 && b.bottom <= m.bottom + 1; }));
   check(chipInside, `${vp.name}: every AI chip sits inside its module`);
-  const smallest = await page.evaluate(() => Math.min(...[...document.querySelectorAll(".ai-chip-pill, .trace-mark-label, .example-mark")].map((e) => parseFloat(getComputedStyle(e).fontSize))));
+  const smallest = await page.evaluate(() => Math.min(...[...document.querySelectorAll(".ai-chip-pill, .trace-box-label")].map((e) => parseFloat(getComputedStyle(e).fontSize))));
   check(smallest >= 10, `${vp.name}: the smallest AI and example text is readable (${smallest}px)`);
   await shot("example-af");
   await chip.click();
@@ -733,13 +734,13 @@ for (const vp of VIEWPORTS) {
   await aiBtn.click();
   await page.waitForTimeout(200);
   const off = await page.evaluate(() => ({ chips: document.querySelectorAll(".ai-chip").length, certainty: document.querySelectorAll(".certainty").length,
-    marks: document.querySelectorAll(".trace-mark:not(.is-technical)").length, pressed: document.querySelector('[data-testid="top-ai"]').getAttribute("aria-pressed") }));
+    marks: document.querySelectorAll(".trace-mark:not(.is-technical), .trace-box").length, pressed: document.querySelector('[data-testid="top-ai"]').getAttribute("aria-pressed") }));
   check(off.chips === 0 && off.certainty === 0 && off.marks === 0 && off.pressed === "false", `${vp.name}: AI Off draws no chips, certainty or trace marks`);
   check(await aiBoxes() === beforeAi, `${vp.name}: switching AI off moved and resized nothing`);
   check((await T("num-hr").innerText()).includes("144") && await T("trace-signal-ecg").count() === 1, `${vp.name}: numbers and traces stay when AI is off`);
   await shot("example-ai-off");
   await page.reload({ waitUntil: "networkidle" });
-  await T("example-badge").waitFor();
+  await T("tab-overview").waitFor();
   check(await T("top-ai").getAttribute("aria-pressed") === "false", `${vp.name}: AI Off is remembered on this screen`);
   await T("top-ai").click();
   await settle();
@@ -789,11 +790,11 @@ for (const vp of VIEWPORTS) {
   check((await T("patient-name").innerText()).includes("PATEL"), `${vp.name}: choosing a scenario changes the patient`);
   await T("jump-5").click();
   await settle();
-  check(/VT now/.test(await T("ai-ecg").innerText()), `${vp.name}: jumping to a highlight shows that moment (VT)`);
+  check(/VT - \d+% Certainty/.test(await T("ai-ecg").innerText()), `${vp.name}: jumping to a highlight shows that moment (VT)`);
   await shot("demo-controls");
   await T("example-switch").uncheck();
   await page.waitForTimeout(500);
-  check(await T("example-badge").count() === 0 && await T("app").getAttribute("data-link") === "down", `${vp.name}: example data off removes the badge and the feed`);
+  check(await T("app").getAttribute("data-link") === "down", `${vp.name}: example data off removes the feed`);
   check((await page.evaluate(() => [...document.querySelectorAll('[data-testid^="num-"]')].map((e) => e.innerText))).every((t) => /NO\s+DATA/.test(t)), `${vp.name}: with no feed every tile says NO DATA`);
   await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
   await ex("setEnabled", true);
@@ -827,7 +828,7 @@ for (const vp of VIEWPORTS) {
     const ys = [...path.getAttribute("d").matchAll(/[ML][\d.]+ ([\d.-]+)/g)].map((m) => Number(m[1]));
     const line = document.querySelector('[data-testid="why-evidence"] .trace-baseline');
     const base = Number(line.getAttribute("y1")), px = Number(bar.dataset.px);
-    const mark = document.querySelector('[data-testid="why-evidence"] .trace-mark-label');
+    const mark = document.querySelector('[data-testid="why-evidence"] .trace-box-label');
     const fr = ev.getBoundingClientRect(), mr = mark ? mark.getBoundingClientRect() : null;
     return { rAmp: (base - Math.min(...ys)) / px, mark: mark?.textContent, markInside: mr && mr.left >= fr.left && mr.right <= fr.right,
       baseline: !!document.querySelector('[data-testid="why-baseline"] path.trace-signal'),
@@ -999,7 +1000,7 @@ for (const vp of VIEWPORTS) {
     await page.getByText("Bars", { exact: true }).click();
     await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
     await ex("setScenario", "scn-af"); await ex("setMinute", 20); await settle();
-    const aiNow = await page.evaluate(() => ({ marks: document.querySelectorAll(".trace-mark:not(.is-technical)").length, bars: document.querySelectorAll(".certainty-bars").length, chips: document.querySelectorAll(".ai-chip").length }));
+    const aiNow = await page.evaluate(() => ({ marks: document.querySelectorAll(".trace-mark:not(.is-technical), .trace-box").length, bars: document.querySelectorAll(".certainty-bars").length, chips: document.querySelectorAll(".ai-chip").length }));
     check(aiNow.marks === 0 && aiNow.chips > 0, `${vp.name}: AI settings can turn off trace marks and keep the chips`);
     await T("edit-save").click();
     await T("save-author").fill("RN Test");
@@ -1029,6 +1030,112 @@ for (const vp of VIEWPORTS) {
   }
   await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
   await page.evaluate(async () => { const st = window.__emus.ui.getState(); const s = await (await fetch("/api/designs/icu-monitor")).json(); st.load(s, st.registry); st.setDraft(null); st.setEditMode(false); });
+
+
+  // --- this round: SpO2 axis, position and falls figures, BP as dots and tails, the ABCDE screen, the NEWS2 chart, big numbers
+  const goDesign = (d, sc) => page.evaluate(async ([d, sc]) => { const st = window.__emus.ui; const r = await (await fetch(`/api/designs/${d}`)).json(); st.getState().load(r, st.getState().registry); st.setState({ screenId: sc ?? r.document.home_screen, openSheet: null, openMenu: null }); }, [d, sc]);
+  const api = (path) => page.evaluate(async (p) => (await fetch(p)).json(), path);
+  await goDesign("icu-monitor");
+  await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 0); await settle();
+  const spo2 = await page.evaluate(() => {
+    const ax = document.querySelector('[data-testid="overlay-axis-spo2"]'); const f = document.querySelector('[data-testid="trace-frame-spo2"]').getBoundingClientRect();
+    const t = (v) => document.querySelector(`[data-testid="overlay-tick-${v}"]`)?.getBoundingClientRect();
+    const trend = document.querySelector('[data-testid="overlay-trend-spo2"]')?.getBoundingClientRect();
+    return { range: ax?.dataset.range, t100: t(100) && Math.round(t(100).top), t50: t(50) && Math.round(t(50).top), inside: !t(100) || (t(100).right <= f.right + 1 && t(50).bottom <= f.bottom + 1), trend: !!trend };
+  });
+  check(spo2.range === "50,100" && spo2.t100 != null && spo2.t50 != null && spo2.t100 < spo2.t50 && spo2.inside && spo2.trend, `${vp.name}: the SpO2 row has a 50 to 100 % axis on its right and the SpO2 trend drawn on it`);
+  // BP as dots with tails and a dashed line, against the API's readings
+  const bp = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="bp-dot-bp-"]')].map((g) => ({ x: +g.dataset.x, y: +g.dataset.y, top: +g.dataset.top, bottom: +g.dataset.bottom })));
+  const apiBp = (await api("/api/examples/scn-pneumonia?minute=0")).bp_readings;
+  check(bp.length >= 3 && bp.length <= apiBp.length && bp.every((d) => d.top < d.y && d.y < d.bottom) && bp.every((d, i) => i === 0 || d.x > bp[i - 1].x), `${vp.name}: BP is a dot at each MAP with a tail from diastolic to systolic, oldest to newest (${bp.length} readings)`);
+  const bpLine = await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="bp-line-bp"]')).strokeDasharray);
+  check(bpLine && bpLine !== "none", `${vp.name}: the BP dots are joined by a dashed line`);
+  const tempKey = await page.evaluate(() => { const k = document.querySelector('[data-testid="temp-key-temp"]'); const f = document.querySelector('[data-testid="trace-frame-temp"]').getBoundingClientRect(); if (!k) return null; const r = k.getBoundingClientRect();
+    const hit = [...document.querySelectorAll('[data-testid^="temp-dot-temp"], [data-testid="trace-signal-temp"]')].some((e) => { const b = e.getBoundingClientRect(); return b.width > 0 && !(b.right < r.left - 2 || b.left > r.right + 2 || b.bottom < r.top - 2 || b.top > r.bottom + 2) && e.tagName === "circle"; });
+    return { inside: r.left >= f.left && r.right <= f.right && r.top >= f.top - 1 && r.bottom <= f.bottom + 1, hit, text: k.textContent }; });
+  check(tempKey && tempKey.inside && !tempKey.hit && /Skin Sensor/.test(tempKey.text) && /Measured/.test(tempKey.text), `${vp.name}: measured and skin temperature share a plot with a small key that covers no point`);
+  // Position and falls: a human outline, in words, in Title Case
+  await ex("setScenario", "scn-copd"); await ex("setMinute", -20); await settle();
+  const pos = await page.evaluate(() => ({ pose: document.querySelector('[data-testid="position-figure"]')?.dataset.pose, word: document.querySelector(".position-word")?.textContent, meaning: document.querySelector(".position-meaning")?.textContent,
+    name: [...document.querySelectorAll(".tile-name")].map((e) => e.textContent.trim()).filter((t) => /Position/.test(t))[0], fallen: document.querySelector('[data-testid="fall-figure"]')?.dataset.fallen,
+    figs: [...document.querySelectorAll(".position-figure")].every((f) => { const r = f.getBoundingClientRect(), t = f.closest(".tile").getBoundingClientRect(); return r.width > 20 && r.left >= t.left && r.right <= t.right && r.top >= t.top && r.bottom <= t.bottom; }) }));
+  check(pos.pose === "walking" && pos.word === "Walking" && pos.meaning === "Up And Moving" && /^Position/.test(pos.name || ""), `${vp.name}: the Position tile draws a walking outline and says Walking, Up And Moving (${pos.name})`);
+  check(pos.fallen === "true" && pos.figs, `${vp.name}: the Falls tile draws a fall and every figure fits its tile`);
+  await ex("setScenario", "scn-vt"); await ex("setMinute", 5); await settle();
+  const sup = await page.evaluate(() => ({ pose: document.querySelector('[data-testid="position-figure"]')?.dataset.pose, word: document.querySelector(".position-word")?.textContent, meaning: document.querySelector(".position-meaning")?.textContent, fallen: document.querySelector('[data-testid="fall-figure"]')?.dataset.fallen }));
+  check(sup.pose === "supine" && sup.word === "Supine" && sup.meaning === "Lying On Back" && sup.fallen === "false", `${vp.name}: Supine is drawn lying on the back and explained, and no fall says so`);
+
+  // Big numbers on the left of a card, the detail on the right
+  await goDesign("icu-modules");
+  await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 180); await settle();
+  const cards = await page.evaluate(() => [...document.querySelectorAll(".module-grid .module")].filter((m) => m.dataset.flow !== "row").map((m) => {
+    const r = m.getBoundingClientRect(), t = m.querySelector(".tile-primary .tile-value, .tile-position")?.getBoundingClientRect(), d = m.querySelector(".module-detail")?.getBoundingClientRect();
+    const fs = m.querySelector(".tile-primary .tile-value") ? parseFloat(getComputedStyle(m.querySelector(".tile-primary .tile-value")).fontSize) : null;
+    return { id: m.dataset.testid, flow: m.dataset.flow, size: m.dataset.size, fs, leftHalf: !t || m.dataset.flow !== "split" || t.right <= r.left + r.width / 2 + 1, detailRight: !d || m.dataset.flow !== "split" || d.left >= r.left + r.width / 2 - 2, parameter: m.dataset.parameter };
+  }));
+  const bigEnough = cards.filter((c) => c.fs != null && !["activity", "falls", "bp_sys", "spo2"].includes(c.parameter)).every((c) => c.fs >= (c.size === "compact" ? 28 : 32));
+  check(bigEnough, `${vp.name}: numbers on cards are big (${cards.filter((c) => c.fs).map((c) => `${c.id.replace("row-", "")} ${Math.round(c.fs)}`).join(", ")})`);
+  check(cards.every((c) => c.leftHalf && c.detailRight), `${vp.name}: on a split card the number is in the left half and the detail in the right`);
+  const list = await page.evaluate(() => [...document.querySelectorAll('[data-testid="row-bp"] [data-testid^="bp-reading-"]')].map((r) => r.textContent));
+  const api180 = (await api("/api/examples/scn-pneumonia?minute=180")).bp_readings;
+  check(list.length >= 3 && list.every((t, i) => t.includes(`${api180[i].sys}/${api180[i].dia}`) && t.includes(`(${api180[i].map})`) && /\d{2}:\d{2}/.test(t) && /\d{2} \w{3}/.test(t)), `${vp.name}: the BP card lists the latest readings with time, date, sys/dia and MAP in brackets (${list.length} shown)`);
+
+  // ABCDE: one touch, five checks, bloods with their recency, trends, and the NEWS2 chart beside it
+  await goDesign("icu-monitor", "monitor");
+  await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 0); await settle();
+  await T("tab-abcde").click();
+  await T("abcde").waitFor();
+  check(await T("screen-abcde").isVisible() && await T("news2-chart").isVisible(), `${vp.name}: the ABCDE tab is one touch and shows the NEWS2 chart on its other half`);
+  const halves = await page.evaluate(() => { const a = document.querySelector('[data-testid="abcde"]').getBoundingClientRect(), n = document.querySelector('[data-testid="news2-chart"]').getBoundingClientRect(), s = document.querySelector(".screen").getBoundingClientRect(); return { a: a.width / s.width, n: n.width / s.width }; });
+  check(halves.a > 0.4 && halves.a < 0.6 && halves.n > 0.4 && halves.n < 0.6, `${vp.name}: ABCDE takes half the screen and the chart the other half`);
+  check((await page.locator('.abcde-sec[data-letter]').evaluateAll((e) => e.map((x) => x.dataset.letter).join(""))) === "ABCDE", `${vp.name}: A, B, C, D and E are each checked`);
+  const stat = await page.evaluate(() => Object.fromEntries([..."ABCDE"].map((l) => [l, document.querySelector(`.abcde-sec[data-letter="${l}"] .abcde-status`).textContent.replace(/[!✓]/g, "").trim()])));
+  check(Object.values(stat).every((v) => ["OK", "Check", "Urgent", "Not Assessed"].includes(v)) && stat.A === "Not Assessed", `${vp.name}: each letter has a status word (${JSON.stringify(stat)})`);
+  const obs = (await api("/api/examples/scn-pneumonia?minute=0")).obs_sets;
+  const chart = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-total-"]')].map((e) => +e.dataset.total));
+  check(chart.length >= 3 && chart.join() === obs.slice(-chart.length).map((o) => o.news2_total).join(), `${vp.name}: the NEWS2 chart's totals are the API's (${chart.join(", ")})`);
+  const rec = await page.evaluate(() => Object.fromEntries(["gas", "bloods", "glucose"].map((k) => [k, document.querySelector(`[data-testid="blood-${k}-recency"]`)?.textContent])));
+  check(rec.gas === "Current" && rec.bloods === "Current" && rec.glucose === "Current", `${vp.name}: results taken within the hour read Current (${JSON.stringify(rec)})`);
+  check(/\d{2} \w{3} \d{2}:\d{2}/.test(await T("blood-gas-when").innerText()), `${vp.name}: each set shows the date and time it was taken`);
+  await ex("setScenario", "scn-copd"); await ex("setMinute", -20); await settle();
+  check(await T("blood-gas-recency").innerText() === "Within 24 Hours", `${vp.name}: a gas from 14 hours ago reads Within 24 Hours`);
+  await ex("setScenario", "scn-technical"); await ex("setMinute", 0); await settle();
+  check(await T("blood-glucose-recency").innerText() === "No Recent Bloods" && await T("blood-glucose-glucose").count() === 0 && await T("blood-glucose-show").isVisible(), `${vp.name}: bloods 50 hours old read No Recent Bloods with a button to show them`);
+  await T("blood-glucose-show").click();
+  check(await T("blood-glucose-glucose").isVisible() && /\d{2} \w{3}/.test(await T("blood-glucose-when").innerText()), `${vp.name}: tapping shows the most recent from the last 72 hours with its date`);
+  await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 0); await settle();
+  await T("d-gcs-btn").click();
+  await T("assess-gcs").waitFor();
+  await page.getByText("3 Words").click();
+  check(/GCS 13/.test(await T("gcs-total").innerText()), `${vp.name}: the GCS calculator adds as it is chosen`);
+  await T("gcs-save").click();
+  check(/^13 \(E4 V3 M6\)/.test(await T("d-gcs").innerText()), `${vp.name}: the GCS is recorded with its time on the screen`);
+  await T("d-avpu-btn").click();
+  await T("avpu-V").click();
+  check(/V/.test(await T("d-avpu").innerText()), `${vp.name}: AVPU is two touches from the tab and one tap to record`);
+  await T("abcde-trends").click();
+  await T("trends-sheet").waitFor();
+  check(await page.locator('figure[data-testid^="trend-"]').count() === 5, `${vp.name}: the Trends button shows heart rate, respiration, SpO2, BP and temperature`);
+  const trendsOk = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="trend-"] svg')].every((s) => { const r = s.getBoundingClientRect(), p = s.parentElement.getBoundingClientRect(); return r.width <= p.width + 1; }));
+  check(trendsOk, `${vp.name}: every trend chart fits its box`);
+  await shot("trends");
+  await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+  await shot("abcde");
+  await T("tab-news2").click();
+  check(await T("news2-chart").isVisible() && await page.locator('[data-testid^="news-cell-rr-"]').count() >= 3, `${vp.name}: the NEWS2 tab is the real chart`);
+  await shot("news2");
+
+  // Nothing overlaps, nothing is cut off, everything has padding; and the words are capitalised
+  const { audit } = require("./layout-audit.cjs");
+  const { capsAudit } = require("./caps-audit.cjs");
+  for (const [d, sc, scen, min] of [["icu-monitor", "monitor", "scn-af", 20], ["icu-modules", "monitor", "scn-pneumonia", 180], ["icu-monitor", "abcde", "scn-copd", -20]]) {
+    await goDesign(d, sc); await ex("setScenario", scen); await ex("setMinute", min); await settle();
+    const r = await audit(page);
+    check(r.problems.length === 0, `${vp.name}: ${d}/${sc} has no overlaps, cut-off text or missing padding ${r.problems.slice(0, 3).join(" | ")}`);
+    const c = await capsAudit(page);
+    check(c.length === 0, `${vp.name}: ${d}/${sc} words are capitalised ${c.slice(0, 3).join(" | ")}`);
+  }
+  await goDesign("icu-monitor");
 
   check(errors.length === 0, `${vp.name}: no page errors ${errors.join(" | ")}`);
   await context.close();

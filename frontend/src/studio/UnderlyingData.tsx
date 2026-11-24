@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { useUi } from "@/app/store";
+import { titleCase } from "@/design/text";
 import type { ExampleSnapshot } from "@/contracts/types.gen";
 import { useSnapshot } from "@/examples/store";
 
@@ -62,23 +63,23 @@ export function UnderlyingData() {
       <p className="why-sub">{snapshot.title}</p>
       <dl className="why-measured" data-testid="ud-summary">
         <div><dt>Item</dt><dd>{p.label} ({p.unit || "no unit"})</dd></div>
-        <div><dt>Current value</dt><dd data-testid="ud-value">{value ?? "none"}</dd></div>
+        <div><dt>Current Value</dt><dd data-testid="ud-value">{value ?? "none"}</dd></div>
         <div><dt>Signal</dt><dd data-testid="ud-signal">{registry.signal_states[signal?.state ?? "standby"]?.text || "OK"}
           {signal?.quality != null && ` · quality ${signal.quality.toFixed(2)}`}{signal?.issue && ` · ${registry.signal_issues[signal.issue]?.label}`}</dd></div>
         <div><dt>Source</dt><dd data-testid="ud-device">{device ? `${device.label}, ${device.connection}${device.battery_pct != null ? `, battery ${device.battery_pct}%` : ""}` : p.method || "manual"}</dd></div>
-        <div><dt>Alarm limits</dt><dd data-testid="ud-limits">{p.default_low ?? "none"} to {p.default_high ?? "none"} {p.unit}</dd></div>
+        <div><dt>Alarm Limits</dt><dd data-testid="ud-limits">{p.default_low ?? "none"} to {p.default_high ?? "none"} {p.unit}</dd></div>
       </dl>
 
       {findings.length > 0 && (
         <section aria-label="Evidence behind findings">
-          <h4>What the AI measured</h4>
+          <h4>What the AI Measured</h4>
           {findings.map((f) => {
             const d = snapshot.finding_data[f.id];
             return (
               <div key={f.id} className="ud-finding" data-testid={`ud-finding-${f.code}`}>
                 <strong>{f.summary}</strong>
                 <dl className="why-measured">
-                  {d && Object.entries(d.features).map(([k, v]) => (<div key={k}><dt>{k}</dt><dd>{v}</dd></div>))}
+                  {d && Object.entries(d.features).map(([k, v]) => (<div key={k}><dt>{titleCase(k)}</dt><dd>{v}</dd></div>))}
                 </dl>
                 {d && d.rr_intervals_s.length > 0 && <p className="why-note">R-R intervals (s): {d.rr_intervals_s.map((x) => x.toFixed(2)).join(", ")}</p>}
               </div>
@@ -87,8 +88,8 @@ export function UnderlyingData() {
         </section>
       )}
 
-      <section aria-label="Values over time">
-        <h4>Values over time</h4>
+      <section aria-label="Values Over Time">
+        <h4>Values Over Time</h4>
         <div className="ud-actions">
           <button type="button" className="btn" onClick={copy} data-testid="ud-copy">Copy as CSV</button>
           <span role="status" data-testid="ud-copied">{copied}</span>

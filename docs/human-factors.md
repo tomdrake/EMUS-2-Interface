@@ -195,6 +195,7 @@ every module. Turning example data off returns the screen to NO DATA and STANDBY
 The AI chip on a module says what the interpretation found about that item and how sure it
 is, **and of what** ("80% agreement", never a bare percentage). Rules the example follows:
 
+- The chip reads the finding and how sure the AI is, "AF - 80% Certainty". There is no "Nothing flagged" chip, so silence never reads as clearance, and no "Why?" text: the chip opens the explanation. The AI Overview button (bottom bar) boxes what the AI used on the trace as it sweeps past, one or two words each ("No P Wave", "Irregular R-R"). It is off until asked for.
 - A trace that is poor is not interpreted. The chip says so, and the trace carries a dashed
   technical bracket ("Poor trace: movement"). That bracket is about the trace, not the AI,
   so it stays when AI is turned off.
@@ -219,6 +220,16 @@ is for workshops, not for a bedside, and the bar says so whenever something is u
   missing silence button) cannot be saved, and the bar says why as soon as it happens.
 - Editing never changes data: it only moves and configures rows that point at the registry.
 - Undo steps back one edit at a time. Discard returns to the saved design.
+
+## Cards, positions and discrete measurements
+
+- On a card the number is on the left half and as large as the box allows; the trend, wave, BP list or figure is on the right. Nothing may overlap, be cut off, or sit against the edge of its box: `e2e/layout-audit.cjs` fails the build if it does, at 1280 and 1024 wide.
+- Position and Falls are drawn as a human outline with the word and what it means ("Supine, Lying On Back"), because most people do not know the terms. Words are Title Case everywhere (`e2e/caps-audit.cjs`).
+- A cuff pressure is a dot at the MAP with a tail to the diastolic and systolic values, joined by a dashed line; the card lists the last five with time, date and MAP. A measured temperature is a dot on a dashed line, drawn with the continuous skin trace and a small key. An old reading carries its age.
+
+## ABCDE
+
+The ABCDE screen is a prompt, not a record. Status words (OK, Check, Urgent) come from the NEWS2 component scores and from what has been recorded on the screen; the prompts are written from the brief and need a clinician's review. Results are labelled by age: within an hour Current, within four hours Within 4 Hours, within 24 hours Within 24 Hours, older No Recent Bloods with the most recent from the last 72 hours one tap away, always with the date and time taken.
 
 ## Traces
 

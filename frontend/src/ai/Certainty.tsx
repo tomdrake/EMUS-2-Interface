@@ -1,6 +1,7 @@
 import type { Registry } from "@/app/api";
 import type { CertaintyValue } from "@/contracts/types.gen";
 
+import { titleCase } from "@/design/text";
 import { SHORT_NAMES, certaintyView, type CertaintyConfig } from "./certainty";
 
 /** The certainty of one output, in the way the design asks (percent, natural frequency,
@@ -23,7 +24,7 @@ export function Certainty({ value, cfg, registry, showName = cfg.show_metric_nam
       )}
       <span className="certainty-text">{v.text}</span>
       {short ? <span className="certainty-name">{SHORT_NAMES[value.metric] ?? v.metricLabel}</span>
-        : showName && <span className="certainty-name">{v.metricLabel}</span>}
+        : showName && <span className="certainty-name">{titleCase(v.metricLabel)}</span>}
     </span>
   );
 }
