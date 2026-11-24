@@ -935,6 +935,7 @@ export interface WidgetNode {
     | AiSummaryWidget
     | ForecastPanelWidget
     | PredictionTrendsWidget
+    | PredictionSwitchesWidget
     | EventsTimelineWidget
     | AlarmsWidget
     | OxygenWidget
@@ -1132,6 +1133,33 @@ export interface PredictionTrendsWidget {
   show_observations: boolean;
   title: string | null;
   type: "prediction-trends";
+}
+/**
+ * The three switches of the prediction views (Future NEWS, Observation Predictions, Certainty) as a strip of their own,
+ * so they can sit above the predicted trends without moving them. The choice is shared with every prediction view.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "PredictionSwitchesWidget".
+ */
+export interface PredictionSwitchesWidget {
+  /**
+   * Lowercase id: letters, digits, hyphens.
+   */
+  id: string;
+  /**
+   * Start with the certainty of each prediction shown.
+   */
+  show_certainty: boolean;
+  /**
+   * Start with the future NEWS shown.
+   */
+  show_news_number: boolean;
+  /**
+   * Start with the observation predictions shown.
+   */
+  show_observations: boolean;
+  title: string | null;
+  type: "prediction-switches";
 }
 /**
  * This interface was referenced by `Design`'s JSON-Schema

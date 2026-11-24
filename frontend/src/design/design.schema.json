@@ -1765,6 +1765,66 @@
       "title": "PredictionOverlayAction",
       "type": "object"
     },
+    "PredictionSwitchesWidget": {
+      "additionalProperties": false,
+      "description": "The three switches of the prediction views (Future NEWS, Observation Predictions, Certainty) as a strip of their own,\nso they can sit above the predicted trends without moving them. The choice is shared with every prediction view.",
+      "properties": {
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "show_certainty": {
+          "default": true,
+          "description": "Start with the certainty of each prediction shown.",
+          "title": "Show Certainty",
+          "type": "boolean"
+        },
+        "show_news_number": {
+          "default": true,
+          "description": "Start with the future NEWS shown.",
+          "title": "Show News Number",
+          "type": "boolean"
+        },
+        "show_observations": {
+          "default": true,
+          "description": "Start with the observation predictions shown.",
+          "title": "Show Observations",
+          "type": "boolean"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "prediction-switches",
+          "default": "prediction-switches",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type",
+        "show_news_number",
+        "show_observations",
+        "show_certainty"
+      ],
+      "title": "PredictionSwitchesWidget",
+      "type": "object"
+    },
     "PredictionTrendsWidget": {
       "additionalProperties": false,
       "description": "The trends with their predicted future and prediction intervals, on one time axis, with the future NEWS\nover time. Used on the right of the prediction overlay of the main screen.",
@@ -2300,8 +2360,8 @@
         "ratio": {
           "default": 0.5,
           "description": "Share taken by the first pane.",
-          "maximum": 0.85,
-          "minimum": 0.15,
+          "maximum": 0.92,
+          "minimum": 0.08,
           "title": "Ratio",
           "type": "number"
         }
@@ -2880,6 +2940,7 @@
               "news2-chart": "#/$defs/News2ChartWidget",
               "oxygen": "#/$defs/OxygenWidget",
               "patient": "#/$defs/PatientWidget",
+              "prediction-switches": "#/$defs/PredictionSwitchesWidget",
               "prediction-trends": "#/$defs/PredictionTrendsWidget",
               "text": "#/$defs/TextWidget"
             },
@@ -2909,6 +2970,9 @@
             },
             {
               "$ref": "#/$defs/PredictionTrendsWidget"
+            },
+            {
+              "$ref": "#/$defs/PredictionSwitchesWidget"
             },
             {
               "$ref": "#/$defs/EventsTimelineWidget"

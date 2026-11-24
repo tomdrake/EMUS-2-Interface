@@ -146,7 +146,9 @@ _MONITOR_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp"]
 _MONITOR_LINE = [("oxygen", "tile"), ("activity", "tile"), ("falls", "tile"), ("news", "wide")]
 _COMPACT_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp", "oxygen"]
 #: The left half of the prediction overlay: the traces and number boxes, without the small-box line.
-_OVERLAY_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp"]
+_OVERLAY_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp", "news"]
+#: How much of the overlay's height the strip above each half takes (the same on both, so the rows line up).
+_OVERLAY_HEAD = 0.1
 
 #: A mixed layout for showing what modules can be: 6 columns, 5 rows of cells.
 #: Rows 1-2: ECG double height, full width. Rows 3-4: two large, two tall. Row 5: two
@@ -214,8 +216,12 @@ def _screens(news_variant: str, monitor: dict | None = None) -> list[dict]:
                           _w({"id": "imaging", "type": "epr-imaging", "title": "Imaging"}))},
         {"id": "monitor-predict", "name": "Monitor With Predictions",
          "layout": _split("horizontal", 0.5,
-                          _rows("monitor-predict-rows", _OVERLAY_ROW_IDS),
-                          _w({"id": "predicted-trends", "type": "prediction-trends"}))},
+                          _split("vertical", _OVERLAY_HEAD,
+                                 _w({"id": "overlay-now-head", "type": "text", "body": "Current And Previous Observations"}),
+                                 _rows("monitor-predict-rows", _OVERLAY_ROW_IDS)),
+                          _split("vertical", _OVERLAY_HEAD,
+                                 _w({"id": "overlay-switches", "type": "prediction-switches"}),
+                                 _w({"id": "predicted-trends", "type": "prediction-trends"})))},
         {"id": "predict", "name": "AI and Predictions",
          "layout": _split("horizontal", 0.62,
                           _w({"id": "forecast", "type": "forecast-panel", "title": "Prediction"}),

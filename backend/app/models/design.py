@@ -301,6 +301,16 @@ class PredictionTrendsWidget(_Widget):
     show_certainty: bool = Field(True, description="Start with the certainty of each prediction shown.")
 
 
+class PredictionSwitchesWidget(_Widget):
+    """The three switches of the prediction views (Future NEWS, Observation Predictions, Certainty) as a strip of their own,
+    so they can sit above the predicted trends without moving them. The choice is shared with every prediction view."""
+
+    type: Literal["prediction-switches"] = "prediction-switches"
+    show_news_number: bool = Field(True, description="Start with the future NEWS shown.")
+    show_observations: bool = Field(True, description="Start with the observation predictions shown.")
+    show_certainty: bool = Field(True, description="Start with the certainty of each prediction shown.")
+
+
 class EventsTimelineWidget(_Widget):
     type: Literal["events-timeline"] = "events-timeline"
     hours_back: int = Field(4, ge=0, le=48)
@@ -328,7 +338,7 @@ class TextWidget(_Widget):
 Widget = Annotated[
     Union[
         MonitorGridWidget, News2ChartWidget, AbcdeWidget, LabsWidget, ImagingWidget, AiSummaryWidget,
-        ForecastPanelWidget, PredictionTrendsWidget, EventsTimelineWidget, AlarmsWidget, OxygenWidget,
+        ForecastPanelWidget, PredictionTrendsWidget, PredictionSwitchesWidget, EventsTimelineWidget, AlarmsWidget, OxygenWidget,
         PatientWidget, TextWidget,
     ],
     Field(discriminator="type"),
@@ -347,7 +357,7 @@ class SplitNode(_Model):
 
     kind: Literal["split"] = "split"
     direction: Literal["horizontal", "vertical"]
-    ratio: float = Field(0.5, ge=0.15, le=0.85, description="Share taken by the first pane.")
+    ratio: float = Field(0.5, ge=0.08, le=0.92, description="Share taken by the first pane.")
     children: Annotated[list["LayoutNode"], Field(min_length=2, max_length=2)]
 
 

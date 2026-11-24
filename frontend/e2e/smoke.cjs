@@ -1338,9 +1338,8 @@ for (const vp of VIEWPORTS) {
   check(await T("tab-prediction-overlay").getAttribute("aria-pressed") === "true" && await page.locator('[data-testid^="row-"][data-parameter="spo2"]').first().isVisible() && await T("row-ecg").isVisible(), `${vp.name}: the button shows it is on, and the monitor rows are on the left`);
   const pt = await T("prediction-trends");
   check(await T("pt-axis").getAttribute("data-max") === "480" && await T("pt-axis").getAttribute("data-min") === "-240" && await T("pt-mark-480").isVisible() && await T("pt-mark--240").isVisible(), `${vp.name}: the shared time axis runs from -4 H to +8 H`);
-  for (const id of ["news", "hr", "rr", "spo2", "bp_sys", "temp"]) {
-    const base = id === "news" ? "news2" : id;
-    const f = api360.forecast.forecasts.find((x) => x.parameter === base && x.scenario === "baseline");
+  for (const id of ["hr", "rr", "spo2", "bp_sys", "temp"]) {
+    const f = api360.forecast.forecasts.find((x) => x.parameter === id && x.scenario === "baseline");
     const endPt = f.points.find((q) => q.horizon_min === 480);
     const chart = `pt-${id}-chart`;
     const ok = await T(`${chart}-band95`).count() === 1 && await T(`${chart}-band80`).count() === 1 && await T(`${chart}-future`).count() === 1
@@ -1348,6 +1347,18 @@ for (const vp of VIEWPORTS) {
     check(ok, `${vp.name}: ${id} shows its predicted trend with 80 % and 95 % intervals, ending at the API's +8 H value (${endPt.value})`);
     check(await T(`pt-certainty-${id}`).isVisible(), `${vp.name}: ${id} shows its certainty`);
   }
+  // the NEWS2 total in boxes along the bottom, over time
+  const newsF = api360.forecast.forecasts.find((x) => x.parameter === "news2" && x.scenario === "baseline");
+  check(+(await T("pt-box-0").getAttribute("data-value")) === api360.news2.total && await T("pt-certainty-news").isVisible(), `${vp.name}: the NEWS2 box for now shows the live total (${api360.news2.total}) and its certainty`);
+  check(+(await T("pt-box-480").getAttribute("data-value")) === Math.round(newsF.points.find((q) => q.horizon_min === 480).value) && await T("pt-box-480").getAttribute("data-kind") === "future", `${vp.name}: a predicted NEWS2 box at +8 H matches the API`);
+  const pastBoxes = await page.locator('[data-testid^="pt-box-"][data-kind="past"]').count();
+  check(pastBoxes >= 1 && await page.locator('[data-testid^="pt-box-"][data-kind="future"]').count() >= 3, `${vp.name}: charted NEWS2 totals and predicted ones are boxed along the time axis (${pastBoxes} charted)`);
+  const bx = await page.evaluate(() => { const a = document.querySelector('[data-testid="pt-box-0"]').getBoundingClientRect(), m = document.querySelector('[data-testid="pt-mark-0"]').getBoundingClientRect(), c = document.querySelector('[data-testid="pt-hr-chart-now"]')?.getBoundingClientRect(); return { box: (a.left + a.right) / 2, mark: (m.left + m.right) / 2 }; });
+  check(Math.abs(bx.box - bx.mark) <= 2, `${vp.name}: the Now box sits exactly over the Now mark of the time axis`);
+  // each predicted chart is level with the monitor row beside it
+  const level = await page.evaluate(() => [["row-ecg", "pt-hr"], ["row-spo2", "pt-spo2"], ["row-resp", "pt-rr"], ["row-bp", "pt-bp_sys"], ["row-temp", "pt-temp"], ["row-news", "pt-news"]]
+    .map(([a, b]) => { const r = document.querySelector(`[data-testid="${a}"]`).getBoundingClientRect(), c = document.querySelector(`[data-testid="${b}"]`).getBoundingClientRect(); return [a, Math.round(Math.abs(r.top - c.top)), Math.round(Math.abs(r.height - c.height))]; }));
+  check(level.every(([, dt, dh]) => dt <= 2 && dh <= 2), `${vp.name}: every predicted chart has the same top and height as its monitor row (${JSON.stringify(level)})`);
   await T("fp-toggle-certainty").click();
   check(await page.locator('[data-testid^="pt-certainty-"]').count() === 0, `${vp.name}: the Certainty switch works on the overlay`);
   await T("fp-toggle-certainty").click();

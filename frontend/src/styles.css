@@ -969,11 +969,12 @@ button:disabled { opacity: 0.45; }
 .n2b-risk { margin: 10px 0 4px; }
 
 /* The prediction overlay's trends: one column of charts on a shared time axis */
-.prediction-trends { flex: 1 1 0; min-height: 0; min-width: 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
-.pt-toggles .fp-toggle { min-height: 44px; }
-.pt-stack { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
-.pt-chart { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; border-bottom: 1px solid var(--c-border); }
-.pt-head { flex: none; display: flex; align-items: baseline; gap: 10px; font-size: 0.78rem; line-height: 1.3; min-width: 0; }
+.prediction-trends { flex: 1 1 0; min-height: 0; min-width: 0; padding: 0 10px; display: flex; flex-direction: column; overflow: hidden; }
+
+.pt-stack { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+/* each chart is as tall as the monitor row beside it (flex-grow is that row's height_scale), with the same hairline under it */
+.pt-chart { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; box-shadow: inset 0 -1px 0 var(--c-border); overflow: hidden; }
+.pt-head { flex: none; display: flex; align-items: baseline; gap: 10px; font-size: 0.78rem; line-height: 1.3; min-width: 0; padding-top: 2px; }
 .pt-name { font-weight: 800; white-space: nowrap; }
 .pt-name small { font-weight: 500; opacity: 0.8; }
 .pt-values { color: var(--c-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; font-variant-numeric: tabular-nums; }
@@ -996,6 +997,7 @@ button:disabled { opacity: 0.45; }
 .tf-end-value { font-size: 11px; font-weight: 800; fill: var(--c-text); font-variant-numeric: tabular-nums; }
 .tf-end-range { font-size: 9.5px; fill: var(--c-text-muted); font-variant-numeric: tabular-nums; }
 .pt-axis { flex: none; position: relative; height: 30px; }
+.pt-axis, .pt-boxes { margin: 0; }
 .pt-mark { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; line-height: 1.15; white-space: nowrap; }
 .pt-mark b { font-size: 0.72rem; }
 .pt-mark small { font-size: 0.64rem; color: var(--c-text-muted); font-variant-numeric: tabular-nums; }
@@ -1043,3 +1045,29 @@ button:disabled { opacity: 0.45; }
 /* Half a screen: the method after a name (ECG, Pleth) goes, so a status such as POOR TRACE keeps all its letters. */
 [data-testid="screen-monitor-predict"] .row-head .row-method { display: none; }
 [data-testid="screen-monitor-predict"] .row-trace:has(> .ai-chip) > .row-head { padding-right: 0; }
+
+/* The strip above each half of the overlay is one height on both sides, so the rows below line up */
+.pt-switches { flex: 1 1 0; align-items: center; align-content: center; flex-wrap: nowrap; gap: 6px; padding: 0 8px; min-width: 0; }
+.pt-switches .fp-toggle { flex: 0 1 auto; min-width: 0; padding: 0 8px 0 6px; gap: 6px; white-space: nowrap; }
+[data-testid="screen-monitor-predict"] .widget-text { justify-content: center; }
+[data-testid="screen-monitor-predict"] .text-widget { padding: 0 12px; font-size: 1rem; font-weight: 700; color: var(--c-text-muted); }
+/* NEWS2 in boxes along the bottom, on the same time scale as the charts */
+.pt-newsstrip { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; }
+.pt-boxes { position: relative; flex: none; margin-bottom: 2px; }
+.pt-boxname { position: absolute; left: 0; top: 50%; transform: translateY(-50%); font-size: 0.7rem; font-weight: 800; color: var(--c-text-muted); }
+.pt-box { position: absolute; top: 2px; bottom: 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05;
+  border: 1.5px solid currentColor; border-radius: 6px; background: var(--c-surface-alt); font-variant-numeric: tabular-nums; }
+.pt-box b { font-size: 1.05rem; }
+.pt-box small { font-size: 0.6rem; color: var(--c-text-muted); font-weight: 600; }
+.pt-box.is-future { border-style: dashed; background: transparent; }
+.pt-box.is-now { box-shadow: 0 0 0 2px var(--c-text-muted); }
+.pt-boxnote { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 0.78rem; white-space: nowrap; }
+.pt-boxcert { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
+.pt-off { margin: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 12px; flex-basis: 0; }
+@media (max-width: 1100px) {
+  .pt-switches { gap: 4px; padding: 0 6px; }
+  .pt-switches .fp-toggle { font-size: 0.78rem; gap: 4px; padding: 0 6px 0 4px; }
+  .pt-switches .fp-toggle-track { width: 30px; height: 18px; }
+  .pt-switches .fp-toggle-track i { width: 12px; height: 12px; }
+  .pt-switches .fp-toggle.is-on .fp-toggle-track i { transform: translateX(12px); }
+}

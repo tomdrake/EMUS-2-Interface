@@ -101,7 +101,7 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
     ? <BpReadings readings={snapshot.bp_readings} nowIso={snapshot.generated_at} variant="tile" /> : null;
   const tile = values.length ? <Tile values={values} below={underNumber} /> : <span className="tile tile-empty" aria-hidden="true" />;
   // Falls, activity and the NEWS2 history have no trace; they show their own small summaries instead.
-  const summary = flow === "row" ? null : row.parameter === "falls" ? <FallsDetail /> : row.parameter === "activity" ? <ActivityDetail />
+  const summary = flow === "row" && row.trace !== "news" ? null : row.parameter === "falls" ? <FallsDetail /> : row.parameter === "activity" ? <ActivityDetail />
     : row.parameter === "o2_flow" ? <OxygenDetail />
     : row.trace === "news" ? <NewsTrend /> : null;
   const trace = summary ?? (vis.trace

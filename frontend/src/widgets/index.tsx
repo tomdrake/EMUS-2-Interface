@@ -5,7 +5,7 @@ import { Abcde } from "./Abcde";
 import { AiSummary } from "./AiSummary";
 import { EventsTimeline } from "./EventsTimeline";
 import { ForecastPanel } from "./ForecastPanel";
-import { PredictionTrends } from "./PredictionTrends";
+import { PredictionSwitches, PredictionTrends } from "./PredictionTrends";
 import { News2Chart } from "./News2Chart";
 import { Placeholder } from "./Placeholder";
 
@@ -31,6 +31,7 @@ export const WIDGETS: { [T in WidgetType]: WidgetComponent<T> } = {
   "ai-summary": AiSummary,
   "forecast-panel": ForecastPanel,
   "prediction-trends": PredictionTrends,
+  "prediction-switches": PredictionSwitches,
   "events-timeline": EventsTimeline,
   alarms: stub("Alarm limits and history", "M2"),
   oxygen: stub("Oxygen", "M2"),

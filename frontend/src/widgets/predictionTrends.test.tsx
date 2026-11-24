@@ -1,5 +1,8 @@
 import { act, fireEvent, render, screen as dom } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// jsdom has no layout; give every measured element a width so the boxes and the axis are drawn
+vi.mock("@/traces/useSize", () => ({ useSize: () => [{ current: null }, { w: 640, h: 300 }] }));
 
 import { PREDICTION_OVERLAY_SCREEN, useUi } from "@/app/store";
 import { useExample } from "@/examples/store";
@@ -7,7 +10,7 @@ import { useExample } from "@/examples/store";
 import { AiSummary } from "./AiSummary";
 import { EventsTimeline } from "./EventsTimeline";
 import { ForecastPanel } from "./ForecastPanel";
-import { PredictionTrends, fanPoints } from "./PredictionTrends";
+import { PredictionSwitches, PredictionTrends, fanPoints } from "./PredictionTrends";
 
 const HOURS = Array.from({ length: 16 }, (_, i) => (i + 1) * 30);
 const point = (h: number, value: number) => ({ horizon_min: h, at: "x", value, intervals: { "50": [value - 1, value + 1], "80": [value - 2, value + 2], "95": [value - 3, value + 3] } });
@@ -35,10 +38,12 @@ const snapshot = (score = 0.6) => ({
     events: [event("news2_ge_7", "NEWS2 7 or more", 240, 0.5), event("desaturation", "Desaturation", 30, 0.66)],
   },
 } as any);
-const design = { forecast: { horizons_min: [60, 120], news_number: "value-range", news_threshold: 5, certainty: { metric: "prediction_interval", display: "percent", badge_medium_at: 0.5, badge_high_at: 0.8, min_to_show: 0.3, show_metric_name: false, finding_metric: "calibrated_probability", event_metric: "prediction_interval" } },
+const design = { forecast: { horizons_min: [60, 120, 480], news_number: "value-range", news_threshold: 5, certainty: { metric: "prediction_interval", display: "percent", badge_medium_at: 0.5, badge_high_at: 0.8, min_to_show: 0.3, show_metric_name: false, finding_metric: "calibrated_probability", event_metric: "prediction_interval" } },
+  rows: [{ id: "ecg", height_scale: 1.25 }, { id: "spo2", height_scale: 1.25 }, { id: "resp" }, { id: "bp", height_scale: 1.9 }, { id: "temp" }, { id: "news", height_scale: 1.25 }],
   ai: { enabled: true }, home_screen: "monitor", top_bar: { clock_format: "24h", show_seconds: true, date_format: "dd/mm/yyyy" } } as any;
 const registry = { parameters: Object.fromEntries(["hr", "rr", "spo2", "bp_sys", "temp"].map((p) => [p, { id: p, short: p.toUpperCase(), label: p, unit: "u", decimals: 0 }])),
   certainty_metrics: { prediction_interval: { label: "Prediction interval" }, calibrated_probability: { label: "Probability" } } } as any;
+const switchesWidget = { id: "sw", type: "prediction-switches", show_news_number: true, show_observations: true, show_certainty: true } as any;
 const trendsWidget = { id: "pt", type: "prediction-trends", back_hours: 4, ahead_hours: 8, show_news_number: true, show_observations: true, show_certainty: true } as any;
 
 const load = (score = 0.6) => useExample.setState({ enabled: true, snapshot: snapshot(score), taken: { bp: [], temp: [] } });
@@ -68,30 +73,50 @@ describe("the predicted trends (right half of the overlay)", () => {
     expect(dom.getByTestId("pt-axis").getAttribute("data-max")).toBe("480");
     expect(dom.getByTestId("pt-axis").getAttribute("data-min")).toBe("-240");
   });
-  it("shows the NEWS and the five observations, each with now and the +8 H value", () => {
+  it("shows the five observations, each with now and the +8 H value, and the NEWS2 in boxes", () => {
     render(<PredictionTrends widget={trendsWidget} />);
-    expect(dom.getByTestId("pt-news")).toBeTruthy();
     for (const p of ["hr", "rr", "spo2", "bp_sys", "temp"]) expect(dom.getByTestId(`pt-${p}`)).toBeTruthy();
     expect(dom.getByTestId("pt-values-hr").textContent).toContain("Now 100");
     expect(dom.getByTestId("pt-values-hr").textContent).toContain("+8 H 18");
-    expect(dom.getByTestId("pt-values-news").textContent).toContain("+8 H 18");
+    expect(dom.getByTestId("pt-news")).toBeTruthy();
   });
-  it("shows a certainty for each chart, and the switch removes them all", () => {
+  it("lines each chart up with the monitor row beside it: the same share of the height, in the monitor's order", () => {
     render(<PredictionTrends widget={trendsWidget} />);
+    const charts = [...document.querySelectorAll('section.pt-chart[data-row]')] as HTMLElement[];
+    expect(charts.map((c) => c.dataset.row)).toEqual(["ecg", "spo2", "resp", "bp", "temp"]);
+    expect(charts.map((c) => c.style.flexGrow)).toEqual(["1.25", "1.25", "1", "1.9", "1"]);
+    expect(dom.getByTestId("pt-news").style.flexGrow).toBe("1.25");
+    expect(dom.getByTestId("pt-news")).toBe(document.querySelector(".pt-stack")!.lastElementChild);
+  });
+  it("shows the charted and current NEWS2 totals and the predicted ones in boxes, the predicted in dashed boxes", () => {
+    render(<PredictionTrends widget={trendsWidget} />);
+    expect(dom.getByTestId("pt-box-0").dataset.kind).toBe("now");
+    expect(dom.getByTestId("pt-box-0").dataset.value).toBe("6");
+    expect(dom.getByTestId("pt-box--240").dataset).toMatchObject({ kind: "past", value: "3" });
+    expect(dom.getByTestId("pt-box-480").dataset.kind).toBe("future");
+    expect(dom.getByTestId("pt-box-480").dataset.value).toBe("18");                // 10 + 480 / 60 at the horizon the design chose
+    expect(dom.queryByTestId("pt-box-90")).toBeNull();                              // only the design's horizons are boxed
+  });
+  it("shows a certainty for each chart and for the NEWS2, and the switch removes them all", () => {
+    render(<><PredictionSwitches widget={switchesWidget} /><PredictionTrends widget={trendsWidget} /></>);
     expect(document.querySelectorAll('[data-testid^="pt-certainty-"]')).toHaveLength(6);
     fireEvent.click(dom.getByTestId("fp-toggle-certainty"));
     expect(document.querySelectorAll('[data-testid^="pt-certainty-"]')).toHaveLength(0);
   });
-  it("each switch hides its charts, and says so when nothing is left", () => {
-    render(<PredictionTrends widget={trendsWidget} />);
+  it("each switch hides its part, and says so when nothing is left; the time axis stays", () => {
+    render(<><PredictionSwitches widget={switchesWidget} /><PredictionTrends widget={trendsWidget} /></>);
     fireEvent.click(dom.getByTestId("fp-toggle-news"));
-    expect(dom.queryByTestId("pt-news")).toBeNull();
+    expect(dom.queryByTestId("pt-boxes")!.querySelector(".pt-box")).toBeNull();
+    expect(dom.getByTestId("pt-news-off")).toBeTruthy();
     expect(dom.getByTestId("pt-hr")).toBeTruthy();
     fireEvent.click(dom.getByTestId("fp-toggle-obs"));
     expect(dom.getByTestId("pt-nothing")).toBeTruthy();
+    expect(dom.getByTestId("pt-axis")).toBeTruthy();
+    fireEvent.click(dom.getByTestId("fp-toggle-news"));
+    expect(dom.getByTestId("pt-nothing").textContent).toMatch(/Observation Predictions are off/);
   });
   it("shares its switches with the Prediction view", () => {
-    const { unmount } = render(<PredictionTrends widget={trendsWidget} />);
+    const { unmount } = render(<PredictionSwitches widget={switchesWidget} />);
     fireEvent.click(dom.getByTestId("fp-toggle-obs"));
     unmount();
     render(<ForecastPanel widget={{ id: "f", type: "forecast-panel", show_news_number: true, show_observations: true, show_certainty: true } as any} />);
@@ -103,6 +128,9 @@ describe("the predicted trends (right half of the overlay)", () => {
     render(<PredictionTrends widget={trendsWidget} />);
     expect(dom.getByTestId("pt-hidden-hr")).toBeTruthy();
     expect(dom.getByTestId("pt-values-hr").textContent).not.toContain("+8 H");
+    expect(dom.getByTestId("pt-hidden-news")).toBeTruthy();
+    expect(dom.queryByTestId("pt-box-480")).toBeNull();                              // no predicted NEWS2 boxes, the charted ones stay
+    expect(dom.getByTestId("pt-box-0")).toBeTruthy();
   });
   it("says so without example data", () => {
     useExample.setState({ enabled: false, snapshot: null });

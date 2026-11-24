@@ -182,9 +182,13 @@ def test_the_prediction_overlay_is_a_tab_toggle_and_a_split_of_the_monitor_and_t
     screen = next(s for s in d.screens if s.id == "monitor-predict")
     left, right = screen.layout.children
     assert screen.layout.direction == "horizontal" and screen.layout.ratio == 0.5
-    assert left.widget.type == "monitor-grid" and right.widget.type == "prediction-trends"
-    assert [i.row_id for i in left.widget.items] == ["ecg", "spo2", "resp", "bp", "temp"]     # the traces and number boxes
-    assert (right.widget.back_hours, right.widget.ahead_hours) == (4, 8)
+    # each half is a strip over the content, the same height on both so the rows and the predicted charts line up
+    (lhead, lbody), (rhead, rbody) = left.children, right.children
+    assert left.direction == right.direction == "vertical" and left.ratio == right.ratio
+    assert lhead.widget.type == "text" and rhead.widget.type == "prediction-switches"
+    assert lbody.widget.type == "monitor-grid" and rbody.widget.type == "prediction-trends"
+    assert [i.row_id for i in lbody.widget.items] == ["ecg", "spo2", "resp", "bp", "temp", "news"]   # traces and number boxes, then NEWS2
+    assert (rbody.widget.back_hours, rbody.widget.ahead_hours) == (4, 8)
 
 
 def test_the_trends_widget_runs_no_further_than_eight_hours_ahead(icu_design):
