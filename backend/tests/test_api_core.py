@@ -6,7 +6,7 @@ from app import db, registry
 def test_health_and_seed(client):
     assert client.get("/api/health").json()["ok"] is True
     designs = client.get("/api/designs").json()
-    assert {d["id"] for d in designs} == {"icu-monitor", "news2-chart", "split-side", "split-stacked"}
+    assert {d["id"] for d in designs} == {"icu-monitor", "news2-chart", "split-side", "split-stacked", "icu-modules"}
     assert all(d["builtin"] for d in designs)
 
 
@@ -47,7 +47,7 @@ def test_preview_patch_validates_without_saving(client):
 def test_seeding_is_idempotent(client):
     db.init_db()
     db.init_db()
-    assert len(client.get("/api/designs").json()) == 4
+    assert len(client.get("/api/designs").json()) == 5
 
 
 def test_unbuilt_routes_say_which_milestone_owns_them(client):

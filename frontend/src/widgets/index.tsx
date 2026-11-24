@@ -1,6 +1,6 @@
 import type { Widget, WidgetOf, WidgetType } from "@/design/types";
 
-import { MonitorRows } from "./MonitorRows";
+import { MonitorGrid } from "./MonitorGrid";
 import { Placeholder } from "./Placeholder";
 
 type WidgetComponent<T extends WidgetType> = (props: { widget: WidgetOf<T> }) => JSX.Element;
@@ -17,7 +17,7 @@ const stub = (name: string, milestone: string, detail?: (w: Widget) => string) =
  * in this folder (one file per widget) and keeps this map as the only registry.
  */
 export const WIDGETS: { [T in WidgetType]: WidgetComponent<T> } = {
-  "monitor-rows": MonitorRows,
+  "monitor-grid": MonitorGrid,
   "news2-chart": stub("NEWS2 chart", "M3", (w) => `variant: ${(w as WidgetOf<"news2-chart">).variant}`),
   "epr-labs": stub("Laboratory results", "M6"),
   "epr-imaging": stub("Imaging", "M6"),

@@ -118,33 +118,39 @@ THEME_PRESETS: dict[str, dict] = {
 # ------------------------------------------------------------------------- rows
 
 _ROWS: list[dict] = [
-    {"id": "ecg", "parameter": "hr", "trace": "waveform", "waveform": "ecg",
-     "numerics": ["hr"], "height": 1.3},
+    {"id": "ecg", "parameter": "hr", "trace": "waveform", "waveform": "ecg", "numerics": ["hr"]},
     {"id": "spo2", "parameter": "spo2", "trace": "waveform", "waveform": "pleth",
-     "numerics": ["spo2", "pulse"], "height": 1.0},
-    {"id": "resp", "parameter": "rr", "trace": "waveform", "waveform": "resp",
-     "numerics": ["rr"], "height": 1.0},
+     "numerics": ["spo2", "pulse"]},
+    {"id": "resp", "parameter": "rr", "trace": "waveform", "waveform": "resp", "numerics": ["rr"]},
     {"id": "bp", "parameter": "bp_sys", "label": "Blood Pressure", "trace": "trend",
-     "numerics": ["bp_sys", "bp_dia", "bp_mean"], "trend_window_min": 240, "height": 1.0},
+     "numerics": ["bp_sys", "bp_dia", "bp_mean"], "trend_window_min": 240},
     {"id": "temp", "parameter": "temp", "trace": "trend", "numerics": ["temp"],
-     "trend_window_min": 240, "height": 1.0},
+     "trend_window_min": 240},
     {"id": "oxygen", "parameter": "o2_flow", "trace": "bar", "numerics": ["o2_flow"],
-     "height": 1.0, "show_forecast": False},
-    {"id": "sweep-break", "kind": "spacer", "trace": "none", "height": 0.25,
-     "show_ai": False, "show_forecast": False, "show_limits": False},
+     "content": {"forecast": False}},
     {"id": "activity", "parameter": "activity", "trace": "bar", "numerics": ["position"],
-     "trend_window_min": 240, "height": 1.0, "show_forecast": False},
+     "trend_window_min": 240, "content": {"forecast": False}},
     {"id": "sleep", "parameter": "sleep", "trace": "events", "trend_window_min": 720,
-     "height": 0.5, "show_forecast": False, "visible": False},
-    {"id": "falls", "parameter": "falls", "trace": "events", "trend_window_min": 720,
-     "height": 0.6},
-    {"id": "obs-timer", "kind": "timer", "label": "Next Obs Due", "trace": "none",
-     "height": 0.5, "show_ai": False, "show_forecast": False, "show_limits": False},
+     "content": {"forecast": False}, "visible": False},
+    {"id": "falls", "parameter": "falls", "trace": "events", "trend_window_min": 720},
 ]
 
-_MONITOR_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp", "oxygen", "sweep-break",
-                    "activity", "falls", "obs-timer"]
+#: The monitor rows, top to bottom, each full width: the familiar bedside monitor.
+_MONITOR_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp", "oxygen", "activity", "falls"]
 _COMPACT_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp", "oxygen"]
+
+#: A mixed layout for showing what modules can be: 6 columns, 5 rows of cells.
+#: Rows 1-2: ECG double height, full width. Rows 3-4: two large, two tall. Row 5: two
+#: small squares and two tiles.
+_MODULAR_ITEMS = [("ecg", "row-tall"), ("spo2", "large"), ("resp", "large"), ("bp", "tall"),
+                  ("temp", "tall"), ("oxygen", "compact"), ("activity", "compact"),
+                  ("falls", "tile"), ("sleep", "tile")]
+_MODULAR_ROW_OVERRIDES = {
+    "sleep": {"visible": True},
+    "ecg": {"content": {"explain": True, "forecast": True}},
+    "spo2": {"content": {"explain": True}},
+    "resp": {"content": {"explain": True}},
+}
 
 # ---------------------------------------------------------------------- screens
 
@@ -161,13 +167,19 @@ def _news(widget_id: str, variant: str) -> dict:
     return _w({"id": widget_id, "type": "news2-chart", "variant": variant})
 
 
+def _grid(widget_id: str, items: list[tuple[str, str]], columns: int = 8) -> dict:
+    return _w({"id": widget_id, "type": "monitor-grid", "columns": columns,
+               "items": [{"row_id": r, "size": size} for r, size in items]})
+
+
 def _rows(widget_id: str, ids: list[str]) -> dict:
-    return _w({"id": widget_id, "type": "monitor-rows", "row_ids": ids})
+    """Full-width rows: the familiar monitor."""
+    return _grid(widget_id, [(i, "row") for i in ids])
 
 
-def _screens(news_variant: str) -> list[dict]:
+def _screens(news_variant: str, monitor: dict | None = None) -> list[dict]:
     return [
-        {"id": "monitor", "name": "Monitor", "layout": _rows("monitor-rows", _MONITOR_ROW_IDS)},
+        {"id": "monitor", "name": "Monitor", "layout": monitor or _rows("monitor-rows", _MONITOR_ROW_IDS)},
         {"id": "news2", "name": "NEWS2", "layout": _news("news2-full", news_variant)},
         {"id": "split-h", "name": "Split (Side by Side)",
          "layout": _split("horizontal", 0.5, _news("news2-left", news_variant),
@@ -288,7 +300,16 @@ _ALARM_DEFAULTS = {
 }
 
 
-def _design(name: str, description: str, preset: str, home: str, news_variant: str) -> dict:
+def _merge(base: dict, over: dict) -> dict:
+    out = copy.deepcopy(base)
+    for k, v in over.items():
+        out[k] = {**out.get(k, {}), **v} if isinstance(v, dict) else v
+    return out
+
+
+def _design(name: str, description: str, preset: str, home: str, news_variant: str,
+            monitor: dict | None = None, row_overrides: dict | None = None) -> dict:
+    rows = [_merge(r, (row_overrides or {}).get(r["id"], {})) for r in _ROWS]
     return {
         "schema_version": 1,
         "name": name,
@@ -299,9 +320,9 @@ def _design(name: str, description: str, preset: str, home: str, news_variant: s
         "top_bar": copy.deepcopy(_TOP_BAR),
         "tabs": copy.deepcopy(_TABS),
         "menus": copy.deepcopy(_MENUS),
-        "screens": _screens(news_variant),
+        "screens": _screens(news_variant, monitor),
         "home_screen": home,
-        "rows": copy.deepcopy(_ROWS),
+        "rows": rows,
         "alarm_defaults": copy.deepcopy(_ALARM_DEFAULTS),
     }
 
@@ -320,6 +341,12 @@ DEFAULT_DESIGNS: dict[str, dict] = {
     "split-stacked": _design(
         "Monitor above NEWS2", "Continuous observations above, NEWS2 trend below.",
         "icu-dark", "split-v", "trend-dark"),
+    "icu-modules": _design(
+        "Modular Example",
+        "Modules of different sizes: a double-height ECG, large and tall modules, small squares and tiles.",
+        "icu-dark", "monitor", "bands-dark",
+        monitor=_grid("monitor-grid", _MODULAR_ITEMS, columns=6),
+        row_overrides=_MODULAR_ROW_OVERRIDES),
 }
 
 

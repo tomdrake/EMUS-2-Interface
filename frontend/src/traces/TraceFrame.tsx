@@ -21,10 +21,11 @@ const LABEL = 10.5;         // px, the smallest text on a trace
  * `waveTransform` (or `trendY`) from ./traceScale, so the marks and the signal are
  * always at the same scale. Nothing here is data: an empty frame is honest.
  *
- * Bar and event rows have no frame. Which marks show is the design's `traces`
+ * `mini` is the small form for small modules: the baseline or gridlines only, with no axis,
+ * calibration bar, gain or x scale. Bar and event rows have no frame. Which marks show is the design's `traces`
  * section; a row too short for labels still gets the baseline.
  */
-export function TraceFrame({ row }: { row: Row }) {
+export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) {
   const design = useDesign()!;
   const registry = useUi((s) => s.registry)!;
   const pxPerMm = useUi((s) => s.pxPerMm);
@@ -34,11 +35,11 @@ export function TraceFrame({ row }: { row: Row }) {
   const wanted = row.trace === "waveform" || row.trace === "trend";
   if (!wanted) return <div className="trace-area" ref={ref} data-testid={`trace-${row.id}`} />;
 
-  const labels = cfg.show_scale && h >= MIN_LABEL_HEIGHT_PX;
-  const gutter = labels || (cfg.show_calibration_bar && h >= MIN_LABEL_HEIGHT_PX) ? GUTTER : 0;
+  const labels = !mini && cfg.show_scale && h >= MIN_LABEL_HEIGHT_PX;
+  const gutter = !mini && (labels || (cfg.show_calibration_bar && h >= MIN_LABEL_HEIGHT_PX)) ? GUTTER : 0;
   const right = w - 6;
   // Room the x scale number takes at the bottom right, so the gain sits beside it.
-  const xs = xScaleFor(row, design, local);
+  const xs = mini ? null : xScaleFor(row, design, local);
   const xWidth = (xs?.label.length ?? 0) * 6 + 18;
   const children: React.ReactNode[] = [];
   let meta: Record<string, string | number | boolean> = {};
@@ -66,7 +67,7 @@ export function TraceFrame({ row }: { row: Row }) {
           }
         });
       }
-      if (cfg.show_calibration_bar && t.unitBarPx != null && h >= MIN_LABEL_HEIGHT_PX) {
+      if (!mini && cfg.show_calibration_bar && t.unitBarPx != null && h >= MIN_LABEL_HEIGHT_PX) {
         const x = GUTTER - 6;
         const y0 = t.baselineY, y1 = t.baselineY - t.unitBarPx;
         children.push(
@@ -78,7 +79,7 @@ export function TraceFrame({ row }: { row: Row }) {
           </g>);
       }
       const gain = gainText(t);
-      if (cfg.show_scale && gain && h >= MIN_LABEL_HEIGHT_PX) {
+      if (!mini && cfg.show_scale && gain && h >= MIN_LABEL_HEIGHT_PX) {
         // Just the gain, in thin light text, to the left of the x scale number.
         const x = cfg.show_time_scale ? right - xWidth : right;
         children.push(
@@ -105,14 +106,14 @@ export function TraceFrame({ row }: { row: Row }) {
   }
 
   return (
-    <div className="trace-area" ref={ref} data-testid={`trace-${row.id}`}>
+    <div className={`trace-area${mini ? " trace-mini" : ""}`} ref={ref} data-testid={`trace-${row.id}`}>
       {w > 0 && h > 0 && (
         <svg className="trace-frame" width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true"
              data-testid={`trace-frame-${row.id}`} {...meta}>
           {children}
         </svg>
       )}
-      {cfg.show_time_scale && <XScaleButton row={row} />}
+      {!mini && cfg.show_time_scale && <XScaleButton row={row} />}
     </div>
   );
 }

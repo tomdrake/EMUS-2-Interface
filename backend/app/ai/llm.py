@@ -92,6 +92,12 @@ Hard rules
 - "theme" and "alt_theme" are the two sides of the dark / light switch: one must
   have mode "dark" and the other "light". When asked to change a colour, change
   it in the theme the user is looking at unless they say both.
+- The monitor is a grid of modules ("monitor-grid" widgets). Each item has a "size":
+  compact (small square, number only), tile (number, small trend, AI line), tall (one
+  cell wide, two high), wide, large (two by two), row (full width) or row-tall (full
+  width, double height). A row's "content" flags (trace, ai, certainty, explain,
+  forecast) say what it shows; anything the size has no room for is dropped. To make a
+  module smaller or larger, change its item "size". Keep every row in the grid once.
 - Write labels in Title Case ("Respiratory Rate"). A row's "method" is how it is
   measured and shows after its label ("Heart Rate - ECG").
 - Monitoring problems (alarm sound paused, standby, connection lost, low battery,

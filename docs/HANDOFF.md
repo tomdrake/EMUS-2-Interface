@@ -20,6 +20,7 @@ are ready to be implemented, one at a time, in order.
 | Trace-quality check (noise, movement, flat line, clipping, weak signal) | Done (`backend/app/signal_quality.py`) |
 | Safety display: one fixed-size tile per row (standby / searching / check sensor / connection lost / poor trace / no data, with the device's battery and link in it), text in the row colour, the notification ticker and its list, sound-paused state | Done (`frontend/src/safety/`), driven by test data until M2 supplies live state |
 | Trace reference marks: dashed baseline, mV and unit axes, 1 mV bar, one-second bar | Done as a frame with no signal (`frontend/src/traces/`); M2 draws the signal inside it |
+| Monitor as a grid of modules of different sizes (small square, tile, tall, wide, large, full row, full row double), packed to fill the pane; the Modular Example design | Done (`widgets/MonitorGrid.tsx`, `Module.tsx`, `layout/grid.ts`); AI parts of a module arrive with the AI layer |
 | Top-bar buttons (new patient, discharge, dark / light, settings), light and dark theme pair, Title Case labels with method of collection | Done; new patient and discharge sheets are M2 |
 | Frontend widgets and sheets | Placeholders naming their milestone (`frontend/src/widgets`, `frontend/src/studio`) |
 | Generated TypeScript types | Done (`make types`) |

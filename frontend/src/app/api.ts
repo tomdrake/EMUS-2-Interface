@@ -33,6 +33,12 @@ export const post = <T>(path: string, body?: unknown) => request<T>("POST", path
 export const put = <T>(path: string, body?: unknown) => request<T>("PUT", path, body ?? {});
 export const del = <T>(path: string) => request<T>("DELETE", path);
 
+/** A module size in the monitor grid (backend/app/registry.py MODULE_SIZES). */
+export interface ModuleSizeSpec {
+  label: string; cols: number; rows: number; full: boolean;
+  flow: "tile-only" | "side" | "stack" | "row"; fits: string[];
+}
+
 /** Read-only clinical vocabulary (backend/app/registry.py). */
 export interface Registry {
   alarm_silence_seconds: number;
@@ -60,6 +66,8 @@ export interface Registry {
     };
   }>;
   alarm_priority_marks: Record<"high" | "medium" | "low", string>;
+  module_sizes: Record<string, ModuleSizeSpec>;
+  module_content: string[];
   o2_devices: Record<string, string>;
   acvpu_levels: string[];
   lab_groups: Record<string, string>;

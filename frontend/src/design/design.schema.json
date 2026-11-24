@@ -749,6 +749,38 @@
       "title": "ForecastPanelWidget",
       "type": "object"
     },
+    "GridItem": {
+      "additionalProperties": false,
+      "description": "One module in the monitor grid: a row and the size it is drawn at.",
+      "properties": {
+        "row_id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Row Id",
+          "type": "string"
+        },
+        "size": {
+          "default": "row",
+          "enum": [
+            "compact",
+            "tile",
+            "tall",
+            "wide",
+            "large",
+            "row",
+            "row-tall"
+          ],
+          "title": "Size",
+          "type": "string"
+        }
+      },
+      "required": [
+        "row_id",
+        "size"
+      ],
+      "title": "GridItem",
+      "type": "object"
+    },
     "ImagingWidget": {
       "additionalProperties": false,
       "properties": {
@@ -1054,33 +1086,86 @@
       "title": "MenuItem",
       "type": "object"
     },
-    "MonitorRowsWidget": {
+    "ModuleContent": {
       "additionalProperties": false,
+      "description": "What a module shows besides its number. Each is dropped, lowest priority first,\nif the module's size has no room for it (see registry.MODULE_SIZES).",
       "properties": {
+        "ai": {
+          "default": true,
+          "description": "AI interpretation of this item. Off here turns it off for this module only.",
+          "title": "Ai",
+          "type": "boolean"
+        },
+        "certainty": {
+          "default": true,
+          "description": "How sure the interpretation is.",
+          "title": "Certainty",
+          "type": "boolean"
+        },
+        "explain": {
+          "default": false,
+          "description": "A short 'why' line, with a tap for the full reasons.",
+          "title": "Explain",
+          "type": "boolean"
+        },
+        "forecast": {
+          "default": false,
+          "description": "The dashed expected trend and what is expected next.",
+          "title": "Forecast",
+          "type": "boolean"
+        },
+        "trace": {
+          "default": true,
+          "description": "The trace or trend (a small spark at small sizes).",
+          "title": "Trace",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "trace",
+        "ai",
+        "certainty",
+        "explain",
+        "forecast"
+      ],
+      "title": "ModuleContent",
+      "type": "object"
+    },
+    "MonitorGridWidget": {
+      "additionalProperties": false,
+      "description": "The monitor: modules of different sizes packed into a grid of equal cells that\nfills the pane. Order is reading order; each module goes in the first gap it fits.\nA pane of full-width 'row' modules is the familiar bedside monitor.",
+      "properties": {
+        "columns": {
+          "default": 8,
+          "description": "Grid columns. Cells share the pane equally.",
+          "maximum": 12,
+          "minimum": 4,
+          "title": "Columns",
+          "type": "integer"
+        },
         "id": {
           "description": "Lowercase id: letters, digits, hyphens.",
           "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
           "title": "Id",
           "type": "string"
         },
+        "items": {
+          "description": "Modules, in order.",
+          "items": {
+            "$ref": "#/$defs/GridItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
         "numerics_side": {
           "default": "right",
+          "description": "Which side the tile sits on in row-shaped modules.",
           "enum": [
             "left",
             "right"
           ],
           "title": "Numerics Side",
           "type": "string"
-        },
-        "row_ids": {
-          "description": "Rows to show, top to bottom.",
-          "items": {
-            "description": "Lowercase id: letters, digits, hyphens.",
-            "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
-            "type": "string"
-          },
-          "title": "Row Ids",
-          "type": "array"
         },
         "title": {
           "anyOf": [
@@ -1097,8 +1182,8 @@
           "title": "Title"
         },
         "type": {
-          "const": "monitor-rows",
-          "default": "monitor-rows",
+          "const": "monitor-grid",
+          "default": "monitor-grid",
           "title": "Type",
           "type": "string"
         }
@@ -1107,10 +1192,11 @@
         "id",
         "title",
         "type",
-        "row_ids",
+        "columns",
+        "items",
         "numerics_side"
       ],
-      "title": "MonitorRowsWidget",
+      "title": "MonitorGridWidget",
       "type": "object"
     },
     "News2ChartWidget": {
@@ -1448,7 +1534,7 @@
     },
     "Row": {
       "additionalProperties": false,
-      "description": "One monitoring item with its trace and numbers.",
+      "description": "One monitored item: what it measures, how it is drawn, and what it shows.\nA row becomes a module when the monitor grid places it with a size.",
       "properties": {
         "colour": {
           "anyOf": [
@@ -1465,13 +1551,8 @@
           "description": "Overrides theme.parameter_colours.",
           "title": "Colour"
         },
-        "height": {
-          "default": 1.0,
-          "description": "Relative row height.",
-          "maximum": 4.0,
-          "minimum": 0.25,
-          "title": "Height",
-          "type": "number"
+        "content": {
+          "$ref": "#/$defs/ModuleContent"
         },
         "id": {
           "description": "Lowercase id: letters, digits, hyphens.",
@@ -1579,18 +1660,6 @@
           "description": "Required when kind='parameter'.",
           "title": "Parameter"
         },
-        "show_ai": {
-          "default": true,
-          "description": "Show AI interpretation text on this row.",
-          "title": "Show Ai",
-          "type": "boolean"
-        },
-        "show_forecast": {
-          "default": true,
-          "description": "Show the dashed expected trend.",
-          "title": "Show Forecast",
-          "type": "boolean"
-        },
         "show_limits": {
           "default": true,
           "title": "Show Limits",
@@ -1649,11 +1718,9 @@
         "trace",
         "waveform",
         "trend_window_min",
-        "height",
         "numerics",
         "show_limits",
-        "show_ai",
-        "show_forecast",
+        "content",
         "visible"
       ],
       "title": "Row",
@@ -2315,13 +2382,8 @@
     },
     "TileDisplay": {
       "additionalProperties": false,
-      "description": "The box holding a row's numbers. There is one tile per row, holding all of\nthat row's values (SpO2 and PR share one). Every tile is the same width, and a\ntile never changes size whatever it shows: numbers, STANDBY, CONNECTION LOST and\na low-battery warning all fit the same box.",
+      "description": "The box holding a module's numbers. There is one tile per module, holding all of\nits values (SpO2 and PR share one). In a full-width row the tile is this wide;\nsmaller modules let their tile fill the module. A tile never changes size whatever\nit shows: numbers, STANDBY, CONNECTION LOST and a low-battery warning all fit.",
       "properties": {
-        "equal_row_heights": {
-          "default": true,
-          "title": "Equal Row Heights",
-          "type": "boolean"
-        },
         "width_px": {
           "default": 220,
           "maximum": 260,
@@ -2331,8 +2393,7 @@
         }
       },
       "required": [
-        "width_px",
-        "equal_row_heights"
+        "width_px"
       ],
       "title": "TileDisplay",
       "type": "object"
@@ -2476,7 +2537,7 @@
               "epr-labs": "#/$defs/LabsWidget",
               "events-timeline": "#/$defs/EventsTimelineWidget",
               "forecast-panel": "#/$defs/ForecastPanelWidget",
-              "monitor-rows": "#/$defs/MonitorRowsWidget",
+              "monitor-grid": "#/$defs/MonitorGridWidget",
               "news2-chart": "#/$defs/News2ChartWidget",
               "oxygen": "#/$defs/OxygenWidget",
               "patient": "#/$defs/PatientWidget",
@@ -2486,7 +2547,7 @@
           },
           "oneOf": [
             {
-              "$ref": "#/$defs/MonitorRowsWidget"
+              "$ref": "#/$defs/MonitorGridWidget"
             },
             {
               "$ref": "#/$defs/News2ChartWidget"

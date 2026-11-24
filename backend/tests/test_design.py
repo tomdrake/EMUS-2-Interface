@@ -14,7 +14,7 @@ from app.models.design import (
 
 def test_all_default_designs_validate():
     designs = validated_defaults()
-    assert set(designs) == {"icu-monitor", "news2-chart", "split-side", "split-stacked"}
+    assert set(designs) == {"icu-monitor", "news2-chart", "split-side", "split-stacked", "icu-modules"}
 
 
 def test_home_screens_cover_the_required_layouts():
@@ -27,10 +27,10 @@ def test_home_screens_cover_the_required_layouts():
             return node.widget.type
         return (node.direction, *sorted(c.widget.type for c in node.children))
 
-    assert kinds(d["icu-monitor"]) == "monitor-rows"
+    assert kinds(d["icu-monitor"]) == "monitor-grid"
     assert kinds(d["news2-chart"]) == "news2-chart"
-    assert kinds(d["split-side"]) == ("horizontal", "monitor-rows", "news2-chart")
-    assert kinds(d["split-stacked"]) == ("vertical", "monitor-rows", "news2-chart")
+    assert kinds(d["split-side"]) == ("horizontal", "monitor-grid", "news2-chart")
+    assert kinds(d["split-stacked"]) == ("vertical", "monitor-grid", "news2-chart")
 
 
 def test_news2_variants_available():
@@ -48,7 +48,8 @@ def test_every_row_type_from_the_brief_is_present(slug):
     rows = validated_defaults()[slug].rows
     params = {r.parameter for r in rows}
     assert {"hr", "spo2", "rr", "bp_sys", "temp", "o2_flow", "activity", "sleep", "falls"} <= params
-    assert {r.kind for r in rows} >= {"parameter", "timer", "spacer"}
+    assert {r.kind for r in rows} == {"parameter"}, "no timer or spacer rows by default"
+    assert not [r for r in rows if (r.label or "").lower() == "next obs due"]
 
 
 def test_theme_presets_validate_and_touch_targets_are_large_enough():
@@ -142,8 +143,7 @@ def test_labels_methods_and_tiles(icu_design):
     doc = copy.deepcopy(icu_design)
     doc["rows"][2]["method"] = "Pleth"          # Respiratory Rate - Pleth
     doc["rows"][0]["label"] = "Heart Rate"
-    assert d.tiles.equal_row_heights, "tiles are identical by default"
-    doc["tiles"] = {"width_px": 180, "equal_row_heights": False}
+    doc["tiles"] = {"width_px": 180}
     Design.model_validate(doc)
     _broken(icu_design, lambda x: x.__setitem__("tiles", {"width_px": 40}))
     _broken(icu_design, lambda x: x["rows"][0].__setitem__("method", ""))
@@ -183,7 +183,8 @@ def test_unknown_fields_are_rejected_everywhere(icu_design):
 def test_dangling_references_are_rejected(icu_design):
     _broken(icu_design, lambda d: d.__setitem__("home_screen", "nowhere"))
     _broken(icu_design, lambda d: d["tabs"][0]["action"].__setitem__("screen_id", "nowhere"))
-    _broken(icu_design, lambda d: d["screens"][0]["layout"]["widget"]["row_ids"].append("ghost"))
+    _broken(icu_design, lambda d: d["screens"][0]["layout"]["widget"]["items"].append(
+        {"row_id": "ghost", "size": "row"}))
 
 
 def test_duplicate_ids_are_rejected(icu_design):
@@ -295,7 +296,7 @@ def test_unreadable_row_colours_are_rejected_in_both_themes(icu_design):
 
 def test_one_tile_per_row_is_wide_enough_for_two_values():
     d = validated_defaults()["icu-monitor"]
-    assert d.tiles.width_px == 220 and d.tiles.equal_row_heights
+    assert d.tiles.width_px == 220
     spo2 = next(r for r in d.rows if r.id == "spo2")
     assert list(spo2.numerics) == ["spo2", "pulse"], "SpO2 and PR share a row, so one tile"
 

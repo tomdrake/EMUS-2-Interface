@@ -9,7 +9,7 @@ def test_valid_patch_is_applied_to_a_copy(icu_design):
     before = copy.deepcopy(icu_design)
     r = patching.apply_patch(icu_design, [
         {"op": "replace", "path": "/theme/colours/background", "value": "#101418"},
-        {"op": "replace", "path": "/rows/0/height", "value": 2},
+        {"op": "add", "path": "/rows/0/trend_window_min", "value": 120},
     ])
     assert r.ok, r.errors
     assert r.design["theme"]["colours"]["background"] == "#101418"

@@ -57,6 +57,10 @@ for (const vp of VIEWPORTS) {
   const clockBox = await box('[data-testid="clock"]');
   check(clockBox[0] + clockBox[2] <= top[0].right && clockBox[2] > 0, `${vp.name}: clock is visible beside the top buttons`);
 
+  // --- Next Obs Due is gone; the monitor is eight full-width rows
+  check(await page.getByText(/next obs/i).count() === 0, `${vp.name}: "Next Obs Due" is gone`);
+  check(await page.locator(".module.row").count() === 8, `${vp.name}: the monitor is eight full-width rows`);
+
   // --- names: Title Case, with the method of collection
   check(await T("row-label-ecg").innerText() === "Heart Rate - ECG", `${vp.name}: heart rate row reads "Heart Rate - ECG"`);
   check(await T("row-label-spo2").innerText() === "Oxygen Saturation - Pleth", `${vp.name}: SpO2 row names its method`);
@@ -70,8 +74,7 @@ for (const vp of VIEWPORTS) {
     .map((e) => ({ id: e.dataset.testid ?? e.textContent?.trim().slice(0, 20), r: e.getBoundingClientRect() }))
     .filter((x) => x.r.width < min || x.r.height < min)
     .map((x) => `${x.id} ${Math.round(x.r.width)}x${Math.round(x.r.height)}`), MIN_TOUCH);
-  // Rows are short by design on small screens; M2 must keep them tappable.
-  const offenders = small.filter((s) => !/^row-/.test(s));
+  const offenders = small;
   check(offenders.length === 0, `${vp.name}: touch targets >= ${MIN_TOUCH}px ${offenders.join(", ")}`);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
         `${vp.name}: no horizontal overflow`);
@@ -591,6 +594,64 @@ for (const vp of VIEWPORTS) {
   await T("row-ecg").click();
   check(await T("sheet-alarm-limits").isVisible(), `${vp.name}: row tap opens alarm limits`);
   await T("sheet-close").click();
+
+  // --- modules of different sizes: load the Modular Example and measure it
+  await page.evaluate(async () => {
+    const ui = window.__emus.ui, st = ui.getState();
+    const stored = await (await fetch("/api/designs/icu-modules")).json();
+    st.load(stored, st.registry);
+    st.go("monitor");
+  });
+  await page.waitForSelector('[data-testid="grid-monitor-grid"]');
+  await page.waitForTimeout(300);
+  const mod = await page.evaluate(() => {
+    const grid = document.querySelector('[data-testid="grid-monitor-grid"]');
+    const g = grid.getBoundingClientRect();
+    const mods = [...grid.children].map((e) => {
+      const r = e.getBoundingClientRect();
+      return { id: e.dataset.testid.replace("row-", ""), size: e.dataset.size, flow: e.dataset.flow, x: r.x, y: r.y, w: r.width, h: r.height,
+               content: e.dataset.content, dropped: e.dataset.dropped,
+               hit: (() => { const b = e.querySelector(".row-hit").getBoundingClientRect(); return [b.width, b.height]; })() };
+    });
+    const overlap = mods.some((a, i) => mods.some((b, j) => j > i && a.x < b.x + b.w - 1 && b.x < a.x + a.w - 1 && a.y < b.y + b.h - 1 && b.y < a.y + a.h - 1));
+    const area = mods.reduce((n, m) => n + m.w * m.h, 0);
+    const inside = mods.every((m) => m.x >= g.x - 1 && m.y >= g.y - 1 && m.x + m.w <= g.x + g.width + 1 && m.y + m.h <= g.y + g.height + 1);
+    const cell = { w: g.width / 6, h: g.height / 5 };
+    const tiles = [...grid.querySelectorAll(".tile:not(.tile-empty)")].map((t) => {
+      const b = t.getBoundingClientRect();
+      const bad = [...t.querySelectorAll(".tile-state, .tile-value, .tile-head")].some((c) => {
+        const a = c.getBoundingClientRect(); return a.left < b.left - 1 || a.right > b.right + 1 || a.top < b.top - 1 || a.bottom > b.bottom + 1; });
+      const text = [...t.querySelectorAll(".tile-state, .tile-value")].map((c) => parseFloat(getComputedStyle(c).fontSize));
+      return { id: t.dataset.testid, clipped: bad, min: Math.min(...text) };
+    });
+    return { g: [g.width, g.height], cols: grid.dataset.columns, rows: grid.dataset.rows, mods, overlap, area, inside, cell, tiles,
+             scroll: document.documentElement.scrollWidth <= window.innerWidth && document.documentElement.scrollHeight <= window.innerHeight };
+  });
+  const byId = Object.fromEntries(mod.mods.map((m) => [m.id, m]));
+  const near = (a, b) => Math.abs(a - b) <= 2;
+  check(mod.cols === "6" && mod.rows === "5" && mod.mods.length === 9, `${vp.name}: the example is 6 columns by 5 rows of cells with nine modules`);
+  check(near(byId.ecg.w, mod.g[0]) && near(byId.ecg.h, mod.cell.h * 2), `${vp.name}: the ECG is full width and double height`);
+  check(near(byId.spo2.w, mod.cell.w * 2) && near(byId.spo2.h, mod.cell.h * 2) && near(byId.resp.w, mod.cell.w * 2), `${vp.name}: large modules are two cells by two`);
+  check(near(byId.bp.w, mod.cell.w) && near(byId.bp.h, mod.cell.h * 2), `${vp.name}: tall modules are one cell wide and two high`);
+  check(near(byId.oxygen.w, mod.cell.w) && near(byId.oxygen.h, mod.cell.h), `${vp.name}: small squares are one cell`);
+  check(near(byId.falls.w, mod.cell.w * 2) && near(byId.falls.h, mod.cell.h), `${vp.name}: tiles are two cells wide and one high`);
+  check(!mod.overlap && mod.inside && Math.abs(mod.area - mod.g[0] * mod.g[1]) / (mod.g[0] * mod.g[1]) < 0.003, `${vp.name}: modules fill the grid exactly, with no overlap and no gaps`);
+  check(mod.scroll, `${vp.name}: the grid fits the screen without scrolling`);
+  check(mod.mods.every((m) => m.hit[0] >= 48 && m.hit[1] >= 48), `${vp.name}: every module is a touch target`);
+  check(mod.tiles.every((t) => !t.clipped) && mod.tiles.every((t) => t.min >= 12), `${vp.name}: every module's tile fits and its text is readable (${Math.min(...mod.tiles.map((t) => t.min))}px)`);
+  check(byId.ecg.flow === "row" && byId.spo2.flow === "stack" && byId.oxygen.flow === "tile-only" && byId.falls.flow === "side",
+        `${vp.name}: each size is arranged its own way`);
+  check(/trace/.test(byId.ecg.content) && byId.ecg.dropped === "" && byId.oxygen.dropped.includes("ai") && byId.oxygen.content === "",
+        `${vp.name}: a module shows what fits and records what was left out`);
+  const frames = await page.evaluate(() => ({
+    full: [...document.querySelectorAll('[data-flow="row"] [data-testid^="trace-frame-"], [data-flow="stack"] [data-testid^="trace-frame-"]')].length,
+    mini: document.querySelectorAll(".trace-mini").length,
+    spark: !!document.querySelector('[data-testid="row-bp"] .trace-mini'),
+  }));
+  check(frames.full >= 3 && frames.spark, `${vp.name}: large modules draw the full trace and tall modules a small one`);
+  await shot("modular");
+  // the same screen but narrower panes still pack
+  await page.evaluate(async () => { const st = window.__emus.ui.getState(); const s = await (await fetch("/api/designs/icu-monitor")).json(); st.load(s, st.registry); });
 
   // ===== milestone checks are added below this line =====
 

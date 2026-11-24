@@ -507,7 +507,8 @@ export interface NotificationsDisplay {
   ticker_speed: "slow" | "medium" | "fast";
 }
 /**
- * One monitoring item with its trace and numbers.
+ * One monitored item: what it measures, how it is drawn, and what it shows.
+ * A row becomes a module when the monitor grid places it with a size.
  *
  * This interface was referenced by `Design`'s JSON-Schema
  * via the `definition` "Row".
@@ -517,10 +518,7 @@ export interface Row {
    * Overrides theme.parameter_colours.
    */
   colour: string | null;
-  /**
-   * Relative row height.
-   */
-  height: number;
+  content: ModuleContent;
   /**
    * Lowercase id: letters, digits, hyphens.
    */
@@ -761,14 +759,6 @@ export interface Row {
         | "timer"
       )
     | null;
-  /**
-   * Show AI interpretation text on this row.
-   */
-  show_ai: boolean;
-  /**
-   * Show the dashed expected trend.
-   */
-  show_forecast: boolean;
   show_limits: boolean;
   trace: "waveform" | "trend" | "bar" | "events" | "none";
   trend_window_min: number;
@@ -777,6 +767,35 @@ export interface Row {
    * Required when trace='waveform'.
    */
   waveform: ("ecg" | "pleth" | "resp") | null;
+}
+/**
+ * What a module shows besides its number. Each is dropped, lowest priority first,
+ * if the module's size has no room for it (see registry.MODULE_SIZES).
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "ModuleContent".
+ */
+export interface ModuleContent {
+  /**
+   * AI interpretation of this item. Off here turns it off for this module only.
+   */
+  ai: boolean;
+  /**
+   * How sure the interpretation is.
+   */
+  certainty: boolean;
+  /**
+   * A short 'why' line, with a tap for the full reasons.
+   */
+  explain: boolean;
+  /**
+   * The dashed expected trend and what is expected next.
+   */
+  forecast: boolean;
+  /**
+   * The trace or trend (a small spark at small sizes).
+   */
+  trace: boolean;
 }
 /**
  * How monitoring problems are shown. See docs/human-factors.md.
@@ -815,7 +834,7 @@ export interface Screen {
 export interface WidgetNode {
   kind: "widget";
   widget:
-    | MonitorRowsWidget
+    | MonitorGridWidget
     | News2ChartWidget
     | LabsWidget
     | ImagingWidget
@@ -828,21 +847,45 @@ export interface WidgetNode {
     | TextWidget;
 }
 /**
+ * The monitor: modules of different sizes packed into a grid of equal cells that
+ * fills the pane. Order is reading order; each module goes in the first gap it fits.
+ * A pane of full-width 'row' modules is the familiar bedside monitor.
+ *
  * This interface was referenced by `Design`'s JSON-Schema
- * via the `definition` "MonitorRowsWidget".
+ * via the `definition` "MonitorGridWidget".
  */
-export interface MonitorRowsWidget {
+export interface MonitorGridWidget {
+  /**
+   * Grid columns. Cells share the pane equally.
+   */
+  columns: number;
   /**
    * Lowercase id: letters, digits, hyphens.
    */
   id: string;
-  numerics_side: "left" | "right";
   /**
-   * Rows to show, top to bottom.
+   * Modules, in order.
    */
-  row_ids: string[];
+  items: GridItem[];
+  /**
+   * Which side the tile sits on in row-shaped modules.
+   */
+  numerics_side: "left" | "right";
   title: string | null;
-  type: "monitor-rows";
+  type: "monitor-grid";
+}
+/**
+ * One module in the monitor grid: a row and the size it is drawn at.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "GridItem".
+ */
+export interface GridItem {
+  /**
+   * Lowercase id: letters, digits, hyphens.
+   */
+  row_id: string;
+  size: "compact" | "tile" | "tall" | "wide" | "large" | "row" | "row-tall";
 }
 /**
  * This interface was referenced by `Design`'s JSON-Schema
@@ -1134,16 +1177,15 @@ export interface Theme1 {
   trace_width: number;
 }
 /**
- * The box holding a row's numbers. There is one tile per row, holding all of
- * that row's values (SpO2 and PR share one). Every tile is the same width, and a
- * tile never changes size whatever it shows: numbers, STANDBY, CONNECTION LOST and
- * a low-battery warning all fit the same box.
+ * The box holding a module's numbers. There is one tile per module, holding all of
+ * its values (SpO2 and PR share one). In a full-width row the tile is this wide;
+ * smaller modules let their tile fill the module. A tile never changes size whatever
+ * it shows: numbers, STANDBY, CONNECTION LOST and a low-battery warning all fit.
  *
  * This interface was referenced by `Design`'s JSON-Schema
  * via the `definition` "TileDisplay".
  */
 export interface TileDisplay {
-  equal_row_heights: boolean;
   width_px: number;
 }
 /**

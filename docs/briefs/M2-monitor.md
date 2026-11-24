@@ -80,8 +80,11 @@ passing: every tile is the same size, and nothing that arrives (an alarm, a faul
 the sound pause, the feed opening) moves or resizes anything.
 
 Three more rules, also in the browser check:
+- **A module is one monitored item at the size the grid gives it** (`widgets/MonitorGrid.tsx`,
+  `widgets/Module.tsx`, `layout/grid.ts`). Do not assume full-width rows: traces and tiles must
+  work at every size in `registry.MODULE_SIZES`, using the container they are given.
 - **One tile per row.** Pass a row's values to `<Tile values={...}>` (`tileValues(row)` in
-  `MonitorRows.tsx` builds them). Do not add tiles.
+  `widgets/Module.tsx` builds them). Do not add tiles.
 - **Text takes the row's colour.** Never style tile, mark or trace text with a status
   colour; use the row colour (inherited) and the word, frame and glyph already there.
 - **Nothing opens the notification list by itself**, and the ticker holds a
@@ -93,7 +96,7 @@ tile headers stay level and legible over a moving trace.
 | File | Build |
 |---|---|
 | new `src/app/live.ts` | Zustand store for numerics and waveform ring buffers. WebSocket client with reconnect. Feed `useSafety`: `heartbeat()` on every message, `setDevices()` for `DevicesMessage`, `setAlarms()` for `AlarmMessage`, `setLink("down")` on close. |
-| `src/widgets/MonitorRows.tsx` (pass live values to `<Tile>` via `tileValues(row)`, including the `extra` values for the combined blood pressure tile) + new `WaveCanvas.tsx`, `TrendTrace.tsx`, `BarTrace.tsx`, `EventsTrace.tsx`, `TimerRow.tsx` | Real traces and live numbers. Canvas sweep with the erase-bar gap (`design.sweep`), or scrolling. Speed in mm/s converted with CSS px per mm. Draw at device pixel ratio; one `requestAnimationFrame` loop for all canvases. |
+| `src/widgets/Module.tsx` (pass live values to `<Tile>` via `tileValues(row)`, including the `extra` values for the combined blood pressure tile) + new `WaveCanvas.tsx`, `TrendTrace.tsx`, `BarTrace.tsx`, `EventsTrace.tsx`, `TimerRow.tsx` | Real traces and live numbers. Canvas sweep with the erase-bar gap (`design.sweep`), or scrolling. Speed in mm/s converted with CSS px per mm. Draw at device pixel ratio; one `requestAnimationFrame` loop for all canvases. |
 | `src/layout/TopBar.tsx` | Real patient fields, oxygen, alarm status, SIMULATED badge. |
 | `src/alarms/` | `audio.ts`: Web Audio tones by priority. Browsers block sound until a touch, so set `useSafety.sound` to `blocked` until audio is unlocked, register `enableSound`, and set `ready` once a test tone has played; the notification box then offers "Enable Sound". Patient alarms appear in the notification box (already styled red or yellow by priority) and as a flashing tile for the parameter concerned; do not add a banner that changes the layout. `SilenceButton` exists; drive it and the box from the server's `AlarmState`. |
 | traces | Dim a trace while its quality is poor when `design.safety.dim_poor_traces` is on; freeze and grey traces when the link is not live. |

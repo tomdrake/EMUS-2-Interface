@@ -72,7 +72,8 @@ frontend/src/
   layout/            top bar, bottom tabs, menus, sheets, split layouts
   safety/            tiles (a number or why there is none), the notification ticker
   traces/            baseline, scale and calibration marks drawn on every trace
-  widgets/           what goes in a pane: rows, NEWS2 chart, labs, forecast ...
+  widgets/           what goes in a pane: the monitor grid of modules, NEWS2 chart, labs ...
+  layout/grid.ts     packs modules of different sizes into a grid that fills the pane
   studio/            sheets: clinical panels and design-studio sections
 docs/
   HANDOFF.md              what is built, what is next, the rules
@@ -94,6 +95,9 @@ notification box, and the warnings that say the monitoring itself has a problem.
 
 ## Data and standards
 
+- The monitor is a grid of modules: a small square, a tile (number and trend), tall, wide,
+  large, a full row, or a double-height full row. The built-in "Modular Example" design
+  shows them all.
 - Simulated scenarios: pneumonia with deterioration, paroxysmal AF, COPD on SpO2
   scale 2 with a fall, non-sustained VT with critical potassium, a stable patient,
   and a well patient with monitoring problems (standby, low battery, poor trace,

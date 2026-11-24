@@ -5,34 +5,44 @@ import type { Design, Screen } from "@/design/types";
 
 import { ScreenRenderer } from "./ScreenRenderer";
 
+const content = { trace: true, ai: true, certainty: true, explain: false, forecast: false };
 const rows = [
   { id: "ecg", kind: "parameter", parameter: "hr", trace: "waveform", waveform: "ecg", numerics: ["hr"],
-    visible: true, height: 1, label: null, method: null, colour: null, trend_window_min: 60 },
+    visible: true, label: null, method: null, colour: null, trend_window_min: 60, content },
   { id: "bp", kind: "parameter", parameter: "bp_sys", trace: "trend", waveform: null, label: "blood pressure",
-    numerics: ["bp_sys", "bp_dia", "bp_mean"], visible: true, height: 1, method: null, colour: null, trend_window_min: 240 },
-  { id: "gap", kind: "spacer", trace: "none", visible: true, height: 0.25, numerics: [] },
-  { id: "hidden", kind: "parameter", parameter: "rr", visible: false, numerics: [] },
+    numerics: ["bp_sys", "bp_dia", "bp_mean"], visible: true, method: null, colour: null, trend_window_min: 240, content },
+  { id: "falls", kind: "parameter", parameter: "falls", trace: "events", numerics: [], visible: true,
+    label: null, method: null, colour: null, trend_window_min: 60, content },
+  { id: "hidden", kind: "parameter", parameter: "rr", visible: false, numerics: [], trace: "trend", content },
 ];
-const split: Screen = {
+const sizes = {
+  compact: { label: "Small Square", cols: 1, rows: 1, full: false, flow: "tile-only", fits: ["number"] },
+  tile: { label: "Tile", cols: 2, rows: 1, full: false, flow: "side", fits: ["number", "spark", "ai"] },
+  tall: { label: "Tall", cols: 1, rows: 2, full: false, flow: "stack", fits: ["number", "spark", "ai", "certainty"] },
+  row: { label: "Full Row", cols: 0, rows: 1, full: true, flow: "row", fits: ["number", "trace", "ai", "certainty"] },
+};
+const split = {
   id: "split-h", name: "Split",
   layout: { kind: "split", direction: "horizontal", ratio: 0.4, children: [
     { kind: "widget", widget: { id: "news", type: "news2-chart", variant: "bands-dark" } },
-    { kind: "widget", widget: { id: "rows", type: "monitor-rows", numerics_side: "right",
-                                row_ids: ["ecg", "bp", "gap", "hidden"] } },
+    { kind: "widget", widget: { id: "rows", type: "monitor-grid", columns: 4, numerics_side: "right",
+        items: [{ row_id: "ecg", size: "row" }, { row_id: "bp", size: "tall" }, { row_id: "falls", size: "compact" },
+                { row_id: "hidden", size: "row" }] } },
   ] },
-} as Screen;
+} as unknown as Screen;
 
 beforeEach(() => {
   useUi.setState({
     stored: { document: {
       rows, safety: { standby_text: "STANDBY", show_advice: true, device_status: "tiles" },
-      labels: { auto_capitalise: true, show_method: true }, tiles: { width_px: 220, equal_row_heights: true },
+      labels: { auto_capitalise: true, show_method: true }, tiles: { width_px: 220 },
       traces: { show_baseline: true, show_scale: true, show_calibration_bar: true, show_time_scale: true,
                 ecg_gain_mm_per_mv: 10 },
       sweep: { speed_mm_s: 25 },
     } as unknown as Design } as any,
     registry: { parameters: { hr: { label: "Heart Rate", short: "HR", unit: "bpm", method: "ECG" },
                               bp_sys: { label: "Systolic Blood Pressure", short: "SYS", unit: "mmHg", method: "Cuff" } },
+                module_sizes: sizes,
                 waveforms: { ecg: { label: "ECG", unit: "mV", scale: { unit: "mV", calibrated: true,
                   gains_mm_per_unit: [5, 10, 20], default_gain: 10, tick: 0.5, baseline: "isoelectric", range: [-0.5, 1] } } },
                 signal_states: { standby: { text: "STANDBY", tone: "inactive" } }, signal_issues: {} } as any,
@@ -51,44 +61,87 @@ describe("ScreenRenderer", () => {
     expect(dom.getByTestId("widget-rows")).toBeTruthy();
   });
 
-  it("lays out visible rows in design order and skips hidden ones", () => {
+  it("lays out visible modules in design order and skips hidden ones", () => {
     render(<ScreenRenderer screen={split} />);
-    expect(dom.getByTestId("row-gap").className).toContain("row-spacer");
+    const ids = [...dom.getByTestId("grid-rows").children].map((e) => e.getAttribute("data-testid"));
+    expect(ids).toEqual(["row-ecg", "row-bp", "row-falls"]);
     expect(dom.queryByTestId("row-hidden")).toBeNull();
   });
 
-  it("names each row with what is measured and how", () => {
+  it("makes the grid as many columns and rows as the modules need", () => {
+    render(<ScreenRenderer screen={split} />);
+    const grid = dom.getByTestId("grid-rows");
+    expect(grid.dataset.columns).toBe("4");
+    expect(grid.dataset.rows).toBe("3");            // a full row, then a tall one (2 high) beside a small square
+    expect(grid.style.gridTemplateColumns).toBe("repeat(4, minmax(0, 1fr))");
+    expect(grid.style.gridTemplateRows).toBe("repeat(3, minmax(0, 1fr))");
+  });
+
+  it("places each module by its size", () => {
+    render(<ScreenRenderer screen={split} />);
+    const place = (id: string) => (dom.getByTestId(`row-${id}`) as HTMLElement).style;
+    expect([place("ecg").gridColumn, place("ecg").gridRow]).toEqual(["1 / span 4", "1 / span 1"]);   // full row
+    expect([place("bp").gridColumn, place("bp").gridRow]).toEqual(["1 / span 1", "2 / span 2"]);     // tall
+    expect([place("falls").gridColumn, place("falls").gridRow]).toEqual(["2 / span 1", "2 / span 1"]);   // small square beside it
+  });
+
+  it("draws each size in its own arrangement", () => {
+    render(<ScreenRenderer screen={split} />);
+    expect(dom.getByTestId("row-ecg").dataset.flow).toBe("row");
+    expect(dom.getByTestId("row-ecg").className).toContain("row");
+    expect(dom.getByTestId("row-bp").dataset.flow).toBe("stack");
+    expect(dom.getByTestId("row-falls").dataset.flow).toBe("tile-only");
+  });
+
+  it("shows the trace in full on a row, as a small spark on a tall module, and none on a small square", () => {
+    render(<ScreenRenderer screen={split} />);
+    expect(dom.getByTestId("row-ecg").dataset.content).toContain("trace");
+    expect(dom.getByTestId("row-ecg").querySelector(".trace-mini")).toBeNull();
+    expect(dom.getByTestId("row-bp").querySelector(".trace-mini")).not.toBeNull();
+    expect(dom.getByTestId("row-bp").dataset.dropped).toBe("");                       // explain/forecast were not asked for
+    // the small square has room for the number only; AI and certainty are on by default, so they are
+    // recorded as dropped. An events row has no trace to drop.
+    expect(dom.getByTestId("row-falls").dataset.dropped).toBe("ai certainty");
+    expect(dom.getByTestId("row-falls").dataset.content).toBe("");
+  });
+
+  it("records what a size has no room for", () => {
+    const wants = { ...rows[1]!, content: { trace: true, ai: true, certainty: true, explain: true, forecast: true } };
+    useUi.setState({ stored: { document: { ...useUi.getState().stored!.document, rows: [rows[0], wants, rows[2], rows[3]] } } as any });
+    render(<ScreenRenderer screen={split} />);
+    const bp = dom.getByTestId("row-bp");
+    expect(bp.dataset.dropped).toBe("explain forecast");           // a tall module has no room for those
+    expect(bp.dataset.content).toBe("trace ai certainty");
+  });
+
+  it("names each module with what is measured and how", () => {
     render(<ScreenRenderer screen={split} />);
     expect(dom.getByTestId("row-label-ecg").textContent).toBe("Heart Rate - ECG");
     expect(dom.getByTestId("row-label-bp").textContent).toBe("Blood Pressure - Cuff");
   });
 
-  it("gives every row one tile of the design's width, with blood pressure in one tile", () => {
+  it("gives every module one tile, with blood pressure in one", () => {
     render(<ScreenRenderer screen={split} />);
     expect(dom.getByTestId("row-bp").querySelectorAll(".tile:not(.tile-empty)")).toHaveLength(1);
     expect(dom.getByTestId("row-ecg").querySelectorAll(".tile:not(.tile-empty)")).toHaveLength(1);
-    // a row with no numbers keeps an empty cell, so the grid lines run straight down
-    expect(dom.getByTestId("row-gap").querySelectorAll(".tile")).toHaveLength(0);
-    const rowsEl = dom.getByTestId("widget-rows").querySelector(".rows") as HTMLElement;
-    expect(rowsEl.style.getPropertyValue("--tile")).toBe("220px");
-    expect(rowsEl.style.getPropertyValue("--tile-slots")).toBe("");
+    const grid = dom.getByTestId("grid-rows");
+    expect(grid.style.getPropertyValue("--tile")).toBe("220px");
   });
 
-  it("gives each trace row a frame for its reference marks, and none for the spacer", () => {
+  it("gives each trace module a frame for its reference marks", () => {
     render(<ScreenRenderer screen={split} />);
     expect(dom.getByTestId("trace-ecg")).toBeTruthy();
     expect(dom.getByTestId("trace-bp")).toBeTruthy();
-    expect(dom.queryByTestId("trace-gap")).toBeNull();
   });
 
-  it("writes each trace's x scale as a number and has no horizontal scale bar", () => {
+  it("writes the x scale of a full trace as a number and has no horizontal scale bar", () => {
     const { container } = render(<ScreenRenderer screen={split} />);
     expect(dom.getByTestId("xscale-ecg").textContent).toBe("25 mm/s");
-    expect(dom.getByTestId("xscale-bp").textContent).toBe("4 h");
+    expect(dom.queryByTestId("xscale-bp")).toBeNull();               // the small spark has no axis or x scale
     expect(container.querySelector('[data-testid^="trace-time"]')).toBeNull();
   });
 
-  it("makes a row a div with a tap button beside the x scale control, never one inside the other", () => {
+  it("makes a module a div with a tap button beside the x scale control, never one inside the other", () => {
     const { container } = render(<ScreenRenderer screen={split} />);
     const row = dom.getByTestId("row-ecg");
     expect(row.tagName).toBe("DIV");
@@ -98,10 +151,13 @@ describe("ScreenRenderer", () => {
     expect(row.querySelector(".row-hit")!.contains(row.querySelector('[data-testid="xscale-ecg"]'))).toBe(false);
   });
 
-  it("opens alarm limits when the row is tapped", () => {
+  it("opens alarm limits when a module is tapped, whatever its size", () => {
     render(<ScreenRenderer screen={split} />);
-    (dom.getByTestId("row-ecg").querySelector(".row-hit") as HTMLButtonElement).click();
-    expect(useUi.getState().openSheet).toBe("alarm-limits");
-    expect(useUi.getState().sheetContext).toBe("ecg");
+    for (const id of ["ecg", "bp", "falls"]) {
+      useUi.getState().showSheet(null);
+      (dom.getByTestId(`row-${id}`).querySelector(".row-hit") as HTMLButtonElement).click();
+      expect(useUi.getState().openSheet).toBe("alarm-limits");
+      expect(useUi.getState().sheetContext).toBe(id);
+    }
   });
 });

@@ -25,6 +25,7 @@ def test_a_database_made_by_an_older_build_picks_up_new_defaults(client):
     with db.session() as con:
         old = json.loads(_versions(con, "icu-monitor")[0]["document"])
         old["tiles"]["width_px"] = 150
+        old["tiles"]["equal_row_heights"] = True      # a field an older build wrote
         con.execute("UPDATE design_versions SET document = ? WHERE design_id = 'icu-monitor'",
                     (json.dumps(old),))
     db.init_db()

@@ -213,6 +213,35 @@ WAVEFORMS: dict[str, dict] = {
 }
 WAVEFORM_IDS: tuple[str, ...] = tuple(WAVEFORMS)
 
+# ------------------------------------------------------------------ module sizes
+
+#: What a module can show. 'spark' is a small trend with no axes; 'trace' is the full
+#: waveform or trend with its scale. A module shows the biggest form of each that fits.
+MODULE_CONTENT: tuple[str, ...] = ("number", "spark", "trace", "ai", "certainty", "explain", "forecast")
+
+#: Sizes of a module in the monitor grid, in grid cells. 'full' sizes span every column.
+#: `flow` is how the parts are arranged: tile alone, tile beside a spark, tile above a
+#: trace, or a trace beside its tile (the familiar monitor row). `fits` lists the content
+#: that has room at that size; whatever the design asks for beyond it is dropped, lowest
+#: priority first, and the customisation tool says so.
+MODULE_SIZES: dict[str, dict] = {
+    "compact": {"label": "Small Square", "cols": 1, "rows": 1, "full": False, "flow": "tile-only",
+                "fits": ["number"]},
+    "tile": {"label": "Tile", "cols": 2, "rows": 1, "full": False, "flow": "side",
+             "fits": ["number", "spark", "ai"]},
+    "tall": {"label": "Tall", "cols": 1, "rows": 2, "full": False, "flow": "stack",
+             "fits": ["number", "spark", "ai", "certainty"]},
+    "wide": {"label": "Wide", "cols": 3, "rows": 1, "full": False, "flow": "row",
+             "fits": ["number", "trace", "ai"]},
+    "large": {"label": "Large", "cols": 2, "rows": 2, "full": False, "flow": "stack",
+              "fits": ["number", "trace", "ai", "certainty", "explain"]},
+    "row": {"label": "Full Row", "cols": 0, "rows": 1, "full": True, "flow": "row",
+            "fits": ["number", "trace", "ai", "certainty"]},
+    "row-tall": {"label": "Full Row Double", "cols": 0, "rows": 2, "full": True, "flow": "row",
+                 "fits": ["number", "trace", "ai", "certainty", "explain", "forecast"]},
+}
+MODULE_SIZE_IDS: tuple[str, ...] = tuple(MODULE_SIZES)
+
 #: NEWS2 chart oxygen delivery device codes (RCP NEWS2 observation chart).
 O2_DEVICES: dict[str, str] = {
     "A": "Air",
@@ -562,6 +591,8 @@ def as_public_dict() -> dict:
         "parameters": {k: asdict(v) for k, v in PARAMETERS.items()},
         "waveforms": WAVEFORMS,
         "alarm_priority_marks": ALARM_PRIORITY_MARKS,
+        "module_sizes": MODULE_SIZES,
+        "module_content": list(MODULE_CONTENT),
         "o2_devices": O2_DEVICES,
         "acvpu_levels": list(ACVPU_LEVELS),
         "lab_groups": LAB_GROUPS,

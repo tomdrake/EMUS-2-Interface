@@ -36,6 +36,7 @@ ParameterId = Literal[*registry.PARAMETER_IDS]  # type: ignore[valid-type]
 WaveformId = Literal[*registry.WAVEFORM_IDS]  # type: ignore[valid-type]
 LabGroupId = Literal[*registry.LAB_GROUP_IDS]  # type: ignore[valid-type]
 EventTypeId = Literal[*registry.EVENT_TYPE_IDS]  # type: ignore[valid-type]
+ModuleSize = Literal[*registry.MODULE_SIZE_IDS]  # type: ignore[valid-type]
 CertaintyMetricId = Literal[*registry.CERTAINTY_METRIC_IDS]  # type: ignore[valid-type]
 
 Colour = Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$",
@@ -134,8 +135,21 @@ class Theme(_Model):
 
 # ------------------------------------------------------------------------- rows
 
+class ModuleContent(_Model):
+    """What a module shows besides its number. Each is dropped, lowest priority first,
+    if the module's size has no room for it (see registry.MODULE_SIZES)."""
+
+    trace: bool = Field(True, description="The trace or trend (a small spark at small sizes).")
+    ai: bool = Field(True, description="AI interpretation of this item. Off here turns it "
+                                       "off for this module only.")
+    certainty: bool = Field(True, description="How sure the interpretation is.")
+    explain: bool = Field(False, description="A short 'why' line, with a tap for the full reasons.")
+    forecast: bool = Field(False, description="The dashed expected trend and what is expected next.")
+
+
 class Row(_Model):
-    """One monitoring item with its trace and numbers."""
+    """One monitored item: what it measures, how it is drawn, and what it shows.
+    A row becomes a module when the monitor grid places it with a size."""
 
     id: Slug
     kind: Literal["parameter", "spacer", "timer"] = "parameter"
@@ -148,13 +162,11 @@ class Row(_Model):
     trace: Literal["waveform", "trend", "bar", "events", "none"] = "trend"
     waveform: WaveformId | None = Field(None, description="Required when trace='waveform'.")
     trend_window_min: int = Field(60, ge=5, le=1440)
-    height: float = Field(1.0, ge=0.25, le=4.0, description="Relative row height.")
     numerics: list[ParameterId] = Field(
         default_factory=list, max_length=4,
         description="Numbers shown at the right of the row, largest first.")
     show_limits: bool = True
-    show_ai: bool = Field(True, description="Show AI interpretation text on this row.")
-    show_forecast: bool = Field(True, description="Show the dashed expected trend.")
+    content: ModuleContent = Field(default_factory=ModuleContent)
     visible: bool = True
 
     @model_validator(mode="after")
@@ -198,10 +210,23 @@ class _Widget(_Model):
     title: Label | None = None
 
 
-class MonitorRowsWidget(_Widget):
-    type: Literal["monitor-rows"] = "monitor-rows"
-    row_ids: list[Slug] = Field(description="Rows to show, top to bottom.")
-    numerics_side: Literal["left", "right"] = "right"
+class GridItem(_Model):
+    """One module in the monitor grid: a row and the size it is drawn at."""
+
+    row_id: Slug
+    size: ModuleSize = "row"
+
+
+class MonitorGridWidget(_Widget):
+    """The monitor: modules of different sizes packed into a grid of equal cells that
+    fills the pane. Order is reading order; each module goes in the first gap it fits.
+    A pane of full-width 'row' modules is the familiar bedside monitor."""
+
+    type: Literal["monitor-grid"] = "monitor-grid"
+    columns: int = Field(8, ge=4, le=12, description="Grid columns. Cells share the pane equally.")
+    items: list[GridItem] = Field(description="Modules, in order.")
+    numerics_side: Literal["left", "right"] = Field(
+        "right", description="Which side the tile sits on in row-shaped modules.")
 
 
 class News2ChartWidget(_Widget):
@@ -271,7 +296,7 @@ class TextWidget(_Widget):
 
 Widget = Annotated[
     Union[
-        MonitorRowsWidget, News2ChartWidget, LabsWidget, ImagingWidget, AiSummaryWidget,
+        MonitorGridWidget, News2ChartWidget, LabsWidget, ImagingWidget, AiSummaryWidget,
         ForecastPanelWidget, EventsTimelineWidget, AlarmsWidget, OxygenWidget,
         PatientWidget, TextWidget,
     ],
@@ -484,15 +509,12 @@ class LabelDisplay(_Model):
 
 
 class TileDisplay(_Model):
-    """The box holding a row's numbers. There is one tile per row, holding all of
-    that row's values (SpO2 and PR share one). Every tile is the same width, and a
-    tile never changes size whatever it shows: numbers, STANDBY, CONNECTION LOST and
-    a low-battery warning all fit the same box."""
+    """The box holding a module's numbers. There is one tile per module, holding all of
+    its values (SpO2 and PR share one). In a full-width row the tile is this wide;
+    smaller modules let their tile fill the module. A tile never changes size whatever
+    it shows: numbers, STANDBY, CONNECTION LOST and a low-battery warning all fit."""
 
     width_px: int = Field(220, ge=110, le=260)
-    #: Rows that carry tiles share one height, so every tile is identical in both
-    #: dimensions. Rows without numbers (events, timer, spacer) keep their own height.
-    equal_row_heights: bool = True
 
 
 class NotificationsDisplay(_Model):
@@ -733,10 +755,19 @@ class Design(_Model):
                 return
             w = node.widget
             widget_ids.append(w.id)
-            if w.type == "monitor-rows":
-                for rid in w.row_ids:
-                    if rid not in row_ids:
-                        raise ValueError(f"{where}: widget {w.id!r} uses unknown row {rid!r}")
+            if w.type == "monitor-grid":
+                seen: set[str] = set()
+                for item in w.items:
+                    if item.row_id not in row_ids:
+                        raise ValueError(f"{where}: widget {w.id!r} uses unknown row {item.row_id!r}")
+                    if item.row_id in seen:
+                        raise ValueError(f"{where}: widget {w.id!r} places row {item.row_id!r} twice")
+                    seen.add(item.row_id)
+                    spec = registry.MODULE_SIZES[item.size]
+                    if not spec["full"] and spec["cols"] > w.columns:
+                        raise ValueError(
+                            f"{where}: size {item.size!r} needs {spec['cols']} columns but "
+                            f"widget {w.id!r} has {w.columns}")
 
         for s in self.screens:
             walk(s.layout, f"screen {s.id!r}")
