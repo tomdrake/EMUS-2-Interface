@@ -194,15 +194,22 @@ by default; see `traces` in the design):
   calibration bar exactly 1 mV tall at the gain drawn. The gain is written as just
   "10 mm/mV" in thin light text; it is 10 where the row is tall enough and falls
   back to 5 or 2.5 where it is not, and the text always states the gain actually
-  drawn. A one-second bar marks the time scale, with no label.
+  drawn. The x scale is written as a number in the same thin light text ("25 mm/s"),
+  with no horizontal bar. Tapping it opens the four speeds (6.25, 12.5, 25, 50 mm/s);
+  one touch to open, one to choose, per trace.
 - **Pleth and respiration**: a dashed line at the mean and an axis in arbitrary
   units. They have no absolute amplitude, so there is no calibration bar.
-- **Trends**: gridlines and labels in the parameter's own unit.
+- **Trends**: gridlines and labels in the parameter's own unit, and the time window
+  as the x scale ("4 h"), tappable to choose 15 min, 1 h, 4 h, 12 h or 24 h.
+
+The x scale a clinician chooses is a preference of this screen, per trace, kept
+locally like dark / light. It does not create a design version; the design supplies
+the starting value.
 
 Two honest limits. Millimetres are nominal: a CSS millimetre is not a physical one
 on any particular screen, so "5 mm/mV" names the gain rather than promising a size on
-the glass; the 1 mV bar is the true scale. The sweep speed (25 mm/s) and the word
-"nominal" are no longer written on the traces.
+the glass; the 1 mV bar is the true scale. The word "nominal" is not written on the
+traces.
 And the dashed ECG line is the display zero, not an estimate of the patient's
 isoelectric level: on a drifting trace it will show the drift.
 

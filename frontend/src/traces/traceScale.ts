@@ -111,11 +111,6 @@ export function waveTransform(args: {
   };
 }
 
-/** Length of the one-second bar at a sweep speed in mm/s. */
-export function secondBarPx(speedMmS: number, pxPerMm = NOMINAL_PX_PER_MM): number {
-  return speedMmS * pxPerMm;
-}
-
 /** The gain as written on the trace: just "5 mm/mV". Whether it was fitted to the row, and that
  *  millimetres are nominal, are documented (docs/human-factors.md), not repeated on screen. */
 export function gainText(t: Pick<WaveTransform, "gainMmPerUnit">): string | null {

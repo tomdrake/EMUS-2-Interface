@@ -7,9 +7,9 @@ import { ScreenRenderer } from "./ScreenRenderer";
 
 const rows = [
   { id: "ecg", kind: "parameter", parameter: "hr", trace: "waveform", waveform: "ecg", numerics: ["hr"],
-    visible: true, height: 1, label: null, method: null, colour: null },
+    visible: true, height: 1, label: null, method: null, colour: null, trend_window_min: 60 },
   { id: "bp", kind: "parameter", parameter: "bp_sys", trace: "trend", waveform: null, label: "blood pressure",
-    numerics: ["bp_sys", "bp_dia", "bp_mean"], visible: true, height: 1, method: null, colour: null },
+    numerics: ["bp_sys", "bp_dia", "bp_mean"], visible: true, height: 1, method: null, colour: null, trend_window_min: 240 },
   { id: "gap", kind: "spacer", trace: "none", visible: true, height: 0.25, numerics: [] },
   { id: "hidden", kind: "parameter", parameter: "rr", visible: false, numerics: [] },
 ];
@@ -79,5 +79,29 @@ describe("ScreenRenderer", () => {
     expect(dom.getByTestId("trace-ecg")).toBeTruthy();
     expect(dom.getByTestId("trace-bp")).toBeTruthy();
     expect(dom.queryByTestId("trace-gap")).toBeNull();
+  });
+
+  it("writes each trace's x scale as a number and has no horizontal scale bar", () => {
+    const { container } = render(<ScreenRenderer screen={split} />);
+    expect(dom.getByTestId("xscale-ecg").textContent).toBe("25 mm/s");
+    expect(dom.getByTestId("xscale-bp").textContent).toBe("4 h");
+    expect(container.querySelector('[data-testid^="trace-time"]')).toBeNull();
+  });
+
+  it("makes a row a div with a tap button beside the x scale control, never one inside the other", () => {
+    const { container } = render(<ScreenRenderer screen={split} />);
+    const row = dom.getByTestId("row-ecg");
+    expect(row.tagName).toBe("DIV");
+    expect(container.querySelectorAll("button button")).toHaveLength(0);
+    expect(row.querySelector(".row-hit")).not.toBeNull();
+    expect(row.querySelector('[data-testid="xscale-ecg"]')).not.toBeNull();
+    expect(row.querySelector(".row-hit")!.contains(row.querySelector('[data-testid="xscale-ecg"]'))).toBe(false);
+  });
+
+  it("opens alarm limits when the row is tapped", () => {
+    render(<ScreenRenderer screen={split} />);
+    (dom.getByTestId("row-ecg").querySelector(".row-hit") as HTMLButtonElement).click();
+    expect(useUi.getState().openSheet).toBe("alarm-limits");
+    expect(useUi.getState().sheetContext).toBe("ecg");
   });
 });

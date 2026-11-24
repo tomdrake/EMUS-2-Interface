@@ -23,6 +23,9 @@ interface UiState {
   editMode: boolean;
   /** Dark / light choice for this screen; null = the design's default theme. */
   mode: ThemeMode | null;
+  /** This screen's x scale per trace (row id to mm/s or minutes). Local, like dark / light;
+   *  empty means "as the design says". The trace and its number both read this. */
+  xScale: Record<string, number>;
   /** CSS pixels per millimetre used for trace gain and sweep speed. Nominal unless
    *  this screen has been calibrated (the calibration sheet is milestone M4). */
   pxPerMm: number;
@@ -36,6 +39,8 @@ interface UiState {
   showSheet(sheet: SheetId | null, context?: string | null): void;
   setEditMode(on: boolean): void;
   toggleMode(): void;
+  /** Set (or with null, clear) one trace's x scale on this screen. */
+  setXScale(rowId: string, value: number | null): void;
   setNotice(text: string | null): void;
   fail(message: string): void;
 }
@@ -52,6 +57,18 @@ function readMode(): ThemeMode | null {
     return v === "dark" || v === "light" ? v : null;
   } catch { return null; }
 }
+const XSCALE_KEY = "emus.x-scale";
+export function readXScale(): Record<string, number> {
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(XSCALE_KEY) ?? "{}");
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(raw ?? {})) if (typeof v === "number" && Number.isFinite(v) && v > 0) out[k] = v;
+    return out;
+  } catch { return {}; }
+}
+function writeXScale(v: Record<string, number>): void {
+  try { window.localStorage.setItem(XSCALE_KEY, JSON.stringify(v)); } catch { /* not persisted */ }
+}
 function writeMode(mode: ThemeMode): void {
   try { window.localStorage.setItem(MODE_KEY, mode); } catch { /* not persisted */ }
 }
@@ -59,7 +76,7 @@ function writeMode(mode: ThemeMode): void {
 export const useUi = create<UiState>((set) => ({
   stored: null, draft: null, registry: null, error: null,
   screenId: null, openMenu: null, openSheet: null, sheetContext: null,
-  editMode: false, mode: readMode(), pxPerMm: NOMINAL_PX_PER_MM, patientId: DEFAULT_PATIENT, notice: null,
+  editMode: false, mode: readMode(), xScale: readXScale(), pxPerMm: NOMINAL_PX_PER_MM, patientId: DEFAULT_PATIENT, notice: null,
 
   load: (stored, registry) =>
     set((s) => ({ stored, registry, error: null,
@@ -69,6 +86,12 @@ export const useUi = create<UiState>((set) => ({
   showMenu: (openMenu) => set({ openMenu, openSheet: null }),
   showSheet: (openSheet, sheetContext = null) => set({ openSheet, sheetContext, openMenu: null }),
   setEditMode: (editMode) => set({ editMode }),
+  setXScale: (rowId, value) => set((s) => {
+    const next = { ...s.xScale };
+    if (value === null) delete next[rowId]; else next[rowId] = value;
+    writeXScale(next);
+    return { xScale: next };
+  }),
   toggleMode: () => set((s) => {
     const design = s.draft ?? s.stored?.document;
     const current = s.mode ?? design?.theme.mode ?? "dark";

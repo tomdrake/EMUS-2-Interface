@@ -109,7 +109,10 @@ with, then commit. To use a different model for the agents, pass it as an argume
     through `label()` from `frontend/src/design/text.ts`. Never pass prose (advice,
     explanations, alarm messages) through it.
 
-13. **Alignment is measured, not eyeballed.** Use the shared metrics in
+13. **A row is not one big button.** A button inside a button is invalid. The row is a
+    `div` with a transparent tap button (alarm limits) above its content and the x scale
+    control above that. Do not wrap rows or modules in a button.
+14. **Alignment is measured, not eyeballed.** Use the shared metrics in
     `frontend/src/styles.css`: `--edge` (the one left inset for text in bars, rows,
     menus, sheets and the feed), `--inset` (the same line from inside a bordered
     panel), `--line` (the first text line of a row and of a tile, so a row's name

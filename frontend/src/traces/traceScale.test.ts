@@ -1,5 +1,5 @@
 import {
-  NOMINAL_PX_PER_MM, gainText, mmToPx, niceTicks, secondBarPx, thinTicks, trendRange, trendY,
+  NOMINAL_PX_PER_MM, gainText, mmToPx, niceTicks, thinTicks, trendRange, trendY,
   waveTransform, type WaveScale,
 } from "./traceScale";
 
@@ -81,11 +81,10 @@ describe("arbitrary-unit scale", () => {
   });
 });
 
-describe("time and trends", () => {
-  it("makes the one-second bar speed x pixels per mm long", () => {
-    expect(secondBarPx(25)).toBeCloseTo(25 * 96 / 25.4, 6);
-    expect(secondBarPx(12.5, 4)).toBe(50);
+describe("trends", () => {
+  it("converts millimetres to pixels", () => {
     expect(mmToPx(10, 4)).toBe(40);
+    expect(mmToPx(25)).toBeCloseTo(25 * 96 / 25.4, 6);
   });
 
   it("shows a trend over its usual span, inside the parameter's limits", () => {

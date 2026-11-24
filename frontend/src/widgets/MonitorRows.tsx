@@ -48,10 +48,14 @@ export function MonitorRows({ widget }: { widget: WidgetOf<"monitor-rows"> }) {
         const title = rowTitle(row, design, registry);
         const values = tileValues(row);
         return (
-          <button key={row.id} type="button" className="row"
-                  style={{ flex: `${equal && values.length ? 1 : row.height} 1 0`, color: colour }}
-                  data-testid={`row-${row.id}`} data-parameter={row.parameter ?? ""}
-                  onClick={() => useUi.getState().showSheet("alarm-limits", row.id)}>
+          <div key={row.id} className="row"
+               style={{ flex: `${equal && values.length ? 1 : row.height} 1 0`, color: colour }}
+               data-testid={`row-${row.id}`} data-parameter={row.parameter ?? ""}>
+            {/* The row's own tap (alarm limits). A sibling of the x scale control, not its parent:
+                a button inside a button is invalid. It sits above the content, below the control. */}
+            <button type="button" className="row-hit" data-testid={`row-hit-${row.id}`}
+                    aria-label={`${title.name}: alarm limits`}
+                    onClick={() => useUi.getState().showSheet("alarm-limits", row.id)} />
             <div className="row-trace">
               <div className="row-head">
                 <span className="row-label" data-testid={`row-label-${row.id}`}>
@@ -64,7 +68,7 @@ export function MonitorRows({ widget }: { widget: WidgetOf<"monitor-rows"> }) {
             <div className="row-tiles">
               {values.length ? <Tile values={values} /> : <span className="tile tile-empty" aria-hidden="true" />}
             </div>
-          </button>
+          </div>
         );
       })}
     </div>

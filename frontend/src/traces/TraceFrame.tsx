@@ -2,10 +2,12 @@ import { useDesign, useUi } from "@/app/store";
 import type { Row } from "@/design/types";
 
 import {
-  MIN_LABEL_HEIGHT_PX, gainText, niceTicks, secondBarPx, thinTicks, trendRange, trendY, waveTransform,
+  MIN_LABEL_HEIGHT_PX, gainText, niceTicks, thinTicks, trendRange, trendY, waveTransform,
   type WaveScale,
 } from "./traceScale";
 import { useSize } from "./useSize";
+import { XScaleButton } from "./XScaleButton";
+import { xScaleFor } from "./xScale";
 
 const GUTTER = 44;          // room for the axis labels and the calibration bar
 const LABEL = 10.5;         // px, the smallest text on a trace
@@ -26,6 +28,7 @@ export function TraceFrame({ row }: { row: Row }) {
   const design = useDesign()!;
   const registry = useUi((s) => s.registry)!;
   const pxPerMm = useUi((s) => s.pxPerMm);
+  const local = useUi((s) => s.xScale);
   const [ref, { w, h }] = useSize<HTMLDivElement>();
   const cfg = design.traces;
   const wanted = row.trace === "waveform" || row.trace === "trend";
@@ -34,6 +37,9 @@ export function TraceFrame({ row }: { row: Row }) {
   const labels = cfg.show_scale && h >= MIN_LABEL_HEIGHT_PX;
   const gutter = labels || (cfg.show_calibration_bar && h >= MIN_LABEL_HEIGHT_PX) ? GUTTER : 0;
   const right = w - 6;
+  // Room the x scale number takes at the bottom right, so the gain sits beside it.
+  const xs = xScaleFor(row, design, local);
+  const xWidth = (xs?.label.length ?? 0) * 6 + 18;
   const children: React.ReactNode[] = [];
   let meta: Record<string, string | number | boolean> = {};
 
@@ -71,21 +77,10 @@ export function TraceFrame({ row }: { row: Row }) {
             <text className="trace-label" x={x + 5} y={(y0 + y1) / 2 + 3.5}>1 mV</text>
           </g>);
       }
-      if (cfg.show_time_scale && h >= MIN_LABEL_HEIGHT_PX) {
-        // One second, unlabelled: the bar is the x scale and needs no words.
-        const len = secondBarPx(design.sweep.speed_mm_s, pxPerMm);
-        const y = h - 4;
-        children.push(
-          <g key="time" className="trace-bar" data-testid={`trace-time-${row.id}`} data-px={len.toFixed(3)}>
-            <line x1={right - len} x2={right} y1={y} y2={y} />
-            <line x1={right - len} x2={right - len} y1={y - 3} y2={y + 3} />
-            <line x1={right} x2={right} y1={y - 3} y2={y + 3} />
-          </g>);
-      }
       const gain = gainText(t);
       if (cfg.show_scale && gain && h >= MIN_LABEL_HEIGHT_PX) {
-        // Just the gain, in thin light text, beside the time bar (or at the edge without one).
-        const x = cfg.show_time_scale ? right - secondBarPx(design.sweep.speed_mm_s, pxPerMm) - 6 : right;
+        // Just the gain, in thin light text, to the left of the x scale number.
+        const x = cfg.show_time_scale ? right - xWidth : right;
         children.push(
           <text key="gain" className="trace-label trace-gain" data-testid={`trace-gain-${row.id}`}
                 x={x} y={h - 0.5} textAnchor="end">{gain}</text>);
@@ -117,6 +112,7 @@ export function TraceFrame({ row }: { row: Row }) {
           {children}
         </svg>
       )}
+      {cfg.show_time_scale && <XScaleButton row={row} />}
     </div>
   );
 }

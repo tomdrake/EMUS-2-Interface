@@ -186,7 +186,6 @@ for (const vp of VIEWPORTS) {
       const rowColour = getComputedStyle(row).color;
       const base = svg.querySelector(".trace-baseline");
       const bar = svg.querySelector(".trace-bar[data-testid^='trace-bar']");
-      const time = svg.querySelector(".trace-bar[data-testid^='trace-time']");
       const labels = [...svg.querySelectorAll(".trace-label")];
       const frame = svg.getBoundingClientRect(), name = row.querySelector(".row-label").getBoundingClientRect();
       out[id] = {
@@ -197,8 +196,11 @@ for (const vp of VIEWPORTS) {
         gain: svg.dataset.gain, pxPerUnit: Number(svg.dataset.pxPerUnit), fitted: svg.dataset.fitted,
         barPx: bar ? Number(bar.dataset.px) : null,
         barDrawn: bar ? Math.abs(Number(bar.querySelector("line").getAttribute("y1")) - Number(bar.querySelector("line").getAttribute("y2"))) : null,
-        timePx: time ? Number(time.dataset.px) : null,
-        timeDrawn: time ? Math.abs(Number(time.querySelector("line").getAttribute("x2")) - Number(time.querySelector("line").getAttribute("x1"))) : null,
+        // any bar that is not the vertical 1 mV calibration bar would be a horizontal scale bar
+        otherBars: [...svg.querySelectorAll(".trace-bar")].filter((g) => !(g.dataset.testid || "").startsWith("trace-bar-")).length,
+        horizontalBars: [...svg.querySelectorAll(".trace-bar > line")].filter((l) =>
+          Math.abs(Number(l.getAttribute("x2")) - Number(l.getAttribute("x1"))) > 12 &&
+          Math.abs(Number(l.getAttribute("y2")) - Number(l.getAttribute("y1"))) < 1).length,
         labels: labels.map((l) => l.textContent),
         gainWeight: (() => { const g = svg.querySelector(".trace-gain"); return g ? Number(getComputedStyle(g).fontWeight) : null; })(),
         gainSize: (() => { const g = svg.querySelector(".trace-gain"); return g ? parseFloat(getComputedStyle(g).fontSize) : null; })(), labelSize: Math.min(...labels.map((l) => parseFloat(getComputedStyle(l).fontSize))),
@@ -219,13 +221,55 @@ for (const vp of VIEWPORTS) {
   check(m.ecg.labels.includes("mV") && m.ecg.labels.includes("1 mV") && gainLabels.length === 1 && /^\d+(\.\d+)? mm\/mV$/.test(gainLabels[0]),
         `${vp.name}: the ECG has an mV axis, a 1 mV bar and a plain gain label (${m.ecg.labels.join(" | ")})`);
   check(!m.ecg.labels.some((l) => /nominal|fitted|mm\/s|^1 s$/.test(l)) && !m.spo2.labels.some((l) => /^1 s|mm\/s/.test(l)),
-        `${vp.name}: there is no label on the time bar, and no speed or caveat text on the traces`);
+        `${vp.name}: no caveat text on the traces, and the x scale is not an SVG label`);
   check(m.ecg.gainWeight <= 300 && m.ecg.gainSize >= 10.5,
         `${vp.name}: the gain is in thin light text (weight ${m.ecg.gainWeight}, ${m.ecg.gainSize}px)`);
   check(Math.abs(m.ecg.barDrawn - m.ecg.barPx) < 0.05 && Math.abs(m.ecg.barPx - m.ecg.pxPerUnit) < 0.01 &&
         Math.abs(m.ecg.barPx - Number(m.ecg.gain) * marks.pxPerMm) < 0.05,
         `${vp.name}: the 1 mV bar is exactly the trace's scale (${m.ecg.barPx}px = ${m.ecg.gain} mm/mV, fitted=${m.ecg.fitted})`);
-  check(Math.abs(m.ecg.timeDrawn - 25 * marks.pxPerMm) < 0.05, `${vp.name}: the one-second bar is 25 mm/s long`);
+  check(Object.values(m).every((x) => x.otherBars === 0 && x.horizontalBars === 0),
+        `${vp.name}: there are no horizontal scale bars on any trace`);
+
+  // --- the x scale is a number, and can be changed (one touch to open, one to choose)
+  const xtext = (id) => T(`xscale-${id}`).innerText();
+  check(await xtext("ecg") === "25 mm/s" && await xtext("spo2") === "25 mm/s" && await xtext("resp") === "25 mm/s",
+        `${vp.name}: each waveform's x scale is written as a number (25 mm/s)`);
+  check(await xtext("bp") === "4 h" && await xtext("temp") === "4 h", `${vp.name}: each trend's x scale is its time window (4 h)`);
+  check(await T("xscale-oxygen").count() === 0, `${vp.name}: bar rows have no x scale`);
+  const xs = await page.evaluate(() => {
+    const b = document.querySelector('[data-testid="xscale-ecg"]'), r = b.getBoundingClientRect();
+    const text = b.querySelector(".xscale-text"), cs = getComputedStyle(text);
+    return { w: r.width, h: r.height, weight: Number(cs.fontWeight), size: parseFloat(cs.fontSize),
+             colourOk: cs.color === getComputedStyle(document.querySelector('[data-testid="row-ecg"]')).color,
+             inRow: b.closest('[data-testid="row-ecg"]') !== null,
+             nested: document.querySelectorAll("button button").length };
+  });
+  check(xs.w >= 48 && xs.h >= 48, `${vp.name}: the x scale is a touch target (${Math.round(xs.w)}x${Math.round(xs.h)}px)`);
+  check(xs.weight <= 300 && xs.size >= 10.5 && xs.colourOk, `${vp.name}: the x scale is thin light text in the row colour`);
+  check(xs.nested === 0, `${vp.name}: no button sits inside another button`);
+  await T("xscale-ecg").click();
+  const options = await page.locator('[data-testid="xscale-menu-ecg"] [role=menuitemradio]').evaluateAll((els) =>
+    els.map((e) => ({ t: e.textContent, h: e.getBoundingClientRect().height, on: e.getAttribute("aria-checked") })));
+  check(options.map((o) => o.t).join() === "6.25 mm/s,12.5 mm/s,25 mm/s,50 mm/s" && options.every((o) => o.h >= 48) &&
+        options.find((o) => o.on === "true").t === "25 mm/s", `${vp.name}: one touch opens the speeds, each a touch target, the current one marked`);
+  const menuBox = await T("xscale-menu-ecg").boundingBox();
+  check(menuBox.x >= 0 && menuBox.y >= 0 && menuBox.x + menuBox.width <= vp.width && menuBox.y + menuBox.height <= vp.height,
+        `${vp.name}: the menu stays on screen`);
+  await shot("xscale-menu");
+  await T("xscale-option-ecg-50").click();
+  check(await xtext("ecg") === "50 mm/s" && await xtext("spo2") === "25 mm/s" && await xtext("resp") === "25 mm/s",
+        `${vp.name}: choosing 50 mm/s changes the ECG only`);
+  await T("xscale-bp").click();
+  await T("xscale-option-bp-60").click();
+  check(await xtext("bp") === "1 h" && await xtext("temp") === "4 h", `${vp.name}: a trend's window changes on its own`);
+  check(await T("sheet-alarm-limits").count() === 0, `${vp.name}: using the x scale does not open the alarm limits`);
+  await page.reload({ waitUntil: "networkidle" });
+  await T("app").waitFor();
+  check(await xtext("ecg") === "50 mm/s" && await xtext("bp") === "1 h", `${vp.name}: the choices survive a reload`);
+  await T("xscale-ecg").click(); await T("xscale-option-ecg-25").click();
+  await T("xscale-bp").click(); await T("xscale-option-bp-240").click();
+  check(await xtext("ecg") === "25 mm/s" && await xtext("bp") === "4 h", `${vp.name}: and go back`);
+  await page.waitForSelector('[data-testid="trace-frame-ecg"]');
   check(m.spo2.labels.includes("a.u.") && m.resp.labels.includes("a.u.") && m.spo2.barPx === null,
         `${vp.name}: pleth and resp have an arbitrary-unit scale and no calibration bar`);
   check(m.bp.labels.includes("mmHg") && m.temp.labels.includes("°C") && m.bp.dashed === null,

@@ -534,7 +534,8 @@ class TraceDisplay(_Model):
     show_scale: bool = True
     #: A bar exactly 1 mV tall at the current gain, beside the ECG.
     show_calibration_bar: bool = True
-    #: A bar one second long at the current sweep speed.
+    #: The x scale written as a number beside the trace ("25 mm/s" on a waveform,
+    #: "4 h" on a trend), tappable to change it on this screen. No horizontal bar.
     show_time_scale: bool = True
     #: ECG gain. 10 mm/mV is the standard; the others are the usual alternatives.
     ecg_gain_mm_per_mv: Literal[5, 10, 20] = 10
