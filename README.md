@@ -132,3 +132,11 @@ the rest. Changes show at once and are saved as a new version with your name and
   position, activity, falls). The adapter is a documented stub until SDK access.
 - FHIR R4 and HL7 v2 interfaces are milestone M8. Clinical codes marked provisional
   in `registry.py` need checking against a terminology server before real use.
+
+## Monitor screen (round 7)
+
+The monitor is five full-width traces (ECG, SpO2, respiration, blood pressure, temperature) and then one line of four small boxes: O2 flow, activity, falls and NEWS2. **Height** of any module is set in Edit Layout (Shorter, Standard, Taller, Tallest, Double; saved in the design as `height_scale`); ECG, SpO2, BP and the bottom line start a little taller and the ECG gain starts at 5 mm/mV.
+
+- **Blood pressure** on the trace is a down arrow (systolic), an up arrow (diastolic) and an X (MAP), each joined by dashes, with a key and five values on the scale. The tile shows the diastolic as large as the systolic.
+- **Boxes** show the rhythm in words under the HR, Regular or Irregular for breathing, the 24 h high and low temperature, falls in the last 24 hours, time standing, walking and moving, and the NEWS2 total over time and by date and time. These come from the example snapshot (`falls_24h`, `activity_24h`, `extremes_24h`, `rhythm`, `resp_pattern`).
+- **Measure BP** and **Measure Temp** tab buttons run a simulated reading (`GET /api/examples/{scenario}/measure`), added to the list, trend and tile until the time changes. It is marked simulated and reaches no record.
