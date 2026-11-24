@@ -4,15 +4,17 @@ import { useDesign, useUi } from "@/app/store";
 import type { ExampleSnapshot } from "@/contracts/types.gen";
 import { useSnapshot } from "@/examples/store";
 import { useEditor } from "@/studio/editor";
-import { rowTitle } from "@/design/text";
+import { rowTitle, titleCase } from "@/design/text";
 import { paramVar } from "@/design/theme";
 import type { Row } from "@/design/types";
 import { visibleContent, type Placement } from "@/layout/grid";
 import { RowStatus, Tile, type TileValue } from "@/safety/Tile";
 import { TraceFrame } from "@/traces/TraceFrame";
 
+import { ActivityDetail, FallsDetail, NewsTrend, OxygenDetail, RISK_COLOUR } from "./ModuleDetails";
+
 /** The values a row's tile holds, primary first. Blood pressure reads as one value, "120/80 (93)". */
-export function tileValues(row: Row, numerics?: ExampleSnapshot["numerics"]): TileValue[] {
+export function tileValues(row: Row, numerics?: ExampleSnapshot["numerics"], notes: string[] = []): TileValue[] {
   const n = row.numerics as string[];
   const at = (p: string) => (numerics as Record<string, number | string | null | undefined> | undefined)?.[p];
   if (n.includes("bp_sys") && n.includes("bp_dia")) {
@@ -20,7 +22,25 @@ export function tileValues(row: Row, numerics?: ExampleSnapshot["numerics"]): Ti
               extra: [{ separator: "/", value: at("bp_dia") }, ...(n.includes("bp_mean")
                 ? [{ separator: " ", wrap: [" (", ")"] as [string, string], value: at("bp_mean") }] : [])] }];
   }
-  return n.map((parameter) => ({ parameter, value: at(parameter) }));
+  return n.map((parameter, i) => ({ parameter, value: at(parameter), ...(i === 0 && notes.length ? { notes } : {}) }));
+}
+
+/** "15 H" for a window of 900 minutes; "24 H" for a day. */
+const windowH = (min: number) => `${Math.max(1, Math.round(min / 60))} H`;
+
+/**
+ * The small lines under a tile's number: the heart's rhythm in words, whether breathing is regular, and the
+ * highest and lowest temperature over the last day. They come from the same example snapshot as the numbers.
+ */
+export function tileNotes(row: Row, s: ExampleSnapshot | null, rhythmLabels: Record<string, string> = {}): string[] {
+  if (!s) return [];
+  if (row.parameter === "hr" && s.rhythm) return [titleCase(rhythmLabels[s.rhythm] ?? s.rhythm)];
+  if (row.parameter === "rr" && s.resp_pattern) return [s.resp_pattern === "regular" ? "Regular" : "Irregular"];
+  if (row.parameter === "temp") {
+    const e = s.extremes_24h.temp;
+    if (e && e.window_min > 0) return [`${windowH(e.window_min)} Max ${e.max.toFixed(1)} Min ${e.min.toFixed(1)}`];
+  }
+  return [];
 }
 
 /**
@@ -46,8 +66,9 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
   const drawsTrace = row.trace === "waveform" || row.trace === "trend";
   const vis = visibleContent(spec, row.content, drawsTrace);
   const snapshot = useSnapshot();
-  const values = tileValues(row, snapshot?.numerics);
-  const colour = row.colour ?? (row.parameter ? paramVar(row.parameter) : "var(--c-text)");
+  const values = tileValues(row, snapshot?.numerics, tileNotes(row, snapshot, registry.rhythm_labels));
+  const risk = row.parameter === "news2" ? snapshot?.news2.risk : null;
+  const colour = risk ? RISK_COLOUR[risk] : row.colour ?? (row.parameter ? paramVar(row.parameter) : "var(--c-text)");
   const title = rowTitle(row, design, registry);
   const flow = spec.flow;
   const tall = placement.rowSpan > 1;
@@ -76,9 +97,13 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
     </div>
   );
   const tile = values.length ? <Tile values={values} /> : <span className="tile tile-empty" aria-hidden="true" />;
-  const trace = vis.trace
+  // Falls, activity and the NEWS2 history have no trace; they show their own small summaries instead.
+  const summary = flow === "row" ? null : row.parameter === "falls" ? <FallsDetail /> : row.parameter === "activity" ? <ActivityDetail />
+    : row.parameter === "o2_flow" ? <OxygenDetail />
+    : row.trace === "news" ? <NewsTrend /> : null;
+  const trace = summary ?? (vis.trace
     ? <TraceFrame row={row} mini={vis.trace === "spark"} />
-    : <div className="trace-area" data-testid={`trace-${row.id}`} />;
+    : <div className="trace-area" data-testid={`trace-${row.id}`} />);
   const titleOnly = !values.length && (
     <div className="module-title"><span className="row-label">{title.name}</span>
       {row.parameter && <RowStatus parameter={row.parameter} />}</div>);

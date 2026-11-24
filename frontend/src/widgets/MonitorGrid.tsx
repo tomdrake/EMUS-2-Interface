@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import { useDesign, useUi } from "@/app/store";
 import type { Row, WidgetOf } from "@/design/types";
-import { packGrid } from "@/layout/grid";
+import { packGrid, rowWeights } from "@/layout/grid";
 
 import { Module } from "./Module";
 
@@ -31,7 +31,8 @@ export function MonitorGrid({ widget }: { widget: WidgetOf<"monitor-grid"> }) {
   const style = {
     "--tile": `${design.tiles.width_px}px`,
     gridTemplateColumns: `repeat(${widget.columns}, minmax(0, 1fr))`,
-    gridTemplateRows: `repeat(${Math.max(1, rowCount)}, minmax(0, 1fr))`,
+    gridTemplateRows: rowWeights(placements, rowCount, (id) => byId.get(id)?.height_scale ?? 1)
+      .map((w) => `minmax(0, ${w}fr)`).join(" "),
   } as React.CSSProperties;
 
   return (

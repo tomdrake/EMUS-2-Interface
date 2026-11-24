@@ -4,7 +4,7 @@ import { useSnapshot } from "@/examples/store";
 import type { Row } from "@/design/types";
 
 import { AnnotationLayer } from "./AnnotationLayer";
-import { BpLayer, TempKey, bpExtent, bpRange, keySize, TempLayer, bpDots, keyCorner, lineSamples, tempDots } from "./Discrete";
+import { BpKey, BpLayer, TempKey, bpExtent, bpRange, keySize, TempLayer, bpDots, keyCorner, lineSamples, tempDots } from "./Discrete";
 import { Spark, trendPath } from "./Spark";
 import { StripPath, fullWindow, stripWindow, sweepMotion } from "./Strip";
 import {
@@ -170,8 +170,10 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
       const range = row.parameter === "bp_sys" && snapshot ? bpRange(snapshot.bp_readings, base) : base;
       meta = { "data-range": range.map((x) => x.toFixed(1)).join(",") };
       const pxPerUnit = (plotH - 2 * padFor(plotH)) / (range[1] - range[0]);
-      const all = niceTicks(range[0], range[1], 3);
-      let ticks = thinTicks(all, pxPerUnit);
+      // Blood pressure reads from more values on its scale: five rather than three.
+      const all = niceTicks(range[0], range[1], row.parameter === "bp_sys" ? 5 : 3);
+      // Blood pressure keeps its extra values: its labels may sit closer than the others.
+      let ticks = thinTicks(all, pxPerUnit, row.parameter === "bp_sys" ? 12 : undefined);
       // Always keep the bottom and top tick when they fit, so the scale is never a single number.
       if (ticks.length < 2 && all.length >= 2 && (all[all.length - 1]! - all[0]!) * pxPerUnit >= 14) ticks = [all[0]!, all[all.length - 1]!];
       const y = (v: number) => trendY(v, range, plotH, padFor(plotH));
@@ -191,6 +193,7 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
         if (row.parameter === "bp_sys") {
           const dots = bpDots(snapshot.bp_readings, now, frame);
           children.push(<BpLayer key="bp" dots={dots} rowId={row.id} plotH={plotH} />);
+          if (dots.length && plotH < h && right - gutter > 300) children.push(<BpKey key="bpkey" x={gutter + 6} y={plotH + (h - plotH) / 2} />);
           if (!dots.length) children.push(<text key="none" className="trace-label" x={(frame.x0 + frame.x1) / 2} y={plotH / 2} textAnchor="middle">No Reading</text>);
         } else {
           const series = snapshot.trends[row.parameter as keyof typeof snapshot.trends];
@@ -205,7 +208,7 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
               // Points along the dashed line count too, so the key never sits on a segment.
               const pts = [...dots, ...lineSamples(dots), ...series.points.filter((q) => q.t >= -windowMin).map((q) => ({ x: gutter + 2 + ((q.t + windowMin) / windowMin) * (right - gutter - 2), y: y(q.v) }))];
               const plot = { x0: frame.x0, x1: frame.x1, h: plotH };
-              children.push(<TempKey key="key" corner={keySize(plotH).compact && plotH < h ? "strip" : keyCorner(pts, plot, keySize(plotH))} plot={plot} rowId={row.id} />);
+              if (h >= MIN_X_PX) children.push(<TempKey key="key" corner={keySize(plotH).compact && plotH < h ? "strip" : keyCorner(pts, plot, keySize(plotH))} plot={plot} rowId={row.id} />);
             }
           }
         }

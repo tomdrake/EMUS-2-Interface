@@ -1,4 +1,4 @@
-import type { ExampleScenarioInfo, ExampleSnapshot } from "@/contracts/types.gen";
+import type { ExampleScenarioInfo, ExampleSnapshot, MeasuredReading } from "@/contracts/types.gen";
 import type { Design, StoredDesign } from "@/design/types";
 
 /** Thrown for any non-2xx response. `milestone` is set for scaffolded (501) routes. */
@@ -110,6 +110,8 @@ export const api = {
   previewPatch: (id: string, ops: unknown[]) =>
     post<PatchPreview>(`/api/designs/${id}/preview-patch`, { ops }),
   examples: () => get<ExampleScenarioInfo[]>("/api/examples"),
+  measure: (scenario: string, kind: "bp" | "temp", minute: number) =>
+    get<MeasuredReading>(`/api/examples/${scenario}/measure?kind=${kind}&minute=${minute}`),
   example: (scenario: string, minute: number) =>
     get<ExampleSnapshot>(`/api/examples/${scenario}?minute=${minute}`),
   validateDesign: (document: unknown) =>

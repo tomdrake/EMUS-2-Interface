@@ -71,7 +71,7 @@ IconId = Literal[
     "monitor", "chart", "split", "labs", "imaging", "ai", "forecast", "alarm",
     "alarm-off", "settings", "patient", "oxygen", "timer", "heart", "lungs",
     "drop", "thermometer", "activity", "sleep", "fall", "palette", "layout",
-    "chat", "history", "info", "new-patient", "discharge", "theme", "bell", "none",
+    "chat", "history", "info", "new-patient", "discharge", "theme", "bell", "bp-cuff", "none",
 ]
 
 
@@ -161,7 +161,7 @@ class Row(_Model):
         None, description="How it is measured, shown after the label as 'Heart Rate - ECG'. "
                           "Overrides the default (the row's waveform, else the registry method).")
     colour: Colour | None = Field(None, description="Overrides theme.parameter_colours.")
-    trace: Literal["waveform", "trend", "bar", "events", "none"] = "trend"
+    trace: Literal["waveform", "trend", "bar", "events", "news", "none"] = "trend"
     waveform: WaveformId | None = Field(None, description="Required when trace='waveform'.")
     trend_window_min: int = Field(60, ge=5, le=1440)
     numerics: list[ParameterId] = Field(
@@ -170,6 +170,9 @@ class Row(_Model):
     show_limits: bool = True
     content: ModuleContent = Field(default_factory=ModuleContent)
     visible: bool = True
+    height_scale: float = Field(
+        1.0, ge=0.5, le=3.0,
+        description="How tall this row is against the others in its line of the grid (1 = standard).")
 
     @model_validator(mode="after")
     def _check(self) -> "Row":
@@ -356,7 +359,7 @@ SheetId = Literal[
     # clinical
     "alarm-limits", "oxygen", "patient", "new-patient", "discharge-patient",
     "record-observations", "finding-explain", "underlying-data", "explanation-examples",
-    "trends", "abcde-assess",
+    "trends", "abcde-assess", "measure-bp", "measure-temp",
     "forecast-horizon", "news2-variant", "home-screen",
     # design studio sections (each one touch from the Settings menu)
     "studio-appearance", "studio-layout", "studio-rows", "studio-navigation",
@@ -595,7 +598,7 @@ class TraceDisplay(_Model):
     #: "4 h" on a trend), tappable to change it on this screen. No horizontal bar.
     show_time_scale: bool = True
     #: ECG gain. 10 mm/mV is the standard; the others are the usual alternatives.
-    ecg_gain_mm_per_mv: Literal[5, 10, 20] = 10
+    ecg_gain_mm_per_mv: Literal[5, 10, 20] = 5
 
 
 # ---------------------------------------------------------- AI interpretation
@@ -688,7 +691,7 @@ class Design(_Model):
     alt_theme: Theme = Field(description="The other side of the dark / light switch.")
     top_bar: TopBar
     tab_bar: TabBar = Field(default_factory=TabBar)
-    tabs: list[Button] = Field(min_length=2, max_length=10)
+    tabs: list[Button] = Field(min_length=2, max_length=12)
     menus: list[Menu] = Field(default_factory=list)
     screens: list[Screen] = Field(min_length=1)
     home_screen: Slug

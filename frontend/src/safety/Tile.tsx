@@ -87,6 +87,8 @@ export interface TileValue {
   name?: string;
   /** More values written as one, e.g. blood pressure "120/80 (93)". */
   extra?: { separator: string; value?: number | string | null; wrap?: [string, string] }[];
+  /** Small lines under the number (the rhythm in words, regular or irregular, the day's extremes). */
+  notes?: string[];
 }
 
 /** How serious a display state is, for choosing the frame of a tile whose values differ. */
@@ -153,6 +155,7 @@ export function Tile({ values }: { values: TileValue[] }) {
                   data-testid={`cell-${c.v.parameter}`} data-state={c.d.kind}>
               <span className="tile-head">
                 <span className="tile-name">{names} {unit && <small>{unit}</small>}</span>
+                {c.d.showValue && c.v.notes?.map((n, k) => <span key={k} className="tile-note-head" data-testid={`note-${c.v.parameter}-${k}`}>{n}</span>)}
                 {PROBLEM.has(c.d.kind) && <span className="tile-glyph" aria-hidden="true">!</span>}
                 {c.alarmOff && <span className="tile-alarm-off" title="Alarm off for this parameter">ALARM OFF</span>}
               </span>

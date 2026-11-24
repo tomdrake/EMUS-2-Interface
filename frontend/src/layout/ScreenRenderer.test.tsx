@@ -77,7 +77,7 @@ describe("ScreenRenderer", () => {
     expect(grid.dataset.columns).toBe("4");
     expect(grid.dataset.rows).toBe("3");            // a full row, then a tall one (2 high) beside a small square
     expect(grid.style.gridTemplateColumns).toBe("repeat(4, minmax(0, 1fr))");
-    expect(grid.style.gridTemplateRows).toBe("repeat(3, minmax(0, 1fr))");
+    expect(grid.style.gridTemplateRows).toBe("minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)");   // equal lines at the standard height
   });
 
   it("places each module by its size", () => {

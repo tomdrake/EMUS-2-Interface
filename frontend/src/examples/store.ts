@@ -1,7 +1,9 @@
 import { create } from "zustand";
 
 import { api } from "@/app/api";
-import type { ExampleScenarioInfo, ExampleSnapshot } from "@/contracts/types.gen";
+import { useMemo } from "react";
+
+import type { BpReading, ExampleScenarioInfo, ExampleSnapshot, TempReading } from "@/contracts/types.gen";
 import { useSafety } from "@/safety/store";
 
 /**
@@ -27,7 +29,28 @@ function write(s: Saved): void {
   try { window.localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* not persisted */ }
 }
 
+/** Readings taken on this screen with the Measure BP and Measure Temp buttons (simulated), newest first. */
+export interface Taken { bp: BpReading[]; temp: TempReading[] }
+const NONE: Taken = { bp: [], temp: [] };
+
+/**
+ * The snapshot with this screen's taken readings in it: the list, the trend, the tile number and the
+ * thermometer points then all show them. Each takes the time of the snapshot (a little apart, so each
+ * stays distinct and the order holds); nothing is stored beyond the screen.
+ */
+export function mergeTaken(s: ExampleSnapshot, taken: Taken): ExampleSnapshot {
+  if (!taken.bp.length && !taken.temp.length) return s;
+  const at = (i: number) => new Date(Date.parse(s.generated_at) - i * 30_000).toISOString();
+  const bp = taken.bp.map((r, i) => ({ ...r, at: at(i) }));
+  const temp = taken.temp.map((r, i) => ({ ...r, at: at(i) }));
+  const numerics = bp[0] ? { ...s.numerics, bp_sys: bp[0].sys, bp_dia: bp[0].dia, bp_mean: bp[0].map } : s.numerics;
+  return { ...s, numerics, bp_readings: [...bp, ...s.bp_readings], temp_readings: [...temp, ...s.temp_readings] };
+}
+
 interface ExampleState extends Saved {
+  taken: Taken;
+  /** Keep a simulated reading from the Measure sheets. Cleared when the scenario or the minute changes. */
+  addTaken(r: { bp?: BpReading | null; temp?: TempReading | null }): void;
   scenarios: ExampleScenarioInfo[];
   snapshot: ExampleSnapshot | null;
   status: "idle" | "loading" | "ready" | "error";
@@ -45,7 +68,8 @@ let seq = 0;
 
 export const useExample = create<ExampleState>((set, get) => ({
   ...read(),
-  scenarios: [], snapshot: null, status: "idle", error: null,
+  scenarios: [], snapshot: null, status: "idle", error: null, taken: NONE,
+  addTaken: (r) => set((s) => ({ taken: { bp: r.bp ? [r.bp, ...s.taken.bp] : s.taken.bp, temp: r.temp ? [r.temp, ...s.taken.temp] : s.taken.temp } })),
 
   setEnabled: (enabled) => {
     set({ enabled });
@@ -55,12 +79,12 @@ export const useExample = create<ExampleState>((set, get) => ({
   setScenario: (scenario) => {
     const info = get().scenarios.find((s) => s.id === scenario);
     const minute = info ? Math.min(Math.max(get().minute, info.start_min), info.end_min) : 0;
-    set({ scenario, minute });
+    set({ scenario, minute, taken: NONE });
     write({ enabled: get().enabled, scenario, minute });
     void get().refresh();
   },
   setMinute: (minute) => {
-    set({ minute });
+    set({ minute, taken: NONE });
     write({ enabled: get().enabled, scenario: get().scenario, minute });
     void get().refresh();
   },
@@ -111,5 +135,7 @@ export function startExamples(): () => void {
 
 /** The snapshot while example data is on; otherwise null. */
 export function useSnapshot(): ExampleSnapshot | null {
-  return useExample((s) => (s.enabled ? s.snapshot : null));
+  const snapshot = useExample((s) => (s.enabled ? s.snapshot : null));
+  const taken = useExample((s) => s.taken);
+  return useMemo(() => (snapshot ? mergeTaken(snapshot, taken) : null), [snapshot, taken]);
 }

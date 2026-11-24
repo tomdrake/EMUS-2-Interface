@@ -54,6 +54,27 @@ export function packGrid(items: readonly GridItem[], columns: number, sizes: Rec
   return { placements, rowCount };
 }
 
+/** The height presets of Edit Layout: how tall a module is against the others in its line. */
+export const HEIGHTS = [
+  { value: 0.75, label: "Shorter" }, { value: 1, label: "Standard" }, { value: 1.25, label: "Taller" },
+  { value: 1.5, label: "Tallest" }, { value: 2, label: "Double" },
+] as const;
+
+/**
+ * The weight of each line of the grid, for its `fr` track. A line takes the largest `height_scale` among the
+ * modules that cover it (a tall module scales every line it spans). With every scale at 1 the lines are equal,
+ * as before.
+ */
+export function rowWeights(placements: readonly Placement[], rowCount: number,
+                           scaleOf: (rowId: string) => number): number[] {
+  const w = Array.from({ length: Math.max(1, rowCount) }, () => 0);
+  for (const p of placements) {
+    const each = scaleOf(p.rowId);
+    for (let r = p.row - 1; r < p.row - 1 + p.rowSpan; r++) w[r] = Math.max(w[r] ?? 0, each);
+  }
+  return w.map((x) => (x > 0 ? x : 1));
+}
+
 /** Cells left empty in the packed grid: 0 means the layout is complete. */
 export function emptyCells(p: { placements: Placement[]; rowCount: number }, columns: number): number {
   return p.rowCount * columns - p.placements.reduce((n, x) => n + x.colSpan * x.rowSpan, 0);

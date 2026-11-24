@@ -251,3 +251,17 @@ describe("settings sheets", () => {
     expect(dom.getByTestId("cert-tells").textContent).toBe("How many agree.");
   });
 });
+
+describe("height of a module", () => {
+  it("offers Shorter, Standard, Taller, Tallest and Double, and setting one is an undoable edit", () => {
+    setup();
+    act(() => useEditor.getState().select("hr"));
+    render(<EditPanel />);
+    expect(dom.getByTestId("height-options").textContent).toBe("ShorterStandardTallerTallestDouble");
+    fireEvent.click(dom.getByTestId("height-1.25"));
+    expect(useUi.getState().draft!.rows.find((r) => r.id === "hr")!.height_scale).toBe(1.25);
+    expect(dom.getByTestId("height-1.25").getAttribute("aria-checked")).toBe("true");
+    act(() => useEditor.getState().undo());
+    expect((useUi.getState().draft ?? useUi.getState().stored!.document).rows.find((r) => r.id === "hr")!.height_scale ?? 1).toBe(1);
+  });
+});

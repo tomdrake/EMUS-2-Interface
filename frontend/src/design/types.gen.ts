@@ -29,7 +29,7 @@ export interface Design {
   tab_bar: TabBar;
   /**
    * @minItems 2
-   * @maxItems 10
+   * @maxItems 12
    */
   tabs:
     | [Button, Button]
@@ -40,7 +40,9 @@ export interface Design {
     | [Button, Button, Button, Button, Button, Button, Button]
     | [Button, Button, Button, Button, Button, Button, Button, Button]
     | [Button, Button, Button, Button, Button, Button, Button, Button, Button]
-    | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button];
+    | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button]
+    | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button]
+    | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button];
   theme: Theme1;
   tiles: TileDisplay;
   top_bar: TopBar;
@@ -423,6 +425,7 @@ export interface MenuItem {
     | "discharge"
     | "theme"
     | "bell"
+    | "bp-cuff"
     | "none";
   /**
    * Lowercase id: letters, digits, hyphens.
@@ -460,6 +463,8 @@ export interface SheetAction {
     | "explanation-examples"
     | "trends"
     | "abcde-assess"
+    | "measure-bp"
+    | "measure-temp"
     | "forecast-horizon"
     | "news2-variant"
     | "home-screen"
@@ -574,6 +579,10 @@ export interface Row {
    */
   colour: string | null;
   content: ModuleContent;
+  /**
+   * How tall this row is against the others in its line of the grid (1 = standard).
+   */
+  height_scale: number;
   /**
    * Lowercase id: letters, digits, hyphens.
    */
@@ -815,7 +824,7 @@ export interface Row {
       )
     | null;
   show_limits: boolean;
-  trace: "waveform" | "trend" | "bar" | "events" | "none";
+  trace: "waveform" | "trend" | "bar" | "events" | "news" | "none";
   trend_window_min: number;
   visible: boolean;
   /**
@@ -1210,6 +1219,7 @@ export interface Button {
     | "discharge"
     | "theme"
     | "bell"
+    | "bp-cuff"
     | "none";
   /**
    * Lowercase id: letters, digits, hyphens.

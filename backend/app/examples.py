@@ -31,7 +31,7 @@ from app.models.clinical import (
     WaveformEvidence,
 )
 from app.models.example import (
-    BpReading, TempReading, ExampleScenarioInfo, ExampleSnapshot, ExampleStrip, FindingData, Highlight, News2Now,
+    Activity24h, BpReading, Extreme, MeasuredReading, TempReading, ExampleScenarioInfo, ExampleSnapshot, ExampleStrip, FindingData, Highlight, News2Now,
     TimedValue, TraceMark, TrendSeries,
 )
 from app.scenarios import SCENARIOS
@@ -41,6 +41,11 @@ from app.sources.simulator import (
 )
 
 ECG_S, PLETH_S, RESP_S = 30.0, 30.0, 30.0   # live strips; long enough to fill a row at any sweep speed
+#: Fast breathing is drawn with uneven intervals, so the regularity reading has both answers to show.
+RESP_JITTER, RESP_IRREGULAR_RR = 0.3, 26.0
+RESP_CV_LIMIT = 0.15                           # breath-interval spread above this reads as irregular
+STATS_WINDOW_MIN, STATS_STEP_MIN = 24 * 60, 10
+MOVEMENT_ACTIVITY = 15                        # activity at or above this counts as movement
 READ_S = 8.0                                  # the rule reads the most recent 8 s
 HORIZONS = (60, 120, 240, 360)
 TREND_MINUTES = 1440
@@ -287,7 +292,7 @@ def _simple_strip(waveform: str, sc_id: str, minute: float, faults: list[dict], 
     if waveform == "pleth":
         samples = synth_pleth(v["hr"], v["spo2"], hz, n, t0)
     else:
-        samples = synth_resp(v["rr"], hz, n, t0)
+        samples = synth_resp(v["rr"], hz, n, t0, jitter=RESP_JITTER if v["rr"] >= RESP_IRREGULAR_RR else 0.0)
     samples = _tag(samples, faults, device, hz, t0, seed)
     q = _quality(waveform, samples[-int(min(seconds, READ_S) * hz):], hz)
     return ExampleStrip(waveform=waveform, hz=hz, seconds=seconds, samples=samples, quality=q,
@@ -713,6 +718,58 @@ def _anchored(start: float, end: float, interval: int, minute: float, count: int
     return out
 
 
+def breath_regularity(samples: list[float], hz: float) -> str | None:
+    """'regular' or 'irregular' from the spread of the intervals between breaths (upward crossings of
+    the mean), or None when the strip holds too few breaths to say."""
+    if len(samples) < 3 * hz:
+        return None
+    mid = sum(samples) / len(samples)
+    ups = [i / hz for i in range(1, len(samples)) if samples[i - 1] < mid <= samples[i]]
+    gaps = [b - a for a, b in zip(ups, ups[1:])]
+    if len(gaps) < 3:
+        return None
+    mean = sum(gaps) / len(gaps)
+    sd = math.sqrt(sum((g - mean) ** 2 for g in gaps) / len(gaps))
+    return "irregular" if sd / mean > RESP_CV_LIMIT else "regular"
+
+
+def _window_stats(sc: dict, minute: float) -> tuple[int, Activity24h, dict[str, Extreme]]:
+    """Falls, activity time and extremes over the 24 hours to ``minute`` (less at the start of a scenario)."""
+    start = max(sc["start_min"], minute - STATS_WINDOW_MIN)
+    window = int(minute - start)
+    falls = sum(1 for e in sc["events"] if e["type"] == "fall" and start <= e["at_min"] <= minute)
+    act = {"standing": 0, "walking": 0, "movement": 0}
+    seen: dict[str, list[float]] = {"hr": [], "rr": [], "spo2": [], "bp_sys": [], "temp": []}
+    t = start
+    while t <= minute:
+        v = scenario_values(sc["id"], t)
+        if v["position"] == "upright":
+            act["standing"] += STATS_STEP_MIN
+        elif v["position"] == "walking":
+            act["walking"] += STATS_STEP_MIN
+        if v["activity"] >= MOVEMENT_ACTIVITY:
+            act["movement"] += STATS_STEP_MIN
+        for k in seen:
+            seen[k].append(float(v[k]) + (SKIN_OFFSET_C if k == "temp" else 0.0))
+        t += STATS_STEP_MIN
+    extremes = {k: Extreme(max=round(max(vs), 1), min=round(min(vs), 1), window_min=window)
+                for k, vs in seen.items() if vs}
+    return falls, Activity24h(standing_min=act["standing"], walking_min=act["walking"],
+                              movement_min=act["movement"], window_min=window), extremes
+
+
+def measure_now(scenario_id: str, kind: str, minute: float, now: datetime | None = None) -> MeasuredReading:
+    """The reading a cuff or thermometer would give at ``minute``: the scenario's value as a simulated measurement."""
+    sc = SCENARIOS[scenario_id]
+    minute = max(sc["start_min"], min(sc["end_min"], float(minute)))
+    now = now or clock.now()
+    v = scenario_values(scenario_id, minute)
+    if kind == "bp":
+        sys_, dia = round(v["bp_sys"]), round(v["bp_dia"])
+        return MeasuredReading(kind="bp", bp=BpReading(at=now, sys=sys_, dia=dia, map=round(dia + (sys_ - dia) / 3)))
+    return MeasuredReading(kind="temp", temp=TempReading(at=now, value=round(v["temp"], 1)))
+
+
 def _bp_readings(sc: dict, minute: float, now: datetime, cuff_connected: bool) -> list[BpReading]:
     if not cuff_connected:
         return []
@@ -994,9 +1051,14 @@ def snapshot(scenario_id: str, minute: float, now: datetime | None = None) -> Ex
 
     cuff = next((d for d in devices if d.kind == "bp-cuff"), None)
     obs_sets = _obs_sets(sc, minute, now)
+    falls_24h, activity_24h, extremes_24h = _window_stats(sc, minute)
+    ecg_strip, resp_strip = by_wave.get("ecg"), by_wave.get("resp")
     return ExampleSnapshot(
         scenario_id=scenario_id, title=sc["title"], minute=minute, generated_at=now, model=MODEL,
         patient=Patient(id=scenario_id, **sc["patient"]), spo2_scale=sc["spo2_scale"], numerics=numerics, oxygen=oxygen,
+        falls_24h=falls_24h, activity_24h=activity_24h, extremes_24h=extremes_24h,
+        rhythm=(ecg_strip.reading if ecg_strip else None),
+        resp_pattern=(breath_regularity(resp_strip.samples, resp_strip.hz) if resp_strip and resp_strip.quality.sqi >= 0.5 else None),
         news2=News2Now(total=n2.total, risk=n2.risk, complete=n2.complete, components=n2.components,
                        response=n2.response),
         devices=devices, signals=signals, quality=quality, alarms=alarm_state, strips=strips,

@@ -121,6 +121,34 @@ class ExampleScenarioInfo(_Model):
     highlights: list[Highlight] = Field(default_factory=list)
 
 
+class Extreme(_Model):
+    """The highest and lowest of a parameter over a window ending at the chosen minute."""
+
+    max: float
+    min: float
+    #: How many minutes the window actually covers (less than 24 h at the start of a scenario).
+    window_min: int
+
+
+class Activity24h(_Model):
+    """How long the patient spent standing, walking and moving, over a window ending now."""
+
+    standing_min: int = 0
+    walking_min: int = 0
+    #: Any movement (activity above the movement threshold), in bed or up.
+    movement_min: int = 0
+    window_min: int = 0
+
+
+class MeasuredReading(_Model):
+    """A reading taken on request (the Measure BP and Measure Temp buttons). Always a simulated value."""
+
+    kind: Literal["bp", "temp"]
+    bp: BpReading | None = None
+    temp: TempReading | None = None
+    placeholder: bool = True
+
+
 class News2Now(_Model):
     total: int | None
     risk: str | None
@@ -144,6 +172,14 @@ class ExampleSnapshot(_Model):
     news2: News2Now
     #: The patient's SpO2 scale for NEWS2 (1 for most; 2 only under clinician direction).
     spo2_scale: int = 1
+    #: Falls, activity and extremes over the 24 hours to the chosen minute (or since the scenario began).
+    falls_24h: int = 0
+    activity_24h: Activity24h = Field(default_factory=Activity24h)
+    extremes_24h: dict[ParameterId, Extreme] = Field(default_factory=dict)
+    #: What the rule reads from the ECG ('sinus', 'af', 'vt' ...), or None with no ECG.
+    rhythm: str | None = None
+    #: Whether breath-to-breath intervals in the respiration strip are even; None with no strip.
+    resp_pattern: Literal["regular", "irregular"] | None = None
     devices: list[DeviceStatus]
     signals: dict[ParameterId, SignalStatus]
     quality: list[SignalQuality]

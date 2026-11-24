@@ -26,13 +26,13 @@ function Plot({ param, windowMin, snapshot }: { param: string; windowMin: number
   const series = param === "bp" ? null : snapshot.trends[param as keyof typeof snapshot.trends];
   const bp = param === "bp" ? bpDots(snapshot.bp_readings, snapshot.generated_at, frame) : [];
   const temp = param === "temp" ? tempDots(snapshot.temp_readings, snapshot.generated_at, frame) : [];
-  const ticks = niceTicks(range[0], range[1], 3);
+  const ticks = niceTicks(range[0], range[1], param === "bp" ? 5 : 3);
   const label = param === "bp" ? "Blood Pressure" : p.label;
   const pts = [...bp, ...temp, ...(series?.points ?? []).filter((q) => q.t >= -windowMin).map((q) => ({ x: LEFT + ((q.t + windowMin) / windowMin) * (x1 - LEFT), y: y(q.v) }))];
   const plot = { x0: LEFT, x1, h: H };
   return (
     <figure className="evidence" data-testid={`trend-${param}`}>
-      <figcaption>{label} <small>{param === "bp" ? "dots are the mean, tails run diastolic to systolic" : p.unit}</small></figcaption>
+      <figcaption>{label} <small>{param === "bp" ? "down arrow systolic, up arrow diastolic, X mean, joined by dashes" : p.unit}</small></figcaption>
       <div ref={ref} className="evidence-strip" style={{ height: H }}>
         {w > 0 && (
           <svg width={w} height={H} viewBox={`0 0 ${w} ${H}`} role="img" aria-label={`${label} trend`}>

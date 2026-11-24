@@ -5,6 +5,7 @@ import type { Row } from "@/design/types";
 import { rowTitle } from "@/design/text";
 
 import { useEditor } from "./editor";
+import { HEIGHTS } from "@/layout/grid";
 import { addModule, cellsOf, changeParameter, duplicateModule, gridsOn, move, patchRow, removeModule, setSize, unfit } from "./layoutEdit";
 
 const COLOURS = ["#4ADE80", "#38BDF8", "#FACC15", "#F87171", "#FFFFFF", "#818CF8", "#FB923C", "#F472B6"];
@@ -111,6 +112,15 @@ export function EditPanel() {
             </button>
           );
         })}
+      </div>
+
+      <h4>Height</h4>
+      <div className="height-opts" role="radiogroup" aria-label="Height" data-testid="height-options">
+        {HEIGHTS.map((h) => (
+          <button key={h.value} type="button" role="radio" aria-checked={row.height_scale === h.value}
+                  className={`btn height-opt${row.height_scale === h.value ? " is-current" : ""}`} data-testid={`height-${h.value}`}
+                  onClick={() => edit((d) => patchRow(d, row.id, { height_scale: h.value }))}>{h.label}</button>
+        ))}
       </div>
 
       <h4>Place</h4>

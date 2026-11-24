@@ -324,7 +324,7 @@ def test_trace_reference_marks_are_on_by_default_and_gain_is_standard(icu_design
     t = validated_defaults()["icu-monitor"].traces
     assert (t.show_baseline, t.show_scale, t.show_calibration_bar, t.show_time_scale) == (
         True, True, True, True)
-    assert t.ecg_gain_mm_per_mv == 10
+    assert t.ecg_gain_mm_per_mv == 5
     doc = copy.deepcopy(icu_design)
     doc["traces"] = {"ecg_gain_mm_per_mv": 20, "show_baseline": False}
     Design.model_validate(doc)

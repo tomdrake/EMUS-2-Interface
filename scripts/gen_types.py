@@ -45,6 +45,7 @@ def schemas() -> dict[Path, dict]:
         alarm_state: c.AlarmState
         stream_message: c.StreamMessage
         example_snapshot: ex.ExampleSnapshot
+        measured_reading: ex.MeasuredReading
         example_scenario: ex.ExampleScenarioInfo
 
     return {

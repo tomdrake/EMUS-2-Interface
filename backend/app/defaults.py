@@ -118,26 +118,32 @@ THEME_PRESETS: dict[str, dict] = {
 # ------------------------------------------------------------------------- rows
 
 _ROWS: list[dict] = [
-    {"id": "ecg", "parameter": "hr", "trace": "waveform", "waveform": "ecg", "numerics": ["hr"]},
+    {"id": "ecg", "parameter": "hr", "trace": "waveform", "waveform": "ecg", "numerics": ["hr"],
+     "height_scale": 1.25},
     {"id": "spo2", "parameter": "spo2", "trace": "waveform", "waveform": "pleth",
-     "numerics": ["spo2", "pulse"]},
+     "numerics": ["spo2", "pulse"], "height_scale": 1.25},
     {"id": "resp", "parameter": "rr", "trace": "waveform", "waveform": "resp", "numerics": ["rr"]},
     {"id": "bp", "parameter": "bp_sys", "label": "Blood Pressure", "trace": "trend",
      "numerics": ["bp_sys", "bp_dia", "bp_mean"], "trend_window_min": 240,
-     "content": {"readings": True}},
+     "content": {"readings": True}, "height_scale": 1.5},
     {"id": "temp", "parameter": "temp", "trace": "trend", "numerics": ["temp"],
      "trend_window_min": 240},
     {"id": "oxygen", "parameter": "o2_flow", "trace": "bar", "numerics": ["o2_flow"],
-     "content": {"forecast": False}},
+     "content": {"forecast": False, "ai": False}, "height_scale": 1.25},
     {"id": "activity", "parameter": "activity", "trace": "bar", "numerics": ["position"],
-     "trend_window_min": 240, "content": {"forecast": False}},
+     "trend_window_min": 240, "content": {"forecast": False, "ai": False}, "height_scale": 1.25},
     {"id": "sleep", "parameter": "sleep", "trace": "events", "trend_window_min": 720,
      "content": {"forecast": False}, "visible": False},
-    {"id": "falls", "parameter": "falls", "trace": "events", "trend_window_min": 720, "numerics": ["falls"]},
+    {"id": "falls", "parameter": "falls", "trace": "events", "trend_window_min": 720, "numerics": ["falls"],
+     "content": {"ai": False}, "height_scale": 1.25},
+    {"id": "news", "parameter": "news2", "label": "NEWS2", "trace": "news", "numerics": ["news2"],
+     "content": {"forecast": False, "ai": False}, "height_scale": 1.25},
 ]
 
 #: The monitor rows, top to bottom, each full width: the familiar bedside monitor.
-_MONITOR_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp", "oxygen", "activity", "falls"]
+_MONITOR_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp"]
+#: The line under them, in a nine-column grid: O2 flow, activity and falls (two columns each) and NEWS (three).
+_MONITOR_LINE = [("oxygen", "tile"), ("activity", "tile"), ("falls", "tile"), ("news", "wide")]
 _COMPACT_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp", "oxygen"]
 
 #: A mixed layout for showing what modules can be: 6 columns, 5 rows of cells.
@@ -148,8 +154,11 @@ _MODULAR_ITEMS = [("ecg", "row-tall"), ("spo2", "large"), ("resp", "large"), ("b
                   ("falls", "tile"), ("sleep", "tile")]
 _MODULAR_ROW_OVERRIDES = {
     "sleep": {"visible": True},
-    "ecg": {"content": {"explain": True, "forecast": True}},
-    "spo2": {"content": {"explain": True}},
+    # the modular example is a grid of equal cells, so its rows stay at the standard height
+    "ecg": {"content": {"explain": True, "forecast": True}, "height_scale": 1.0},
+    "spo2": {"content": {"explain": True}, "height_scale": 1.0},
+    "bp": {"height_scale": 1.0},
+    "oxygen": {"height_scale": 1.0}, "activity": {"height_scale": 1.0}, "falls": {"height_scale": 1.0},
     "resp": {"content": {"explain": True}},
 }
 
@@ -178,9 +187,14 @@ def _rows(widget_id: str, ids: list[str]) -> dict:
     return _grid(widget_id, [(i, "row") for i in ids])
 
 
+def _monitor(widget_id: str) -> dict:
+    """The monitor home screen: full-width traces, then one line of small boxes."""
+    return _grid(widget_id, [(i, "row") for i in _MONITOR_ROW_IDS] + _MONITOR_LINE, columns=9)
+
+
 def _screens(news_variant: str, monitor: dict | None = None) -> list[dict]:
     return [
-        {"id": "monitor", "name": "Monitor", "layout": monitor or _rows("monitor-rows", _MONITOR_ROW_IDS)},
+        {"id": "monitor", "name": "Monitor", "layout": monitor or _monitor("monitor-rows")},
         {"id": "news2", "name": "NEWS2", "layout": _news("news2-full", news_variant)},
         {"id": "split-h", "name": "Split (Side by Side)",
          "layout": _split("horizontal", 0.5, _news("news2-left", news_variant),
@@ -227,6 +241,10 @@ _TABS: list[dict] = [
      "action": {"type": "screen", "screen_id": "alarms"}},
     {"id": "patient", "label": "Patient", "icon": "patient",
      "action": {"type": "menu", "menu_id": "patient"}},
+    {"id": "measure-bp", "label": "Measure BP", "icon": "bp-cuff",
+     "action": {"type": "sheet", "sheet": "measure-bp"}},
+    {"id": "measure-temp", "label": "Measure Temp", "icon": "thermometer",
+     "action": {"type": "sheet", "sheet": "measure-temp"}},
     {"id": "overview", "label": "AI Overview", "icon": "ai",
      "action": {"type": "toggle-ai-overlay"}},
     {"id": "silence", "label": "Silence 2 Min", "icon": "alarm-off",

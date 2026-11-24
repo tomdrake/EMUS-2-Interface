@@ -242,3 +242,44 @@ def test_registry_carries_the_axes_and_names_the_new_cards_need(client):
     assert reg["waveforms"]["pleth"]["overlay_parameter"] == "spo2"
     assert reg["parameters"]["position"]["short"] == "Position"
     assert "readings" in reg["module_content"]
+
+
+def test_snapshots_carry_falls_activity_extremes_rhythm_and_breathing_pattern():
+    s = examples.snapshot("scn-copd", 0)
+    assert s.falls_24h == 1                      # the scripted fall 40 minutes before the end
+    a = s.activity_24h
+    assert a.window_min == 900 and a.standing_min > 0 and a.walking_min > 0 and a.movement_min >= a.walking_min
+    t = s.extremes_24h["temp"]
+    assert t.min <= t.max and t.window_min == 900
+    assert s.rhythm == "sinus"
+    af = examples.snapshot("scn-af", 100)
+    assert af.rhythm == "af"
+
+
+def test_the_window_is_24_hours_at_most_and_shorter_at_the_start_of_a_scenario():
+    assert examples.snapshot("scn-stable", 0).activity_24h.window_min == 1440
+    assert examples.snapshot("scn-technical", -240).activity_24h.window_min == 0
+
+
+def test_breathing_is_called_irregular_only_when_the_intervals_vary():
+    import math
+    even = [math.sin(2 * math.pi * 0.25 * i / 25) for i in range(25 * 30)]
+    assert examples.breath_regularity(even, 25) == "regular"
+    wobble = [math.sin(2 * math.pi * 0.4 * (i / 25) + 2.0 * math.sin(2 * math.pi * 0.09 * i / 25) * 2) for i in range(25 * 30)]
+    assert examples.breath_regularity(wobble, 25) == "irregular"
+    assert examples.breath_regularity([0.0] * 10, 25) is None
+    # both answers appear across the scenarios
+    assert examples.snapshot("scn-pneumonia", 360).resp_pattern == "irregular"
+    assert examples.snapshot("scn-stable", 0).resp_pattern == "regular"
+
+
+def test_a_measured_reading_is_the_scenarios_value_and_marked_simulated(client):
+    r = client.get("/api/examples/scn-pneumonia/measure", params={"kind": "bp", "minute": 360}).json()
+    s = examples.snapshot("scn-pneumonia", 360)
+    assert r["kind"] == "bp" and r["placeholder"] is True
+    assert r["bp"]["sys"] == s.numerics["bp_sys"] and r["bp"]["dia"] == s.numerics["bp_dia"]
+    assert r["bp"]["map"] == round(r["bp"]["dia"] + (r["bp"]["sys"] - r["bp"]["dia"]) / 3)
+    t = client.get("/api/examples/scn-pneumonia/measure", params={"kind": "temp", "minute": 360}).json()
+    assert t["kind"] == "temp" and 36 <= t["temp"]["value"] <= 41
+    assert client.get("/api/examples/scn-pneumonia/measure", params={"kind": "pulse"}).status_code == 422
+    assert client.get("/api/examples/nope/measure", params={"kind": "bp"}).status_code == 404

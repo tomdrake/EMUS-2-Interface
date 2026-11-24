@@ -12,6 +12,7 @@ export interface Contracts {
   forecast_bundle: ForecastBundle;
   imaging_study: ImagingStudy;
   lab_series: LabSeries;
+  measured_reading: MeasuredReading;
   observation: Observation;
   observation_set: ObservationSet;
   oxygen: OxygenTherapy;
@@ -139,10 +140,15 @@ export interface Highlight {
  * via the `definition` "ExampleSnapshot".
  */
 export interface ExampleSnapshot {
+  activity_24h: Activity24H;
   alarms: AlarmState;
   badge: string;
   bp_readings: BpReading[];
   devices: DeviceStatus[];
+  extremes_24h: {
+    [k: string]: Extreme;
+  };
+  falls_24h: number;
   finding_data: {
     [k: string]: FindingData;
   };
@@ -161,6 +167,8 @@ export interface ExampleSnapshot {
   patient: Patient;
   placeholder: boolean;
   quality: SignalQuality[];
+  resp_pattern: ("regular" | "irregular") | null;
+  rhythm: string | null;
   scenario_id: string;
   signals: {
     [k: string]: SignalStatus;
@@ -172,6 +180,18 @@ export interface ExampleSnapshot {
   trends: {
     [k: string]: TrendSeries;
   };
+}
+/**
+ * How long the patient spent standing, walking and moving, over a window ending now.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "Activity24h".
+ */
+export interface Activity24H {
+  movement_min: number;
+  standing_min: number;
+  walking_min: number;
+  window_min: number;
 }
 /**
  * One cuff blood pressure.
@@ -222,6 +242,17 @@ export interface DeviceStatus {
   )[];
   simulated: boolean;
   waveforms: ("ecg" | "pleth" | "resp")[];
+}
+/**
+ * The highest and lowest of a parameter over a window ending at the chosen minute.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "Extreme".
+ */
+export interface Extreme {
+  max: number;
+  min: number;
+  window_min: number;
 }
 /**
  * Everything the Why sheet draws for one finding.
@@ -942,6 +973,18 @@ export interface LabSeries {
     | "inr"
     | "glucose";
   trend: "rising" | "falling" | "stable" | "unknown";
+}
+/**
+ * A reading taken on request (the Measure BP and Measure Temp buttons). Always a simulated value.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "MeasuredReading".
+ */
+export interface MeasuredReading {
+  bp: BpReading | null;
+  kind: "bp" | "temp";
+  placeholder: boolean;
+  temp: TempReading | null;
 }
 /**
  * One numeric or coded value at one time.

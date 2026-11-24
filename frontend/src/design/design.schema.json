@@ -454,6 +454,7 @@
             "discharge",
             "theme",
             "bell",
+            "bp-cuff",
             "none"
           ],
           "title": "Icon",
@@ -1206,6 +1207,7 @@
             "discharge",
             "theme",
             "bell",
+            "bp-cuff",
             "none"
           ],
           "title": "Icon",
@@ -1708,6 +1710,14 @@
         "content": {
           "$ref": "#/$defs/ModuleContent"
         },
+        "height_scale": {
+          "default": 1.0,
+          "description": "How tall this row is against the others in its line of the grid (1 = standard).",
+          "maximum": 3.0,
+          "minimum": 0.5,
+          "title": "Height Scale",
+          "type": "number"
+        },
         "id": {
           "description": "Lowercase id: letters, digits, hyphens.",
           "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
@@ -1826,6 +1836,7 @@
             "trend",
             "bar",
             "events",
+            "news",
             "none"
           ],
           "title": "Trace",
@@ -1875,7 +1886,8 @@
         "numerics",
         "show_limits",
         "content",
-        "visible"
+        "visible",
+        "height_scale"
       ],
       "title": "Row",
       "type": "object"
@@ -2039,6 +2051,8 @@
             "explanation-examples",
             "trends",
             "abcde-assess",
+            "measure-bp",
+            "measure-temp",
             "forecast-horizon",
             "news2-variant",
             "home-screen",
@@ -2637,7 +2651,7 @@
       "description": "Reference marks drawn on every trace so it can be read, not just watched.",
       "properties": {
         "ecg_gain_mm_per_mv": {
-          "default": 10,
+          "default": 5,
           "enum": [
             5,
             10,
@@ -2861,7 +2875,7 @@
       "items": {
         "$ref": "#/$defs/Button"
       },
-      "maxItems": 10,
+      "maxItems": 12,
       "minItems": 2,
       "title": "Tabs",
       "type": "array"

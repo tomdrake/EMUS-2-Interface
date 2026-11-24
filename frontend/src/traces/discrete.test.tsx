@@ -1,6 +1,7 @@
+import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { bpDots, bpExtent, bpLabelPlan, bpRange, dotLine, keyCorner, keySize, lineSamples, tempDots } from "./Discrete";
+import { BpLayer, arrowDown, arrowUp, bpDots, bpExtent, bpLabelPlan, bpRange, dotLine, keyCorner, keySize, lineSamples, tempDots } from "./Discrete";
 import { fullWindow, sweepMotion } from "./Strip";
 import { trendRange } from "./traceScale";
 
@@ -105,5 +106,42 @@ describe("blood pressure numbers and range", () => {
     const [lo, hi] = bpRange([{ at: ago(1), sys: 101, dia: 99, map: 100 }], [40, 200]);
     expect(hi - lo).toBeGreaterThanOrEqual(60);
     expect(bpRange([{ at: ago(1), sys: 250, dia: 30, map: 100 }], [40, 200])).toEqual([40, 200]);
+  });
+});
+
+
+describe("blood pressure markers", () => {
+  const readings = [60, 120, 180].map((m, i) => ({ at: ago(m), sys: 150 - i * 20, dia: 90 - i * 10, map: 110 - i * 13 }));
+  const num = (pts: string) => pts.split(" ").map((p) => p.split(",").map(Number) as [number, number]);
+  it("draws a down arrow for systolic: flat edge above, point below", () => {
+    const [a, b, tip] = num(arrowDown(50, 40));
+    expect(a![1]).toBe(b![1]);
+    expect(tip![1]).toBeGreaterThan(a![1]);
+    expect(tip![0]).toBe(50);
+  });
+  it("draws an up arrow for diastolic: flat edge below, point above", () => {
+    const [a, b, tip] = num(arrowUp(50, 40));
+    expect(a![1]).toBe(b![1]);
+    expect(tip![1]).toBeLessThan(a![1]);
+  });
+  it("shows an arrow for each of the two pressures, an X for the MAP, and three dashed lines joining them", () => {
+    const dots = bpDots(readings, NOW, frame);
+    const { container } = render(<svg><BpLayer dots={dots} rowId="bp" plotH={160} /></svg>);
+    expect(container.querySelectorAll('[data-testid^="bp-sysmark-"]')).toHaveLength(3);
+    expect(container.querySelectorAll('[data-testid^="bp-diamark-"]')).toHaveLength(3);
+    expect(container.querySelectorAll('[data-testid^="bp-mapmark-"]')).toHaveLength(3);
+    for (const id of ["bp-line-bp", "bp-line-sys-bp", "bp-line-dia-bp"]) expect(container.querySelector(`[data-testid="${id}"]`)!.getAttribute("d")!.split("L")).toHaveLength(3);
+  });
+  it("has the systolic arrow above the X above the diastolic arrow, at every reading", () => {
+    const { container } = render(<svg><BpLayer dots={bpDots(readings, NOW, frame)} rowId="bp" plotH={160} /></svg>);
+    container.querySelectorAll('[data-testid^="bp-dot-"]').forEach((g) => {
+      expect(+g.getAttribute("data-top")!).toBeLessThan(+g.getAttribute("data-y")!);
+      expect(+g.getAttribute("data-y")!).toBeLessThan(+g.getAttribute("data-bottom")!);
+    });
+  });
+  it("without room (tails off) draws the X and its dashed line only", () => {
+    const { container } = render(<svg><BpLayer dots={bpDots(readings, NOW, frame)} rowId="bp" tails={false} /></svg>);
+    expect(container.querySelectorAll('[data-testid^="bp-sysmark-"]')).toHaveLength(0);
+    expect(container.querySelectorAll('[data-testid^="bp-mapmark-"]')).toHaveLength(3);
   });
 });

@@ -58,12 +58,46 @@ def test_the_sizes_reach_the_frontend():
     assert set(json_schema()["$defs"]["GridItem"]["properties"]["size"]["enum"]) == set(registry.MODULE_SIZES)
 
 
-def test_default_monitor_is_eight_full_width_rows_in_order():
+def test_default_monitor_is_five_full_width_rows_then_one_line_of_small_boxes():
     for slug in ("icu-monitor", "news2-chart"):
         doc = DEFAULT_DESIGNS[slug]
         grid = next(sc for sc in doc["screens"] if sc["id"] == "monitor")["layout"]["widget"]
+        assert grid["columns"] == 9
         assert [(i["row_id"], i["size"]) for i in grid["items"]] == [
-            (r, "row") for r in ("ecg", "spo2", "resp", "bp", "temp", "oxygen", "activity", "falls")]
+            ("ecg", "row"), ("spo2", "row"), ("resp", "row"), ("bp", "row"), ("temp", "row"),
+            ("oxygen", "tile"), ("activity", "tile"), ("falls", "tile"), ("news", "wide")]
+        # the line fills the nine columns exactly: 2 + 2 + 2 + 3
+        spec = registry.MODULE_SIZES
+        assert sum(spec[i["size"]]["cols"] for i in grid["items"] if not spec[i["size"]]["full"]) == 9
+
+
+def test_heights_are_a_weight_per_row_and_ecg_and_spo2_are_a_little_taller_and_bp_more_so():
+    doc = DEFAULT_DESIGNS["icu-monitor"]
+    scale = {r["id"]: r.get("height_scale", 1.0) for r in doc["rows"]}
+    assert scale["ecg"] == scale["spo2"] == 1.25 and scale["bp"] == 1.5 and scale["resp"] == 1.0
+    d = validated_defaults()["icu-monitor"]
+    assert {r.id: r.height_scale for r in d.rows}["ecg"] == 1.25
+
+
+def test_height_scale_is_bounded(icu_design):
+    _broken(icu_design, lambda x: x["rows"][0].__setitem__("height_scale", 0.2))
+    _broken(icu_design, lambda x: x["rows"][0].__setitem__("height_scale", 4))
+    doc = copy.deepcopy(icu_design)
+    doc["rows"][0]["height_scale"] = 2
+    assert Design.model_validate(doc).rows[0].height_scale == 2
+
+
+def test_the_news_row_is_a_module_with_its_own_trace_kind():
+    d = validated_defaults()["icu-monitor"]
+    news = next(r for r in d.rows if r.id == "news")
+    assert (news.parameter, news.trace) == ("news2", "news")
+
+
+def test_the_tab_bar_has_measure_buttons_that_open_their_sheets():
+    d = validated_defaults()["icu-monitor"]
+    sheets = {t.id: t.action.sheet for t in d.tabs if t.action.type == "sheet"}
+    assert sheets == {"measure-bp": "measure-bp", "measure-temp": "measure-temp"}
+    assert len(d.tabs) == 12
 
 
 def test_modular_example_shows_every_kind_of_size_and_all_its_rows():

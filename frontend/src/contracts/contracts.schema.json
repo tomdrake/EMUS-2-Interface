@@ -1,5 +1,39 @@
 {
   "$defs": {
+    "Activity24h": {
+      "additionalProperties": false,
+      "description": "How long the patient spent standing, walking and moving, over a window ending now.",
+      "properties": {
+        "movement_min": {
+          "default": 0,
+          "title": "Movement Min",
+          "type": "integer"
+        },
+        "standing_min": {
+          "default": 0,
+          "title": "Standing Min",
+          "type": "integer"
+        },
+        "walking_min": {
+          "default": 0,
+          "title": "Walking Min",
+          "type": "integer"
+        },
+        "window_min": {
+          "default": 0,
+          "title": "Window Min",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "standing_min",
+        "walking_min",
+        "movement_min",
+        "window_min"
+      ],
+      "title": "Activity24h",
+      "type": "object"
+    },
     "AlarmEvent": {
       "additionalProperties": false,
       "properties": {
@@ -919,6 +953,9 @@
     "ExampleSnapshot": {
       "additionalProperties": false,
       "properties": {
+        "activity_24h": {
+          "$ref": "#/$defs/Activity24h"
+        },
         "alarms": {
           "$ref": "#/$defs/AlarmState"
         },
@@ -940,6 +977,39 @@
           },
           "title": "Devices",
           "type": "array"
+        },
+        "extremes_24h": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Extreme"
+          },
+          "propertyNames": {
+            "enum": [
+              "hr",
+              "pulse",
+              "spo2",
+              "rr",
+              "bp_sys",
+              "bp_dia",
+              "bp_mean",
+              "temp",
+              "o2_flow",
+              "fio2",
+              "acvpu",
+              "news2",
+              "activity",
+              "position",
+              "falls",
+              "sleep",
+              "timer"
+            ]
+          },
+          "title": "Extremes 24H",
+          "type": "object"
+        },
+        "falls_24h": {
+          "default": 0,
+          "title": "Falls 24H",
+          "type": "integer"
         },
         "finding_data": {
           "additionalProperties": {
@@ -1043,6 +1113,34 @@
           "title": "Quality",
           "type": "array"
         },
+        "resp_pattern": {
+          "anyOf": [
+            {
+              "enum": [
+                "regular",
+                "irregular"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resp Pattern"
+        },
+        "rhythm": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rhythm"
+        },
         "scenario_id": {
           "title": "Scenario Id",
           "type": "string"
@@ -1140,6 +1238,11 @@
         "oxygen",
         "news2",
         "spo2_scale",
+        "falls_24h",
+        "activity_24h",
+        "extremes_24h",
+        "rhythm",
+        "resp_pattern",
         "devices",
         "signals",
         "quality",
@@ -1229,6 +1332,31 @@
         "caption"
       ],
       "title": "ExampleStrip",
+      "type": "object"
+    },
+    "Extreme": {
+      "additionalProperties": false,
+      "description": "The highest and lowest of a parameter over a window ending at the chosen minute.",
+      "properties": {
+        "max": {
+          "title": "Max",
+          "type": "number"
+        },
+        "min": {
+          "title": "Min",
+          "type": "number"
+        },
+        "window_min": {
+          "title": "Window Min",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max",
+        "min",
+        "window_min"
+      ],
+      "title": "Extreme",
       "type": "object"
     },
     "Finding": {
@@ -2198,6 +2326,55 @@
         "trend"
       ],
       "title": "LabSeries",
+      "type": "object"
+    },
+    "MeasuredReading": {
+      "additionalProperties": false,
+      "description": "A reading taken on request (the Measure BP and Measure Temp buttons). Always a simulated value.",
+      "properties": {
+        "bp": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BpReading"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "enum": [
+            "bp",
+            "temp"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "placeholder": {
+          "default": true,
+          "title": "Placeholder",
+          "type": "boolean"
+        },
+        "temp": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TempReading"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "kind",
+        "bp",
+        "temp",
+        "placeholder"
+      ],
+      "title": "MeasuredReading",
       "type": "object"
     },
     "ModelInfo": {
@@ -3712,6 +3889,9 @@
     "lab_series": {
       "$ref": "#/$defs/LabSeries"
     },
+    "measured_reading": {
+      "$ref": "#/$defs/MeasuredReading"
+    },
     "observation": {
       "$ref": "#/$defs/Observation"
     },
@@ -3775,6 +3955,7 @@
     "alarm_state",
     "stream_message",
     "example_snapshot",
+    "measured_reading",
     "example_scenario"
   ],
   "title": "Contracts",

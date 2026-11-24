@@ -413,12 +413,12 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 /* ---- tab bar ---- */
 .tabbar { flex: none; display: flex; align-items: stretch; background: var(--c-surface);
   border-top: 1px solid var(--c-border); padding-bottom: env(safe-area-inset-bottom); z-index: 30; }
-.tab { flex: 1 1 0; min-width: var(--touch); min-height: var(--touch); display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 4px; color: var(--c-text-muted);
+.tab { flex: 1 1 0; min-width: 0; min-height: var(--touch); display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start; padding-top: 9px; gap: 4px; color: var(--c-text-muted);
   border-right: 1px solid var(--c-border); }
 .tab:last-child { border-right: 0; }
-.tab-label { font-size: 0.8em; font-weight: 600; text-align: center; line-height: 1.2; white-space: nowrap; }
-.tab { padding: 0 2px; }
+.tab-label { max-width: calc(100% - 8px); font-size: 0.8em; font-weight: 600; text-align: center; line-height: 1.15; white-space: normal; text-wrap: balance; overflow-wrap: anywhere; }
+.tab { padding: 9px 2px 0; min-width: 0; }
 @media (max-width: 1100px) { .tab-label { font-size: 0.66em; } .notif-bar { flex-basis: clamp(210px, 21vw, 380px); } }
 .tab.is-active { color: var(--c-text); background: var(--c-surface-alt); box-shadow: inset 0 3px 0 var(--c-accent); }
 .tab:active { background: var(--c-surface-alt); }
@@ -780,3 +780,119 @@ button:disabled { opacity: 0.45; }
   paint-order: stroke; stroke: var(--c-background); stroke-width: 3px; stroke-linejoin: round; }
 .xscale-spark { min-width: 56px; padding-left: 4px; }
 .trace-mini .xscale { min-height: min(var(--touch), 100%); }
+
+/* Height choices in Edit Layout: one row of touch-sized buttons. */
+.height-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.height-opt { min-height: var(--touch); flex: 1 1 auto; }
+.height-opt.is-current { box-shadow: inset 0 0 0 2px var(--c-accent); background: var(--c-surface-alt); }
+
+/* Measure BP and Measure Temp sheets */
+.measure { display: flex; flex-direction: column; gap: 12px; }
+.measure-go { min-height: 64px; font-size: 1.1rem; }
+.measure-run, .measure-result { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--c-border); border-radius: var(--radius); }
+.measure-bar { height: 14px; border-radius: 7px; background: var(--c-surface-alt); overflow: hidden; }
+.measure-bar span { display: block; height: 100%; background: var(--c-accent); transition: width 0.9s linear; }
+.measure-value { font-size: 2.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.measure-value small { font-size: 1rem; font-weight: 600; }
+.measure-kind, .measure-time, .measure-added, .measure-left, .measure-last { color: var(--c-text-muted); font-size: 0.9rem; margin: 0; }
+@media (prefers-reduced-motion: reduce) { .measure-bar span { transition: none; } }
+
+/* Blood pressure markers: arrows and an X in the row's colour. */
+.discrete-arrow { fill: currentColor; stroke: var(--c-background); stroke-width: 0.6; }
+.discrete-x line { stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.bp-layer .discrete-line { stroke-dasharray: 5 4; stroke-width: 1.3; }
+
+/* Notes (the rhythm in words, regular or irregular, the day's extremes) share the name line, so they cost the number no height. */
+.tile-note-head { flex: 1 1 auto; min-width: 0; text-align: right; font-size: 0.7rem; font-weight: 600; opacity: 0.95; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 6px; }
+/* The diastolic is the same size as the systolic; the MAP stays smaller in brackets. */
+[data-testid="num-bp_sys"] .tile-extra:not(.tile-extra-wrap) { font-size: 1em; }
+.tile-primary:has(.tile-extra-wrap) .tile-value { font-size: min(calc(2.2rem * var(--numeric-scale)), var(--body-h), 19cqw); }
+
+/* Falls, activity and NEWS2 summaries in the detail half of a small module */
+.detail-falls, .detail-activity, .detail-news { min-height: 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: center; }
+.detail-falls { align-items: flex-start; gap: 2px; }
+.detail-big { font-size: min(3rem, 42cqh); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.detail-caption { font-size: 0.78rem; font-weight: 600; opacity: 0.95; }
+.detail-activity { gap: 3px; }
+.detail-bar { display: flex; flex-direction: column; gap: 1px; font-size: 0.72rem; line-height: 1.1; }
+.detail-bar-line { display: flex; justify-content: space-between; gap: 6px; white-space: nowrap; }
+.detail-oxygen { display: flex; flex-direction: column; justify-content: center; gap: 2px; height: 100%; }
+.detail-device { font-size: 1rem; font-weight: 700; }
+.detail-bar-label { font-weight: 700; }
+.detail-bar-track { height: 5px; border-radius: 4px; background: color-mix(in srgb, currentColor 18%, transparent); overflow: hidden; }
+.detail-bar-track span { display: block; height: 100%; background: currentColor; }
+.detail-bar-value { font-variant-numeric: tabular-nums; font-weight: 600; }
+.detail-news { gap: 2px; justify-content: flex-end; }
+.news-trend-plot { display: block; flex: 1 1 0; min-height: 0; overflow: visible; }
+.news-trend-line { fill: none; stroke: currentColor; stroke-width: 1.4; opacity: 0.85; }
+.news-trend-dot { stroke: var(--c-background); stroke-width: 0.8; }
+.news-strip { display: flex; flex: none; }
+.news-strip-cell { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1;
+  border-left: 1px solid color-mix(in srgb, currentColor 25%, transparent); font-variant-numeric: tabular-nums; }
+.news-strip-cell:first-child { border-left: 0; }
+.news-strip-time { font-size: 0.66rem; font-weight: 700; }
+.news-strip-date { font-size: 0.6rem; opacity: 0.85; }
+.news-strip-total { font-size: 0.95rem; font-weight: 800; }
+
+/* Text always sits inside its box with padding: the tile number is its own block so its box is its text,
+   and the summaries keep clear of the edges of their half. */
+.detail-falls, .detail-activity, .detail-oxygen, .detail-news { padding: 4px 8px 4px 6px; box-sizing: border-box; overflow: hidden; }
+.detail-bar-line { min-width: 0; }
+.detail-bar-label, .detail-bar-value { overflow: hidden; text-overflow: ellipsis; }
+.detail-device { font-size: 0.9rem; font-weight: 700; line-height: 1.1; white-space: normal; overflow-wrap: anywhere; }
+.news-strip-cell { padding: 0 3px; overflow: hidden; }
+.news-strip-time, .news-strip-date { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+
+.news-strip-cell > * { display: block; }
+.news-strip-time { font-size: 0.62rem; line-height: 1.25; }
+.news-strip-date { font-size: 0.56rem; line-height: 1.25; }
+.news-strip-total { font-size: 0.9rem; line-height: 1.3; }
+.detail-bar-label, .detail-bar-value { line-height: 1.3; }
+.detail-caption { display: block; line-height: 1.3; }
+
+/* Activity labels shorten when the half is narrow; the falls number keeps clear of its caption. */
+.detail-activity { container-type: inline-size; }
+.lbl-short { display: none; }
+@container (max-width: 150px) { .lbl-full { display: none; } .lbl-short { display: inline; } }
+.detail-big { line-height: 1; margin-bottom: 6px; }
+.detail-falls .detail-caption { margin-top: 2px; }
+
+.detail-falls, .detail-activity, .detail-oxygen, .detail-news { width: 100%; }
+.detail-device { font-size: 0.82rem; }
+.news-strip-cell { overflow: visible; }
+
+/* Tighter lines in the summaries so three bars and a caption fit a short box */
+.detail-caption { font-size: 0.7rem; line-height: 1.2; }
+.detail-bar { font-size: 0.68rem; line-height: 1.2; gap: 0; }
+.detail-bar-label, .detail-bar-value { line-height: 1.2; }
+.detail-bar-track { height: 4px; }
+.detail-activity { gap: 2px; }
+.module:not(.row) .tile-value.tile-position { font-size: clamp(10px, calc(var(--body-h) * 0.2), 15px); }
+
+/* Their width is the box's, never the content's: a measured width cannot feed back into the count of cells. */
+.detail-news, .detail-falls, .detail-oxygen { contain: inline-size; }
+.module-trace, .module-detail { min-width: 0; }
+
+/* Short tiles: the number's text box (about 1.25 times its size) must fit under the name line. */
+.tile-primary:has(.tile-extra) .tile-value { font-size: min(calc(2.2rem * var(--numeric-scale)), calc(var(--body-h) / 1.25), 21cqw); }
+.tile-primary:has(.tile-extra-wrap) .tile-value { font-size: min(calc(2.2rem * var(--numeric-scale)), calc(var(--body-h) / 1.25), 19cqw); }
+.detail-falls, .detail-activity, .detail-oxygen, .detail-news { padding: 4px 6px 4px 4px; }
+.module:not(.row) .tile-value.tile-position { font-size: clamp(10px, calc(var(--body-h) * 0.18), 15px); }
+.module:not(.row) .position-figure { height: calc(var(--body-h) * 0.82); }
+
+@container tile (max-height: 62px) {
+  /* Name beside a value that is two numbers (blood pressure): the number leaves room for the name. */
+  .tile-primary:has(.tile-extra) .tile-value, .tile-primary:has(.tile-extra-wrap) .tile-value { font-size: min(calc(var(--body-h) / 1.25), 14cqw); }
+}
+.module:not(.row) .position-meaning { font-size: 0.9em; line-height: 1.1; }
+.module:not(.row) .tile-value.tile-position { line-height: 1.08; }
+
+.module:not(.row) .position-figure { max-width: 24cqw; }
+
+@container tile (max-height: 62px) { .tile-note-head { display: none; } }
+
+@container (max-width: 175px) { .tile-note-head { display: none; } }
+
+/* Top-bar buttons keep one-line labels, centred; only the tab bar wraps two-line labels from the top. */
+.topbtn { justify-content: center; padding-top: 0; }
+.topbtn .tab-label { white-space: nowrap; max-width: none; text-wrap: nowrap; }

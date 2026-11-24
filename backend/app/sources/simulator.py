@@ -126,12 +126,14 @@ def synth_pleth(pulse: float, spo2: float, hz: float, n: int, t0: float) -> list
     return out
 
 
-def synth_resp(rr: float, hz: float, n: int, t0: float) -> list[float]:
-    """Respiration (chest impedance): a slow, slightly asymmetric wave, range about +-1."""
+def synth_resp(rr: float, hz: float, n: int, t0: float, jitter: float = 0.0) -> list[float]:
+    """Respiration (chest impedance): a slow, slightly asymmetric wave, range about +-1.
+    ``jitter`` slowly wanders the phase so breath-to-breath intervals vary (an irregular pattern)."""
     f = max(rr, 1.0) / 60.0
     out = []
     for i in range(n):
-        x = 2 * math.pi * f * (t0 + i / hz)
+        t = t0 + i / hz
+        x = 2 * math.pi * f * t + jitter * 2 * math.pi * math.sin(2 * math.pi * 0.09 * t)
         out.append(round(math.sin(x) + 0.18 * math.sin(2 * x + 0.6), 4))
     return out
 

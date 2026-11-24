@@ -1,6 +1,6 @@
 import type { ModuleSizeSpec } from "@/app/api";
 
-import { emptyCells, packGrid, spanOf, visibleContent } from "./grid";
+import { HEIGHTS, rowWeights, emptyCells, packGrid, spanOf, visibleContent } from "./grid";
 
 const sizes: Record<string, ModuleSizeSpec> = {
   compact: { label: "Small Square", cols: 1, rows: 1, full: false, flow: "tile-only", fits: ["number"] },
@@ -129,5 +129,29 @@ describe("what fits", () => {
     const v = visibleContent(sizes.row!, all, false);
     expect(v.trace).toBeNull();
     expect(v.dropped).not.toContain("trace");
+  });
+});
+
+
+describe("row weights (the Height setting)", () => {
+  const p = (rowId: string, row: number, rowSpan = 1) => ({ rowId, size: "row", col: 1, row, colSpan: 4, rowSpan });
+  it("gives every line the same weight at the standard height", () => {
+    expect(rowWeights([p("a", 1), p("b", 2), p("c", 3)], 3, () => 1)).toEqual([1, 1, 1]);
+  });
+  it("makes a taller module's line proportionally taller", () => {
+    const scale = (id: string) => ({ a: 1.25, b: 1 }[id] ?? 1);
+    expect(rowWeights([p("a", 1), p("b", 2)], 2, scale)).toEqual([1.25, 1]);
+  });
+  it("takes the largest scale among the modules that start in a line", () => {
+    const placements = [{ ...p("x", 1), colSpan: 2 }, { ...p("y", 1), col: 3, colSpan: 2 }];
+    expect(rowWeights(placements, 1, (id) => (id === "y" ? 1.5 : 0.75))).toEqual([1.5]);
+  });
+  it("applies a tall module's scale to every line it spans, so it stays equal at the standard height", () => {
+    expect(rowWeights([p("t", 1, 2)], 2, () => 1)).toEqual([1, 1]);
+    expect(rowWeights([p("t", 1, 2), p("u", 3)], 3, (id) => (id === "t" ? 2 : 1))).toEqual([2, 2, 1]);
+  });
+  it("offers presets from shorter to double, with standard in the middle", () => {
+    expect(HEIGHTS.map((h) => h.label)).toEqual(["Shorter", "Standard", "Taller", "Tallest", "Double"]);
+    expect(HEIGHTS.find((h) => h.label === "Standard")!.value).toBe(1);
   });
 });

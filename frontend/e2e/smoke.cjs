@@ -64,9 +64,9 @@ for (const vp of VIEWPORTS) {
   const clockBox = await box('[data-testid="clock"]');
   check(clockBox[0] + clockBox[2] <= top[0].right && clockBox[2] > 0, `${vp.name}: clock is visible beside the top buttons`);
 
-  // --- Next Obs Due is gone; the monitor is eight full-width rows
+  // --- Next Obs Due is gone; the monitor is five full-width rows and a line of four small boxes
   check(await page.getByText(/next obs/i).count() === 0, `${vp.name}: "Next Obs Due" is gone`);
-  check(await page.locator(".module.row").count() === 8, `${vp.name}: the monitor is eight full-width rows`);
+  check(await page.locator(".module.row").count() === 5 && await page.locator(".module").count() === 9, `${vp.name}: the monitor is five full-width rows and a line of four small boxes`);
 
   // --- names: Title Case, with the method of collection
   check(await T("row-label-ecg").innerText() === "Heart Rate - ECG", `${vp.name}: heart rate row reads "Heart Rate - ECG"`);
@@ -92,12 +92,13 @@ for (const vp of VIEWPORTS) {
   check(await T("notif-text").innerText() === "No Notifications", `${vp.name}: empty box says "No Notifications"`);
 
   // --- tiles: all the same width, and the tile column the same on every row
-  const tiles = () => page.locator(".tile:not(.tile-empty)").evaluateAll((els) => els.map((e) => {
+  const tiles = () => page.locator(".module.row .tile:not(.tile-empty)").evaluateAll((els) => els.map((e) => {
     const r = e.getBoundingClientRect();
     return [e.dataset.testid, Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)].join(":");
   }));
-  const sizes = new Set((await tiles()).map((t) => t.split(":").slice(3).join("x")));
-  check(sizes.size === 1, `${vp.name}: every tile is the same width and height (${[...sizes].join(", ")} px)`);
+  // Tiles on the full rows share a width; a row's height is its own (the Height setting), so heights differ.
+  const sizes = new Set((await tiles()).map((t) => t.split(":")[3]));
+  check(sizes.size === 1, `${vp.name}: every row's tile is the same width (${[...sizes].join(", ")} px)`);
   const columns = new Set(await page.locator(".row-tiles").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width))));
   check(columns.size === 1, `${vp.name}: the tile column is the same width on every row`);
   check(await page.locator('[data-testid="row-bp"] .tile:not(.tile-empty)').count() === 1, `${vp.name}: blood pressure is one tile`);
@@ -135,7 +136,7 @@ for (const vp of VIEWPORTS) {
       rowHead: Math.max(...rows.map((r) => Math.abs(
         mid(rect(r.querySelector(".row-label"))) - mid(rect(r.querySelector(".tile:not(.tile-empty) .tile-head")))))),
       // the value band sits at the same level in every tile
-      bodyLevel: spread(all(".tile:not(.tile-empty)").map((t) => mid(rect(t.querySelector(".tile-body"))) - rect(t).top)),
+      bodyLevel: spread(all(".tile:not(.tile-empty)").map((t) => rect(t.querySelector(".tile-body")).top - rect(t).top)),
       // and what is in it is centred in that band, and big enough to read
       bodyCentred: Math.max(...all(".tile:not(.tile-empty)").map((t) => {
         const inner = t.querySelector(".tile-state, .tile-value");
@@ -152,7 +153,7 @@ for (const vp of VIEWPORTS) {
       tileRight: spread(all(".row-tiles").map((e) => rect(e).right)),
       // buttons: icons on one level and labels on one baseline, in each bar
       tabIcons: spread(all(".tabbar .tab .icon").map((e) => mid(rect(e)))),
-      tabLabels: spread(all(".tabbar .tab .tab-label").map(baseline)),
+      tabLabels: spread(all(".tabbar .tab .tab-label").map((e) => rect(e).top)),
       topIcons: spread(all(".topbtn .icon").map((e) => mid(rect(e)))),
       topLabels: spread(all(".topbtn .tab-label").map(baseline)),
       // both bars end flush with the screen; the content panel is inset evenly
@@ -170,7 +171,7 @@ for (const vp of VIEWPORTS) {
         `${vp.name}: tile text is large enough to read (words ${align.smallestState}px, smallest label ${align.smallestText}px)`);
   check(align.maxTilesPerRow === 1 && align.tileLeft <= 0.5 && align.tileRight <= 0.5 && align.tileWidth <= 0.5,
         `${vp.name}: one tile per row, in one straight column`);
-  check(align.tabIcons <= 0.5 && align.tabLabels <= 0.5, `${vp.name}: tab icons share a level and tab labels a baseline`);
+  check(align.tabIcons <= 0.5 && align.tabLabels <= 0.5, `${vp.name}: tab icons share a level and tab labels start on one line (${align.tabIcons}, ${align.tabLabels})`);
   check(align.topIcons <= 0.5 && align.topLabels <= 0.5, `${vp.name}: top-bar icons share a level and labels a baseline`);
   check(align.barsFlush <= 1, `${vp.name}: both bars end flush with the screen edge`);
   check(align.panelInsets <= 1, `${vp.name}: the content panel is inset evenly on all four sides`);
@@ -558,7 +559,7 @@ for (const vp of VIEWPORTS) {
     const tiles = [...document.querySelectorAll(".tile:not(.tile-empty)")];
     const mid = (r) => (r.top + r.bottom) / 2;
     return {
-      sizes: new Set(tiles.map((t) => `${Math.round(t.getBoundingClientRect().width)}x${Math.round(t.getBoundingClientRect().height)}`)).size,
+      sizes: new Set(tiles.map((t) => Math.round(t.getBoundingClientRect().width))).size,
       smallest: Math.min(...tiles.map((t) => parseFloat(getComputedStyle(t.querySelector(".tile-state, .tile-value")).fontSize))),
       clipped: tiles.filter((t) => { const a = t.querySelector(".tile-state, .tile-value").getBoundingClientRect(), b = t.getBoundingClientRect();
         return a.top < b.top - 1 || a.bottom > b.bottom + 1 || a.left < b.left - 1 || a.right > b.right + 1; }).length,
@@ -568,7 +569,7 @@ for (const vp of VIEWPORTS) {
     };
   });
   check(shortTiles.sizes === 1 && shortTiles.smallest >= 12 && shortTiles.clipped === 0 && shortTiles.head <= 12,
-        `${vp.name}: short tiles on a split screen stay identical, readable and level (${shortTiles.smallest}px)`);
+        `${vp.name}: short tiles on a split screen share a width, stay readable and level (${shortTiles.smallest}px)`);
   await shot("split-v");
 
   // --- two touches: settings (top right) -> a studio section
@@ -1047,13 +1048,13 @@ for (const vp of VIEWPORTS) {
   // BP as dots with tails and a dashed line, against the API's readings
   const bp = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="bp-dot-bp-"]')].map((g) => ({ x: +g.dataset.x, y: +g.dataset.y, top: +g.dataset.top, bottom: +g.dataset.bottom })));
   const apiBp = (await api("/api/examples/scn-pneumonia?minute=0")).bp_readings;
-  check(bp.length >= 3 && bp.length <= apiBp.length && bp.every((d) => d.top < d.y && d.y < d.bottom) && bp.every((d, i) => i === 0 || d.x > bp[i - 1].x), `${vp.name}: BP is a dot at each MAP with a tail from diastolic to systolic, oldest to newest (${bp.length} readings)`);
+  check(bp.length >= 3 && bp.length <= apiBp.length && bp.every((d) => d.top < d.y && d.y < d.bottom) && bp.every((d, i) => i === 0 || d.x > bp[i - 1].x), `${vp.name}: BP has a systolic, MAP and diastolic marker at each reading, oldest to newest (${bp.length} readings)`);
   const bpLine = await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="bp-line-bp"]')).strokeDasharray);
   check(bpLine && bpLine !== "none", `${vp.name}: the BP dots are joined by a dashed line`);
   const tempKey = await page.evaluate(() => { const k = document.querySelector('[data-testid="temp-key-temp"]'); const f = document.querySelector('[data-testid="trace-frame-temp"]').getBoundingClientRect(); if (!k) return null; const r = k.getBoundingClientRect();
     const hit = [...document.querySelectorAll('[data-testid^="temp-dot-temp"], [data-testid="trace-signal-temp"]')].some((e) => { const b = e.getBoundingClientRect(); return b.width > 0 && !(b.right < r.left - 2 || b.left > r.right + 2 || b.bottom < r.top - 2 || b.top > r.bottom + 2) && e.tagName === "circle"; });
     return { inside: r.left >= f.left && r.right <= f.right && r.top >= f.top - 1 && r.bottom <= f.bottom + 1, hit, text: k.textContent }; });
-  check(tempKey && tempKey.inside && !tempKey.hit && /Skin Sensor/.test(tempKey.text) && /Measured/.test(tempKey.text), `${vp.name}: measured and skin temperature share a plot with a small key that covers no point`);
+  check(tempKey && tempKey.inside && !tempKey.hit && /Skin Sensor/.test(tempKey.text) && /Thermometer/.test(tempKey.text), `${vp.name}: thermometer and skin temperature share a plot with a small key that covers no point`);
   // Position and falls: a human outline, in words, in Title Case
   await ex("setScenario", "scn-copd"); await ex("setMinute", -20); await settle();
   const pos = await page.evaluate(() => ({ pose: document.querySelector('[data-testid="position-figure"]')?.dataset.pose, word: document.querySelector(".position-word")?.textContent, meaning: document.querySelector(".position-meaning")?.textContent,
@@ -1190,6 +1191,78 @@ for (const vp of VIEWPORTS) {
   }));
   check(bounds, `${vp.name}: every line and dot stays inside its graph (a sweeping strip is clipped to its plot)`);
   await page.evaluate(() => window.__emus.ui.getState().setXScale("bp", null));
+
+  // ---- Round 7: the monitor line, richer boxes, heights, Measure buttons
+  await goDesign("icu-monitor", "monitor"); await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 360); await settle();
+  const line = await page.evaluate(() => { const g = document.querySelector('[data-testid="grid-monitor-rows"]'); const R = (id) => document.querySelector(`[data-testid="row-${id}"]`).getBoundingClientRect(); const o = R("oxygen"), a = R("activity"), f = R("falls"), n = R("news"), t = R("temp"); return { cols: g.dataset.columns, sameLine: [a, f, n].every((r) => Math.abs(r.top - o.top) < 2), order: o.left < a.left && a.left < f.left && f.left < n.left, below: o.top >= t.bottom - 1, narrow: a.width < t.width / 3 && f.width < t.width / 3, newsWider: n.width > a.width }; });
+  check(line.cols === "9" && line.sameLine && line.order && line.below && line.narrow && line.newsWider, `${vp.name}: O2 flow, activity, falls and NEWS sit on one line under the traces as small boxes (${JSON.stringify(line)})`);
+  const heights = await page.evaluate(() => Object.fromEntries(["ecg", "spo2", "resp", "bp", "temp"].map((id) => [id, document.querySelector(`[data-testid="row-${id}"]`).getBoundingClientRect().height])));
+  check(heights.ecg > heights.resp * 1.15 && heights.spo2 > heights.resp * 1.15 && heights.bp > heights.ecg, `${vp.name}: ECG and SpO2 are taller than respiration and BP taller still (${Object.values(heights).map(Math.round).join(", ")})`);
+  const api360 = await api("/api/examples/scn-pneumonia?minute=360");
+  const noteOf = (id) => page.locator(`[data-testid="note-${id}-0"]`).innerText();
+  check(/Sinus/.test(await noteOf("hr")) && await noteOf("rr") === "Irregular" && /24 H Max 38\.\d Min 3\d\.\d/.test(await noteOf("temp")), `${vp.name}: the ECG box says the rhythm, the RR box says Irregular and the temp box shows the 24 H max and min`);
+  const t24 = api360.extremes_24h.temp;
+  check((await noteOf("temp")).includes(`Max ${t24.max.toFixed(1)}`) && (await noteOf("temp")).includes(`Min ${t24.min.toFixed(1)}`), `${vp.name}: those extremes are the API's (${t24.max}, ${t24.min})`);
+  await ex("setScenario", "scn-af"); await ex("setMinute", 100); await settle();
+  check(/Atrial/.test(await noteOf("hr")), `${vp.name}: AF reads as Atrial Fibrillation in the ECG box`);
+  await ex("setScenario", "scn-stable"); await ex("setMinute", 0); await settle();
+  check(await noteOf("rr") === "Regular", `${vp.name}: steady breathing reads Regular`);
+  await ex("setScenario", "scn-copd"); await ex("setMinute", 0); await settle();
+  const copd = await api("/api/examples/scn-copd?minute=0");
+  check(await T("falls-24h").getAttribute("data-count") === String(copd.falls_24h) && copd.falls_24h >= 1 && /Fall/.test(await T("falls-24h").innerText()), `${vp.name}: the falls box shows the falls in the last 24 hours (${copd.falls_24h})`);
+  const acts = await page.evaluate(() => Object.fromEntries(["standing", "walking", "movement"].map((k) => [k, +document.querySelector(`[data-testid="activity-${k}"]`).dataset.minutes])));
+  check(acts.standing === copd.activity_24h.standing_min && acts.walking === copd.activity_24h.walking_min && acts.movement === copd.activity_24h.movement_min && acts.standing > 0, `${vp.name}: the activity box shows standing, walking and movement time (${JSON.stringify(acts)})`);
+  const strip = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-strip-"][data-total]')].map((e) => +e.dataset.total));
+  check(strip.length >= 2 && strip[strip.length - 1] === copd.news2.total, `${vp.name}: the NEWS box shows totals by date and time, ending with now (${strip.join(", ")})`);
+  const bpFont = await page.evaluate(() => { const t = document.querySelector('[data-testid="num-bp_sys"]'); const m = t.querySelector(".tile-main"); const ex2 = t.querySelector(".tile-extra:not(.tile-extra-wrap)"); return [parseFloat(getComputedStyle(m).fontSize), parseFloat(getComputedStyle(ex2).fontSize)]; });
+  check(bpFont[0] === bpFont[1], `${vp.name}: the diastolic is the same size as the systolic (${bpFont.join(" and ")} px)`);
+  check((await page.locator('[data-testid="bp-key"]').textContent()).replace(/\s+/g, " ").includes("SystolicDiastolicMAP"), `${vp.name}: the BP trace has a key for the arrows and the X`);
+  const bpTicks = await page.evaluate(() => [...document.querySelectorAll('[data-testid="trace-frame-bp"] text.trace-label')].filter((t) => /^\d+$/.test(t.textContent)).length);
+  check(bpTicks >= 4, `${vp.name}: the BP scale has at least four values (${bpTicks})`);
+  const bpShapes = await page.evaluate(() => ({ sys: document.querySelectorAll('[data-testid^="bp-sysmark-bp-"]').length, dia: document.querySelectorAll('[data-testid^="bp-diamark-bp-"]').length, map: document.querySelectorAll('[data-testid^="bp-mapmark-bp-"]').length, lines: ["bp-line-bp", "bp-line-sys-bp", "bp-line-dia-bp"].every((i) => document.querySelector(`[data-testid="${i}"]`)) }));
+  check(bpShapes.sys >= 3 && bpShapes.sys === bpShapes.dia && bpShapes.sys === bpShapes.map && bpShapes.lines, `${vp.name}: the main BP trace has arrows, X marks for the MAP and dashed lines joining each (${JSON.stringify(bpShapes)})`);
+  check((await page.locator('[data-testid="temp-key-temp"]').textContent()).includes("Thermometer") && !(await page.locator('[data-testid="temp-key-temp"]').textContent()).includes("Measured"), `${vp.name}: the temperature key says Thermometer`);
+  // heights in Edit Layout
+  await T("top-settings").click(); await page.getByText("Edit Layout").first().click();
+  await T("row-hit-ecg").click();
+  const hBefore = await page.evaluate(() => document.querySelector('[data-testid="row-ecg"]').getBoundingClientRect().height);
+  await T("height-2").click();
+  const hAfter = await page.evaluate(() => document.querySelector('[data-testid="row-ecg"]').getBoundingClientRect().height);
+  check(hAfter > hBefore * 1.25, `${vp.name}: choosing Double height in Edit Layout makes the ECG taller at once (${Math.round(hBefore)} to ${Math.round(hAfter)} px)`);
+  await T("height-0.75").click();
+  const shorter = await page.evaluate(() => document.querySelector('[data-testid="row-ecg"]').getBoundingClientRect().height);
+  check(shorter < hBefore, `${vp.name}: Shorter makes it shorter than standard (${Math.round(shorter)} px)`);
+  await page.evaluate(() => { window.__emus.ui.getState().showSheet(null); });
+  await T("edit-exit").click().catch(() => {});
+  await goDesign("icu-monitor", "monitor"); await settle();
+  // Measure buttons are in the tab bar, one touch, and add a simulated reading
+  await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 360); await settle();
+  check(await T("tab-measure-bp").isVisible() && await T("tab-measure-temp").isVisible(), `${vp.name}: Measure BP and Measure Temp are in the tab bar`);
+  const tabBox = await page.evaluate(() => [...document.querySelectorAll(".tabbar .tab")].map((e) => { const r = e.getBoundingClientRect(); return r.right <= innerWidth + 1 && r.height >= 48; }).every(Boolean));
+  check(tabBox, `${vp.name}: all twelve tabs fit across the screen and are touch targets`);
+  const bpBefore = (await page.locator('[data-testid^="bp-dot-bp-"]').count());
+  await T("tab-measure-bp").click();
+  await T("measure-bp").waitFor();
+  await T("measure-start").click();
+  check(await T("measure-running").isVisible(), `${vp.name}: Measure BP starts a simulated measurement in one more touch`);
+  await T("measure-result").waitFor({ timeout: 12000 });
+  const mm = await api("/api/examples/scn-pneumonia/measure?kind=bp&minute=360");
+  check((await T("measure-value").innerText()).startsWith(`${mm.bp.sys}/${mm.bp.dia}`) && /Simulated Reading/.test(await T("measure-result").innerText()), `${vp.name}: the reading is the scenario's value and says it is simulated`);
+  await T("measure-done").click();
+  await settle();
+  check((await page.locator('[data-testid^="bp-dot-bp-"]').count()) === bpBefore + 1, `${vp.name}: the new BP appears on the trace`);
+  check((await T("num-bp_sys").innerText()).includes(`${mm.bp.sys}`), `${vp.name}: and in the BP tile`);
+  await T("tab-measure-temp").click();
+  await T("measure-temp").waitFor();
+  await T("measure-start").click();
+  await T("measure-result").waitFor({ timeout: 10000 });
+  await T("measure-done").click();
+  await settle();
+  check(await page.locator('[data-testid^="temp-dot-temp-"]').count() >= 1, `${vp.name}: Measure Temp adds a thermometer point`);
+  await ex("setMinute", 361); await settle();
+  const cleared = await page.evaluate(() => { const t = window.__emus.examples.getState().taken; return t.bp.length + t.temp.length; });
+  check(cleared === 0, `${vp.name}: taken readings clear when the time changes`);
+  await ex("setMinute", 360); await settle();
 
   // Nothing overlaps, nothing is cut off, everything has padding; and the words are capitalised
   const { audit } = require("./layout-audit.cjs");
