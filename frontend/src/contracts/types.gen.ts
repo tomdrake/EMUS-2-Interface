@@ -6,6 +6,8 @@
  */
 export interface Contracts {
   alarm_state: AlarmState;
+  example_scenario: ExampleScenarioInfo;
+  example_snapshot: ExampleSnapshot;
   finding: Finding;
   forecast_bundle: ForecastBundle;
   imaging_study: ImagingStudy;
@@ -113,6 +115,285 @@ export interface AlarmEvent {
   value: number | null;
 }
 /**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "ExampleScenarioInfo".
+ */
+export interface ExampleScenarioInfo {
+  end_min: number;
+  highlights: [unknown, unknown][];
+  id: string;
+  start_min: number;
+  teaching_point: string;
+  title: string;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "ExampleSnapshot".
+ */
+export interface ExampleSnapshot {
+  alarms: AlarmState;
+  badge: string;
+  devices: DeviceStatus[];
+  finding_data: {
+    [k: string]: FindingData;
+  };
+  findings: Finding[];
+  forecast: ForecastBundle;
+  generated_at: string;
+  minute: number;
+  model: ModelInfo;
+  news2: News2Now;
+  numerics: {
+    [k: string]: number | string | null;
+  };
+  oxygen: OxygenTherapy;
+  patient: Patient;
+  placeholder: boolean;
+  quality: SignalQuality[];
+  scenario_id: string;
+  signals: {
+    [k: string]: SignalStatus;
+  };
+  strips: ExampleStrip[];
+  title: string;
+  trends: {
+    [k: string]: TrendSeries;
+  };
+}
+/**
+ * One physical device feeding this patient's monitor.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "DeviceStatus".
+ */
+export interface DeviceStatus {
+  battery: "ok" | "low" | "critical" | "charging" | "unknown";
+  battery_pct: number | null;
+  connected_since: string | null;
+  connection: "connected" | "connecting" | "lost" | "not-paired";
+  id: string;
+  kind: "anne-chest" | "anne-limb" | "bp-cuff" | "flow-meter" | "other";
+  label: string;
+  last_seen: string | null;
+  link_quality: number | null;
+  parameters: (
+    | "hr"
+    | "pulse"
+    | "spo2"
+    | "rr"
+    | "bp_sys"
+    | "bp_dia"
+    | "bp_mean"
+    | "temp"
+    | "o2_flow"
+    | "fio2"
+    | "acvpu"
+    | "news2"
+    | "activity"
+    | "position"
+    | "falls"
+    | "sleep"
+    | "timer"
+  )[];
+  simulated: boolean;
+  waveforms: ("ecg" | "pleth" | "resp")[];
+}
+/**
+ * Everything the Why sheet draws for one finding.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "FindingData".
+ */
+export interface FindingData {
+  baseline_strip: ExampleStrip | null;
+  features: {
+    [k: string]: string;
+  };
+  finding_id: string;
+  reasons: Contributor[];
+  rr_intervals_s: number[];
+  rule: string;
+  strip: ExampleStrip | null;
+  values: [unknown, unknown][];
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "ExampleStrip".
+ */
+export interface ExampleStrip {
+  caption: string;
+  ends_s_before_now: number;
+  hz: number;
+  marks: TraceMark[];
+  quality: SignalQuality;
+  reading: string | null;
+  samples: number[];
+  seconds: number;
+  waveform: "ecg" | "pleth" | "resp";
+}
+/**
+ * A bracket or flag drawn on a strip to say what the AI saw there.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "TraceMark".
+ */
+export interface TraceMark {
+  end_s: number;
+  finding_id: string | null;
+  kind: "bracket" | "flag";
+  label: string;
+  start_s: number;
+  tone: "finding" | "technical";
+}
+/**
+ * Assessment of one stretch of one waveform (see app.signal_quality).
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "SignalQuality".
+ */
+export interface SignalQuality {
+  advice: string;
+  assessed_by: "device" | "heuristic";
+  grade: "good" | "poor" | "unusable";
+  issue: ("noise" | "motion" | "baseline-wander" | "low-amplitude" | "low-perfusion" | "flatline" | "saturated") | null;
+  label: string;
+  /**
+   * 1 = clean, 0 = unusable
+   */
+  sqi: number;
+  waveform: "ecg" | "pleth" | "resp";
+}
+/**
+ * One reason behind a forecast (from the causal model).
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "Contributor".
+ */
+export interface Contributor {
+  direction: "raises" | "lowers";
+  evidence: (WaveformEvidence | TrendEvidence | LabEvidence | ImageEvidence)[];
+  /**
+   * e.g. 'Respiratory rate rising for 90 min'
+   */
+  factor: string;
+  parameter:
+    | (
+        | "hr"
+        | "pulse"
+        | "spo2"
+        | "rr"
+        | "bp_sys"
+        | "bp_dia"
+        | "bp_mean"
+        | "temp"
+        | "o2_flow"
+        | "fio2"
+        | "acvpu"
+        | "news2"
+        | "activity"
+        | "position"
+        | "falls"
+        | "sleep"
+        | "timer"
+      )
+    | null;
+  /**
+   * Share of the predicted change.
+   */
+  weight: number;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "WaveformEvidence".
+ */
+export interface WaveformEvidence {
+  baseline_end: string | null;
+  /**
+   * A comparison strip from the patient's own normal rhythm.
+   */
+  baseline_start: string | null;
+  caption: string;
+  end: string;
+  marks: {
+    [k: string]: unknown;
+  }[];
+  start: string;
+  type: "waveform";
+  waveform: "ecg" | "pleth" | "resp";
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "TrendEvidence".
+ */
+export interface TrendEvidence {
+  caption: string;
+  end: string;
+  parameter:
+    | "hr"
+    | "pulse"
+    | "spo2"
+    | "rr"
+    | "bp_sys"
+    | "bp_dia"
+    | "bp_mean"
+    | "temp"
+    | "o2_flow"
+    | "fio2"
+    | "acvpu"
+    | "news2"
+    | "activity"
+    | "position"
+    | "falls"
+    | "sleep"
+    | "timer";
+  start: string;
+  type: "trend";
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "LabEvidence".
+ */
+export interface LabEvidence {
+  caption: string;
+  test:
+    | "wcc"
+    | "neut"
+    | "hb"
+    | "plt"
+    | "na"
+    | "k"
+    | "urea"
+    | "creat"
+    | "bicarb"
+    | "bili"
+    | "alt"
+    | "alp"
+    | "alb"
+    | "crp"
+    | "lactate"
+    | "ph"
+    | "pco2"
+    | "po2"
+    | "be"
+    | "trop"
+    | "inr"
+    | "glucose";
+  type: "lab";
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "ImageEvidence".
+ */
+export interface ImageEvidence {
+  caption: string;
+  compare_study_id: string | null;
+  regions: {
+    [k: string]: unknown;
+  }[];
+  study_id: string;
+  type: "image";
+}
+/**
  * An AI interpretation of what is happening (or happened), with its evidence.
  *
  * This interface was referenced by `Contracts`'s JSON-Schema
@@ -213,97 +494,6 @@ export interface CertaintyValue {
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema
- * via the `definition` "WaveformEvidence".
- */
-export interface WaveformEvidence {
-  baseline_end: string | null;
-  /**
-   * A comparison strip from the patient's own normal rhythm.
-   */
-  baseline_start: string | null;
-  caption: string;
-  end: string;
-  marks: {
-    [k: string]: unknown;
-  }[];
-  start: string;
-  type: "waveform";
-  waveform: "ecg" | "pleth" | "resp";
-}
-/**
- * This interface was referenced by `Contracts`'s JSON-Schema
- * via the `definition` "TrendEvidence".
- */
-export interface TrendEvidence {
-  caption: string;
-  end: string;
-  parameter:
-    | "hr"
-    | "pulse"
-    | "spo2"
-    | "rr"
-    | "bp_sys"
-    | "bp_dia"
-    | "bp_mean"
-    | "temp"
-    | "o2_flow"
-    | "fio2"
-    | "acvpu"
-    | "news2"
-    | "activity"
-    | "position"
-    | "falls"
-    | "sleep"
-    | "timer";
-  start: string;
-  type: "trend";
-}
-/**
- * This interface was referenced by `Contracts`'s JSON-Schema
- * via the `definition` "LabEvidence".
- */
-export interface LabEvidence {
-  caption: string;
-  test:
-    | "wcc"
-    | "neut"
-    | "hb"
-    | "plt"
-    | "na"
-    | "k"
-    | "urea"
-    | "creat"
-    | "bicarb"
-    | "bili"
-    | "alt"
-    | "alp"
-    | "alb"
-    | "crp"
-    | "lactate"
-    | "ph"
-    | "pco2"
-    | "po2"
-    | "be"
-    | "trop"
-    | "inr"
-    | "glucose";
-  type: "lab";
-}
-/**
- * This interface was referenced by `Contracts`'s JSON-Schema
- * via the `definition` "ImageEvidence".
- */
-export interface ImageEvidence {
-  caption: string;
-  compare_study_id: string | null;
-  regions: {
-    [k: string]: unknown;
-  }[];
-  study_id: string;
-  type: "image";
-}
-/**
- * This interface was referenced by `Contracts`'s JSON-Schema
  * via the `definition` "ModelInfo".
  */
 export interface ModelInfo {
@@ -374,45 +564,6 @@ export interface EventPrediction {
   model: ModelInfo;
   probability: number;
   suggested_causes: SuggestedCause[];
-}
-/**
- * One reason behind a forecast (from the causal model).
- *
- * This interface was referenced by `Contracts`'s JSON-Schema
- * via the `definition` "Contributor".
- */
-export interface Contributor {
-  direction: "raises" | "lowers";
-  evidence: (WaveformEvidence | TrendEvidence | LabEvidence | ImageEvidence)[];
-  /**
-   * e.g. 'Respiratory rate rising for 90 min'
-   */
-  factor: string;
-  parameter:
-    | (
-        | "hr"
-        | "pulse"
-        | "spo2"
-        | "rr"
-        | "bp_sys"
-        | "bp_dia"
-        | "bp_mean"
-        | "temp"
-        | "o2_flow"
-        | "fio2"
-        | "acvpu"
-        | "news2"
-        | "activity"
-        | "position"
-        | "falls"
-        | "sleep"
-        | "timer"
-      )
-    | null;
-  /**
-   * Share of the predicted change.
-   */
-  weight: number;
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema
@@ -490,6 +641,142 @@ export interface NewsBandProbabilities {
   horizon_min: number;
   low: number;
   medium: number;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "News2Now".
+ */
+export interface News2Now {
+  complete: boolean;
+  components: {
+    [k: string]: number;
+  };
+  response: string;
+  risk: string | null;
+  total: number | null;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "OxygenTherapy".
+ */
+export interface OxygenTherapy {
+  at: string;
+  device:
+    | "A"
+    | "N"
+    | "SM"
+    | "V24"
+    | "V28"
+    | "V35"
+    | "V40"
+    | "V60"
+    | "RM"
+    | "H28"
+    | "H35"
+    | "H40"
+    | "H60"
+    | "TM"
+    | "CP"
+    | "NIV"
+    | "HFNO";
+  fio2_pct: number | null;
+  /**
+   * 0 = room air
+   */
+  flow_l_min: number;
+  recorded_by: string | null;
+  source: "manual" | "flow-meter" | "simulated";
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "Patient".
+ */
+export interface Patient {
+  admitted_at: string | null;
+  allergies: string[];
+  bed: string | null;
+  /**
+   * YYYY-MM-DD
+   */
+  birth_date: string | null;
+  consultant: string | null;
+  discharged_at: string | null;
+  family_name: string;
+  given_name: string;
+  id: string;
+  nhs_number: string | null;
+  origin: string;
+  sex: "male" | "female" | "other" | "unknown";
+  simulated: boolean;
+  title: string | null;
+  ward: string | null;
+  weight_kg: number | null;
+}
+/**
+ * Why a parameter's number is, or is not, on screen right now.
+ *
+ * The display never infers this from a missing value: the server always says
+ * which state applies, so STANDBY, CONNECTION LOST and CHECK SENSOR cannot be
+ * confused with each other or with a blank.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "SignalStatus".
+ */
+export interface SignalStatus {
+  advice: string;
+  device_id: string | null;
+  issue: ("noise" | "motion" | "baseline-wander" | "low-amplitude" | "low-perfusion" | "flatline" | "saturated") | null;
+  last_value: number | string | null;
+  last_value_at: string | null;
+  parameter:
+    | "hr"
+    | "pulse"
+    | "spo2"
+    | "rr"
+    | "bp_sys"
+    | "bp_dia"
+    | "bp_mean"
+    | "temp"
+    | "o2_flow"
+    | "fio2"
+    | "acvpu"
+    | "news2"
+    | "activity"
+    | "position"
+    | "falls"
+    | "sleep"
+    | "timer";
+  quality: number | null;
+  since: string;
+  state: "ok" | "standby" | "acquiring" | "poor-signal" | "sensor-off" | "connection-lost" | "invalid";
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "TrendSeries".
+ */
+export interface TrendSeries {
+  device_id: string | null;
+  parameter:
+    | "hr"
+    | "pulse"
+    | "spo2"
+    | "rr"
+    | "bp_sys"
+    | "bp_dia"
+    | "bp_mean"
+    | "temp"
+    | "o2_flow"
+    | "fio2"
+    | "acvpu"
+    | "news2"
+    | "activity"
+    | "position"
+    | "falls"
+    | "sleep"
+    | "timer";
+  points: [unknown, unknown][];
+  quality: number | null;
+  unit: string;
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema
@@ -650,63 +937,6 @@ export interface ObservationSet {
   };
 }
 /**
- * This interface was referenced by `Contracts`'s JSON-Schema
- * via the `definition` "OxygenTherapy".
- */
-export interface OxygenTherapy {
-  at: string;
-  device:
-    | "A"
-    | "N"
-    | "SM"
-    | "V24"
-    | "V28"
-    | "V35"
-    | "V40"
-    | "V60"
-    | "RM"
-    | "H28"
-    | "H35"
-    | "H40"
-    | "H60"
-    | "TM"
-    | "CP"
-    | "NIV"
-    | "HFNO";
-  fio2_pct: number | null;
-  /**
-   * 0 = room air
-   */
-  flow_l_min: number;
-  recorded_by: string | null;
-  source: "manual" | "flow-meter" | "simulated";
-}
-/**
- * This interface was referenced by `Contracts`'s JSON-Schema
- * via the `definition` "Patient".
- */
-export interface Patient {
-  admitted_at: string | null;
-  allergies: string[];
-  bed: string | null;
-  /**
-   * YYYY-MM-DD
-   */
-  birth_date: string | null;
-  consultant: string | null;
-  discharged_at: string | null;
-  family_name: string;
-  given_name: string;
-  id: string;
-  nhs_number: string | null;
-  origin: string;
-  sex: "male" | "female" | "other" | "unknown";
-  simulated: boolean;
-  title: string | null;
-  ward: string | null;
-  weight_kg: number | null;
-}
-/**
  * Per-patient clinical settings. Stored as patient data, never in a design.
  *
  * This interface was referenced by `Contracts`'s JSON-Schema
@@ -790,100 +1020,6 @@ export interface DevicesMessage {
     [k: string]: SignalStatus;
   };
   type: "devices";
-}
-/**
- * One physical device feeding this patient's monitor.
- *
- * This interface was referenced by `Contracts`'s JSON-Schema
- * via the `definition` "DeviceStatus".
- */
-export interface DeviceStatus {
-  battery: "ok" | "low" | "critical" | "charging" | "unknown";
-  battery_pct: number | null;
-  connected_since: string | null;
-  connection: "connected" | "connecting" | "lost" | "not-paired";
-  id: string;
-  kind: "anne-chest" | "anne-limb" | "bp-cuff" | "flow-meter" | "other";
-  label: string;
-  last_seen: string | null;
-  link_quality: number | null;
-  parameters: (
-    | "hr"
-    | "pulse"
-    | "spo2"
-    | "rr"
-    | "bp_sys"
-    | "bp_dia"
-    | "bp_mean"
-    | "temp"
-    | "o2_flow"
-    | "fio2"
-    | "acvpu"
-    | "news2"
-    | "activity"
-    | "position"
-    | "falls"
-    | "sleep"
-    | "timer"
-  )[];
-  simulated: boolean;
-  waveforms: ("ecg" | "pleth" | "resp")[];
-}
-/**
- * Assessment of one stretch of one waveform (see app.signal_quality).
- *
- * This interface was referenced by `Contracts`'s JSON-Schema
- * via the `definition` "SignalQuality".
- */
-export interface SignalQuality {
-  advice: string;
-  assessed_by: "device" | "heuristic";
-  grade: "good" | "poor" | "unusable";
-  issue: ("noise" | "motion" | "baseline-wander" | "low-amplitude" | "low-perfusion" | "flatline" | "saturated") | null;
-  label: string;
-  /**
-   * 1 = clean, 0 = unusable
-   */
-  sqi: number;
-  waveform: "ecg" | "pleth" | "resp";
-}
-/**
- * Why a parameter's number is, or is not, on screen right now.
- *
- * The display never infers this from a missing value: the server always says
- * which state applies, so STANDBY, CONNECTION LOST and CHECK SENSOR cannot be
- * confused with each other or with a blank.
- *
- * This interface was referenced by `Contracts`'s JSON-Schema
- * via the `definition` "SignalStatus".
- */
-export interface SignalStatus {
-  advice: string;
-  device_id: string | null;
-  issue: ("noise" | "motion" | "baseline-wander" | "low-amplitude" | "low-perfusion" | "flatline" | "saturated") | null;
-  last_value: number | string | null;
-  last_value_at: string | null;
-  parameter:
-    | "hr"
-    | "pulse"
-    | "spo2"
-    | "rr"
-    | "bp_sys"
-    | "bp_dia"
-    | "bp_mean"
-    | "temp"
-    | "o2_flow"
-    | "fio2"
-    | "acvpu"
-    | "news2"
-    | "activity"
-    | "position"
-    | "falls"
-    | "sleep"
-    | "timer";
-  quality: number | null;
-  since: string;
-  state: "ok" | "standby" | "acquiring" | "poor-signal" | "sensor-off" | "connection-lost" | "invalid";
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema

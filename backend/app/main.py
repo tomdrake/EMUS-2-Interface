@@ -16,7 +16,8 @@ from fastapi.staticfiles import StaticFiles
 
 from app import db
 from app.routers import (
-    alarms, chat, designs, fhir, findings, hl7v2, patients, predictions, settings, stream,
+    alarms, chat, designs, examples, fhir, findings, hl7v2, patients, predictions, settings,
+    stream,
 )
 
 DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
@@ -35,7 +36,7 @@ def create_app() -> FastAPI:
         description="Prototype for co-design workshops. Not a medical device.",
         lifespan=lifespan,
     )
-    for module in (designs, patients, stream, alarms, findings, predictions, chat,
+    for module in (designs, examples, patients, stream, alarms, findings, predictions, chat,
                    settings, fhir, hl7v2):
         app.include_router(module.router)
 

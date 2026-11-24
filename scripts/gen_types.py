@@ -27,6 +27,7 @@ def schemas() -> dict[Path, dict]:
     from pydantic import BaseModel
 
     from app.models import clinical as c
+    from app.models import example as ex
     from app.models.design import Design
 
     class Contracts(BaseModel):
@@ -43,6 +44,8 @@ def schemas() -> dict[Path, dict]:
         forecast_bundle: c.ForecastBundle
         alarm_state: c.AlarmState
         stream_message: c.StreamMessage
+        example_snapshot: ex.ExampleSnapshot
+        example_scenario: ex.ExampleScenarioInfo
 
     return {
         # mode="serialization": fields with defaults are always present in what the

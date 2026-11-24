@@ -65,6 +65,13 @@ class RuleInterpretation(InterpretationProvider):
         raise NotImplementedError(M)
 
 
+def _ago(minutes: float) -> str:
+    minutes = max(0, round(minutes))
+    h, m = divmod(minutes, 60)
+    return f"{h} h {m} min" if h else f"{m} min"
+
+
 def describe_resolved(finding: Finding, now: datetime) -> str:
     """'Last run of AF 2 h 14 min ago' for a resolved finding. Pure function."""
-    raise NotImplementedError(M)
+    when = finding.offset or finding.onset
+    return f"Last run of {finding.label} {_ago((now - when).total_seconds() / 60)} ago"

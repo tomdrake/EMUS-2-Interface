@@ -15,7 +15,6 @@ from tests.test_m5_chat import FakeProvider, _use
 
 # ------------------------------------------------------------------ certainty
 
-@todo("M7")
 def test_every_registry_metric_has_a_builder_with_a_normalised_score():
     from app.ai import certainty
     examples = {
@@ -51,7 +50,6 @@ def test_every_registry_metric_has_a_builder_with_a_normalised_score():
         certainty.build("vibes", p=1)
 
 
-@todo("M7")
 def test_certainty_helpers():
     from app.ai import certainty
     assert certainty.natural_frequency(0.62) == "6 in 10"
@@ -64,7 +62,6 @@ def test_certainty_helpers():
 
 # ------------------------------------------------------------------- findings
 
-@todo("M7")
 def test_resolved_finding_wording():
     from app.ai.interpretation import describe_resolved
     from app.models.clinical import Finding, ModelInfo

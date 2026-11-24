@@ -843,6 +843,335 @@
       "title": "EventPrediction",
       "type": "object"
     },
+    "ExampleScenarioInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "end_min": {
+          "title": "End Min",
+          "type": "integer"
+        },
+        "highlights": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Highlights",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "start_min": {
+          "title": "Start Min",
+          "type": "integer"
+        },
+        "teaching_point": {
+          "title": "Teaching Point",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "teaching_point",
+        "start_min",
+        "end_min",
+        "highlights"
+      ],
+      "title": "ExampleScenarioInfo",
+      "type": "object"
+    },
+    "ExampleSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "alarms": {
+          "$ref": "#/$defs/AlarmState"
+        },
+        "badge": {
+          "default": "EXAMPLE DATA",
+          "title": "Badge",
+          "type": "string"
+        },
+        "devices": {
+          "items": {
+            "$ref": "#/$defs/DeviceStatus"
+          },
+          "title": "Devices",
+          "type": "array"
+        },
+        "finding_data": {
+          "additionalProperties": {
+            "$ref": "#/$defs/FindingData"
+          },
+          "title": "Finding Data",
+          "type": "object"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/Finding"
+          },
+          "title": "Findings",
+          "type": "array"
+        },
+        "forecast": {
+          "$ref": "#/$defs/ForecastBundle"
+        },
+        "generated_at": {
+          "format": "date-time",
+          "title": "Generated At",
+          "type": "string"
+        },
+        "minute": {
+          "title": "Minute",
+          "type": "number"
+        },
+        "model": {
+          "$ref": "#/$defs/ModelInfo"
+        },
+        "news2": {
+          "$ref": "#/$defs/News2Now"
+        },
+        "numerics": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "propertyNames": {
+            "enum": [
+              "hr",
+              "pulse",
+              "spo2",
+              "rr",
+              "bp_sys",
+              "bp_dia",
+              "bp_mean",
+              "temp",
+              "o2_flow",
+              "fio2",
+              "acvpu",
+              "news2",
+              "activity",
+              "position",
+              "falls",
+              "sleep",
+              "timer"
+            ]
+          },
+          "title": "Numerics",
+          "type": "object"
+        },
+        "oxygen": {
+          "$ref": "#/$defs/OxygenTherapy"
+        },
+        "patient": {
+          "$ref": "#/$defs/Patient"
+        },
+        "placeholder": {
+          "default": true,
+          "title": "Placeholder",
+          "type": "boolean"
+        },
+        "quality": {
+          "items": {
+            "$ref": "#/$defs/SignalQuality"
+          },
+          "title": "Quality",
+          "type": "array"
+        },
+        "scenario_id": {
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "signals": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SignalStatus"
+          },
+          "propertyNames": {
+            "enum": [
+              "hr",
+              "pulse",
+              "spo2",
+              "rr",
+              "bp_sys",
+              "bp_dia",
+              "bp_mean",
+              "temp",
+              "o2_flow",
+              "fio2",
+              "acvpu",
+              "news2",
+              "activity",
+              "position",
+              "falls",
+              "sleep",
+              "timer"
+            ]
+          },
+          "title": "Signals",
+          "type": "object"
+        },
+        "strips": {
+          "items": {
+            "$ref": "#/$defs/ExampleStrip"
+          },
+          "title": "Strips",
+          "type": "array"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "trends": {
+          "additionalProperties": {
+            "$ref": "#/$defs/TrendSeries"
+          },
+          "propertyNames": {
+            "enum": [
+              "hr",
+              "pulse",
+              "spo2",
+              "rr",
+              "bp_sys",
+              "bp_dia",
+              "bp_mean",
+              "temp",
+              "o2_flow",
+              "fio2",
+              "acvpu",
+              "news2",
+              "activity",
+              "position",
+              "falls",
+              "sleep",
+              "timer"
+            ]
+          },
+          "title": "Trends",
+          "type": "object"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "title",
+        "minute",
+        "generated_at",
+        "placeholder",
+        "badge",
+        "model",
+        "patient",
+        "numerics",
+        "oxygen",
+        "news2",
+        "devices",
+        "signals",
+        "quality",
+        "alarms",
+        "strips",
+        "trends",
+        "findings",
+        "finding_data",
+        "forecast"
+      ],
+      "title": "ExampleSnapshot",
+      "type": "object"
+    },
+    "ExampleStrip": {
+      "additionalProperties": false,
+      "properties": {
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "ends_s_before_now": {
+          "default": 0.0,
+          "title": "Ends S Before Now",
+          "type": "number"
+        },
+        "hz": {
+          "title": "Hz",
+          "type": "number"
+        },
+        "marks": {
+          "items": {
+            "$ref": "#/$defs/TraceMark"
+          },
+          "title": "Marks",
+          "type": "array"
+        },
+        "quality": {
+          "$ref": "#/$defs/SignalQuality"
+        },
+        "reading": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reading"
+        },
+        "samples": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Samples",
+          "type": "array"
+        },
+        "seconds": {
+          "title": "Seconds",
+          "type": "number"
+        },
+        "waveform": {
+          "enum": [
+            "ecg",
+            "pleth",
+            "resp"
+          ],
+          "title": "Waveform",
+          "type": "string"
+        }
+      },
+      "required": [
+        "waveform",
+        "hz",
+        "seconds",
+        "ends_s_before_now",
+        "samples",
+        "quality",
+        "reading",
+        "marks",
+        "caption"
+      ],
+      "title": "ExampleStrip",
+      "type": "object"
+    },
     "Finding": {
       "additionalProperties": false,
       "description": "An AI interpretation of what is happening (or happened), with its evidence.",
@@ -1016,6 +1345,93 @@
         "generated_at"
       ],
       "title": "Finding",
+      "type": "object"
+    },
+    "FindingData": {
+      "additionalProperties": false,
+      "description": "Everything the Why sheet draws for one finding.",
+      "properties": {
+        "baseline_strip": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExampleStrip"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "features": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Features",
+          "type": "object"
+        },
+        "finding_id": {
+          "title": "Finding Id",
+          "type": "string"
+        },
+        "reasons": {
+          "items": {
+            "$ref": "#/$defs/Contributor"
+          },
+          "title": "Reasons",
+          "type": "array"
+        },
+        "rr_intervals_s": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Rr Intervals S",
+          "type": "array"
+        },
+        "rule": {
+          "default": "",
+          "title": "Rule",
+          "type": "string"
+        },
+        "strip": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExampleStrip"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "values": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "finding_id",
+        "strip",
+        "baseline_strip",
+        "rr_intervals_s",
+        "features",
+        "rule",
+        "reasons",
+        "values"
+      ],
+      "title": "FindingData",
       "type": "object"
     },
     "FindingsMessage": {
@@ -1770,6 +2186,58 @@
         "supported_certainty"
       ],
       "title": "ModelInfo",
+      "type": "object"
+    },
+    "News2Now": {
+      "additionalProperties": false,
+      "properties": {
+        "complete": {
+          "title": "Complete",
+          "type": "boolean"
+        },
+        "components": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Components",
+          "type": "object"
+        },
+        "response": {
+          "default": "",
+          "title": "Response",
+          "type": "string"
+        },
+        "risk": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Risk"
+        },
+        "total": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Total"
+        }
+      },
+      "required": [
+        "total",
+        "risk",
+        "complete",
+        "components",
+        "response"
+      ],
+      "title": "News2Now",
       "type": "object"
     },
     "NewsBandProbabilities": {
@@ -2777,6 +3245,63 @@
       "title": "SuggestedCause",
       "type": "object"
     },
+    "TraceMark": {
+      "additionalProperties": false,
+      "description": "A bracket or flag drawn on a strip to say what the AI saw there.",
+      "properties": {
+        "end_s": {
+          "title": "End S",
+          "type": "number"
+        },
+        "finding_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finding Id"
+        },
+        "kind": {
+          "enum": [
+            "bracket",
+            "flag"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "start_s": {
+          "title": "Start S",
+          "type": "number"
+        },
+        "tone": {
+          "default": "finding",
+          "enum": [
+            "finding",
+            "technical"
+          ],
+          "title": "Tone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "start_s",
+        "end_s",
+        "label",
+        "tone",
+        "finding_id"
+      ],
+      "title": "TraceMark",
+      "type": "object"
+    },
     "TrendEvidence": {
       "additionalProperties": false,
       "properties": {
@@ -2833,6 +3358,90 @@
         "caption"
       ],
       "title": "TrendEvidence",
+      "type": "object"
+    },
+    "TrendSeries": {
+      "additionalProperties": false,
+      "properties": {
+        "device_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device Id"
+        },
+        "parameter": {
+          "enum": [
+            "hr",
+            "pulse",
+            "spo2",
+            "rr",
+            "bp_sys",
+            "bp_dia",
+            "bp_mean",
+            "temp",
+            "o2_flow",
+            "fio2",
+            "acvpu",
+            "news2",
+            "activity",
+            "position",
+            "falls",
+            "sleep",
+            "timer"
+          ],
+          "title": "Parameter",
+          "type": "string"
+        },
+        "points": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "quality": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quality"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "parameter",
+        "unit",
+        "points",
+        "device_id",
+        "quality"
+      ],
+      "title": "TrendSeries",
       "type": "object"
     },
     "WaveformEvidence": {
@@ -2985,6 +3594,12 @@
     "alarm_state": {
       "$ref": "#/$defs/AlarmState"
     },
+    "example_scenario": {
+      "$ref": "#/$defs/ExampleScenarioInfo"
+    },
+    "example_snapshot": {
+      "$ref": "#/$defs/ExampleSnapshot"
+    },
     "finding": {
       "$ref": "#/$defs/Finding"
     },
@@ -3058,7 +3673,9 @@
     "finding",
     "forecast_bundle",
     "alarm_state",
-    "stream_message"
+    "stream_message",
+    "example_snapshot",
+    "example_scenario"
   ],
   "title": "Contracts",
   "type": "object"

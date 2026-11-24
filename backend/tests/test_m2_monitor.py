@@ -15,7 +15,6 @@ from tests.conftest import todo
 
 # ------------------------------------------------------------------ simulator
 
-@todo("M2")
 def test_scenario_values_interpolate_between_segments():
     from app.sources.simulator import scenario_values
     at0 = scenario_values("scn-pneumonia", 0)
@@ -26,7 +25,6 @@ def test_scenario_values_interpolate_between_segments():
     assert scenario_values("scn-pneumonia", -300)["oxygen"]["device"] == "A"
 
 
-@todo("M2")
 def test_scenario_rhythm_follows_the_script():
     from app.sources.simulator import scenario_values
     assert scenario_values("scn-af", -140)["rhythm"] == "af"
@@ -47,7 +45,6 @@ def _rr_intervals(samples, hz):
     return [(b - a) / hz for a, b in zip(peaks, peaks[1:])]
 
 
-@todo("M2")
 def test_synthetic_ecg_rate_and_regularity():
     from app.sources.simulator import synth_ecg
     hz = registry.WAVEFORMS["ecg"]["hz"]

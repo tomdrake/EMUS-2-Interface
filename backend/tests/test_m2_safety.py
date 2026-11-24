@@ -155,7 +155,6 @@ def test_noisy_trace_is_reported_with_advice_and_the_value_is_kept(client):
     assert devices["signals"]["spo2"]["state"] == "ok", "the pleth is on another device"
 
 
-@todo("M2")
 def test_synthetic_artefacts_are_graded_by_the_real_check():
     """The simulator adds artefact to the waveform; it does not just set a flag."""
     from app.signal_quality import assess
