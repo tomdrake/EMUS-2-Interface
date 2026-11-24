@@ -39,7 +39,7 @@ beforeEach(() => {
       traces: { show_baseline: true, show_scale: true, show_calibration_bar: true, show_time_scale: true,
                 ecg_gain_mm_per_mv: 10 },
       sweep: { speed_mm_s: 25 },
-      ai: { enabled: true, show_trace_annotations: true, show_explain_link: true, min_confidence: 0.5 },
+      ai: { enabled: true, show_row_chips: true, show_confidence: true, show_trace_annotations: true, show_explain_link: true, min_confidence: 0.5 },
       forecast: { certainty: { display: "percent", finding_metric: "evidence_agreement", badge_medium_at: 0.5,
                                 badge_high_at: 0.8, show_metric_name: true } },
     } as unknown as Design } as any,

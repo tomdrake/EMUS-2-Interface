@@ -29,7 +29,7 @@ function setup(design: object = {}) {
       labels: { auto_capitalise: true, show_method: true }, tiles: { width_px: 220 },
       traces: { show_baseline: true, show_scale: true, show_calibration_bar: true, show_time_scale: true, ecg_gain_mm_per_mv: 10 },
       sweep: { speed_mm_s: 25 },
-      ai: { enabled: true, show_trace_annotations: true, show_explain_link: true, min_confidence: 0.5 },
+      ai: { enabled: true, show_row_chips: true, show_confidence: true, show_trace_annotations: true, show_explain_link: true, min_confidence: 0.5 },
       forecast: { certainty: { display: "percent", finding_metric: "evidence_agreement", badge_medium_at: 0.5, badge_high_at: 0.8, show_metric_name: true } },
       ...design } as any } as any,
     registry: { parameters: { hr: { label: "Heart Rate", short: "HR", unit: "bpm", method: "ECG" } },
@@ -72,11 +72,23 @@ describe("AI on the monitor", () => {
   });
 
   it("this screen's choice beats the design's setting, and can turn AI on again", () => {
-    setup({ ai: { enabled: false, show_trace_annotations: true, show_explain_link: true, min_confidence: 0.5 } });
+    setup({ ai: { enabled: false, show_row_chips: true, show_confidence: true, show_trace_annotations: true, show_explain_link: true, min_confidence: 0.5 } });
     render(<Module row={row()} placement={place("row")} />);
     expect(dom.queryByTestId("ai-ecg")).toBeNull();
     act(() => useUi.getState().toggleAi());
     expect(useUi.getState().aiOverride).toBe(true);
+  });
+
+  it("the design can hide the chip, or keep it and hide how sure", () => {
+    setup({ ai: { enabled: true, show_row_chips: false, show_confidence: true, show_trace_annotations: true, show_explain_link: true, min_confidence: 0.5 } });
+    const { unmount } = render(<Module row={row()} placement={place("row")} />);
+    expect(dom.queryByTestId("ai-ecg")).toBeNull();
+    unmount();
+    setup({ ai: { enabled: true, show_row_chips: true, show_confidence: false, show_trace_annotations: true, show_explain_link: false, min_confidence: 0.5 } });
+    render(<Module row={row()} placement={place("row")} />);
+    expect(dom.getByTestId("ai-ecg").textContent).toContain("AF now");
+    expect(dom.queryByTestId("certainty")).toBeNull();
+    expect(dom.getByTestId("ai-ecg").textContent).not.toContain("Why?");
   });
 
   it("a module's own switch turns AI off for that module only", () => {
