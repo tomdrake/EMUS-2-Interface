@@ -108,7 +108,7 @@ if (require.main === module) {
   const SCREENS = [["icu-monitor", "abcde", "scn-pneumonia", 0], ["icu-monitor", "abcde", "scn-technical", 4], ["icu-monitor", "abcde", "scn-copd", -20], ["icu-monitor", "abcde", "scn-vt", 5],
     ["icu-monitor", "news2", "scn-pneumonia", 360], ["icu-monitor", "split-h", "scn-af", 20], ["icu-monitor", "split-v", "scn-pneumonia", 180], ["icu-modules", "abcde", "scn-af", 20]];
   const SHEETS = [["finding-explain", "FIRST"], ["trends", null], ["underlying-data", "hr"], ["underlying-data", "bp_sys"], ["explanation-examples", null], ["demo-controls", null], ["studio-appearance", null],
-    ["studio-navigation", null], ["studio-forecast", null], ["versions", null], ["abcde-assess", "gcs"], ["abcde-assess", "avpu"], ["abcde-assess", "exposure"]];
+    ["studio-navigation", null], ["studio-forecast", null], ["versions", null], ["abcde-assess", "gcs"], ["abcde-assess", "avpu"], ["abcde-assess", "exposure"], ["measure-bp", null], ["measure-temp", null]];
   (async () => {
     const browser = await chromium.launch();
     let bad = 0;
