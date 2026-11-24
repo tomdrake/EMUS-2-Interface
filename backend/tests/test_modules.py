@@ -74,7 +74,7 @@ def test_default_monitor_is_five_full_width_rows_then_one_line_of_small_boxes():
 def test_heights_are_a_weight_per_row_and_ecg_and_spo2_are_a_little_taller_and_bp_more_so():
     doc = DEFAULT_DESIGNS["icu-monitor"]
     scale = {r["id"]: r.get("height_scale", 1.0) for r in doc["rows"]}
-    assert scale["ecg"] == scale["spo2"] == 1.25 and scale["bp"] == 1.5 and scale["resp"] == 1.0
+    assert scale["ecg"] == scale["spo2"] == 1.25 and scale["bp"] == 1.9 and scale["resp"] == 1.0
     d = validated_defaults()["icu-monitor"]
     assert {r.id: r.height_scale for r in d.rows}["ecg"] == 1.25
 
@@ -93,10 +93,11 @@ def test_the_news_row_is_a_module_with_its_own_trace_kind():
     assert (news.parameter, news.trace) == ("news2", "news")
 
 
-def test_the_tab_bar_has_measure_buttons_that_open_their_sheets():
+def test_the_tab_bar_has_measure_buttons_that_start_a_measurement_and_open_nothing():
     d = validated_defaults()["icu-monitor"]
-    sheets = {t.id: t.action.sheet for t in d.tabs if t.action.type == "sheet"}
-    assert sheets == {"measure-bp": "measure-bp", "measure-temp": "measure-temp"}
+    measure = {t.id: t.action.kind for t in d.tabs if t.action.type == "measure"}
+    assert measure == {"measure-bp": "bp", "measure-temp": "temp"}
+    assert not [t for t in d.tabs if t.action.type == "sheet"]      # no sheet, no menu: one touch starts it
     assert len(d.tabs) == 12
 
 

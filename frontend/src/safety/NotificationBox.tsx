@@ -9,6 +9,7 @@ import { useSize } from "@/traces/useSize";
 import { buildNotices, noticeColour, type Notice } from "./notifications";
 import { ago, elapsed } from "./status";
 import { useSafety } from "./store";
+import { PriorityMark } from "./PriorityMark";
 import { marqueeSeconds, noticeKey, tickerView } from "./ticker";
 
 function useNotices(): Notice[] {
@@ -34,7 +35,7 @@ function Item({ n, inline = false }: { n: Notice; inline?: boolean }) {
           data-notice={n.id} style={colour ? { color: colour } : undefined}>
       <span className="notif-meta">
         <span className="notif-tag">{TAG[n.about]}</span>
-        {n.mark && <span className={`notif-mark mark-${n.priority}`} data-testid="notif-mark">{n.mark}</span>}
+        {n.mark && <PriorityMark priority={n.priority} mark={n.mark} testId="notif-mark" />}
         {dots.map((c, i) => <span key={i} className="notif-dot" style={{ background: c }} aria-hidden="true" />)}
       </span>
       <span className="notif-text" data-testid={inline ? undefined : "notif-text"}>{n.text}</span>
@@ -184,7 +185,7 @@ export function NotificationBox({ placement }: { placement: "bar" | "strip" }) {
                   <li key={n.id} className={`feed-item feed-${n.about}-${n.priority}`} data-notice={n.id}
                       style={colour ? { color: colour } : undefined}>
                     <span className="feed-tag">{TAG[n.about]}</span>
-                    {n.mark && <span className={`notif-mark mark-${n.priority}`}>{n.mark}</span>}
+                    {n.mark && <PriorityMark priority={n.priority} mark={n.mark} />}
                     {dots.map((c, i) => <span key={i} className="notif-dot" style={{ background: c }} aria-hidden="true" />)}
                     <span className="feed-text">{n.text}</span>
                     {n.at !== null && <span className="feed-age">{ago(now - n.at)}</span>}

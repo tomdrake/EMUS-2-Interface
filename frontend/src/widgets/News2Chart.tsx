@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { Axis, Band } from "@/app/api";
 import { useTheme, useUi } from "@/app/store";
 import type { ExampleSnapshot } from "@/contracts/types.gen";
+import { fmtDate, fmtTime, useFormats } from "@/design/datetime";
 import { useSnapshot } from "@/examples/store";
 import type { WidgetOf } from "@/design/types";
 import { useSize } from "@/traces/useSize";
@@ -116,6 +117,7 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
   const theme = useTheme();
   const registry = useUi((s) => s.registry);
   const [ref, { w, h }] = useSize<HTMLDivElement>();
+  const formats = useFormats();
   const [shown, setShown] = useState<1 | 2 | null>(null);
   if (!snapshot || !theme || !registry) {
     return <div className="news2-empty" data-testid="news2-empty">No observations to chart. Turn on example data in Demo Controls.</div>;
@@ -162,8 +164,8 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
   const blocks = groups.map((g) => { const top = y; y += blockHeight(g, rowH) + gap; return { g, top }; });
   const totalTop = y;
   const height = y + (widget.show_total_row ? totalH : 0) + footRows * footH + 4;
-  const time = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  const date = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  const time = (iso: string) => fmtTime(iso, formats);
+  const date = (iso: string) => fmtDate(iso, formats, { short: true });
   const range80 = (p: (typeof future)[number]) => p.intervals["80"] as unknown as [number, number];
   const colX = (i: number) => left + i * colW;
   const cx = (i: number) => colX(i) + colW / 2;

@@ -125,7 +125,7 @@ _ROWS: list[dict] = [
     {"id": "resp", "parameter": "rr", "trace": "waveform", "waveform": "resp", "numerics": ["rr"]},
     {"id": "bp", "parameter": "bp_sys", "label": "Blood Pressure", "trace": "trend",
      "numerics": ["bp_sys", "bp_dia", "bp_mean"], "trend_window_min": 240,
-     "content": {"readings": True}, "height_scale": 1.5},
+     "content": {"readings": True}, "height_scale": 1.9},
     {"id": "temp", "parameter": "temp", "trace": "trend", "numerics": ["temp"],
      "trend_window_min": 240},
     {"id": "oxygen", "parameter": "o2_flow", "trace": "bar", "numerics": ["o2_flow"],
@@ -211,14 +211,13 @@ def _screens(news_variant: str, monitor: dict | None = None) -> list[dict]:
                           _w({"id": "labs", "type": "epr-labs", "title": "Laboratory"}),
                           _w({"id": "imaging", "type": "epr-imaging", "title": "Imaging"}))},
         {"id": "predict", "name": "AI and Predictions",
-         "layout": _split("horizontal", 0.5,
+         "layout": _split("horizontal", 0.62,
+                          _w({"id": "forecast", "type": "forecast-panel", "title": "Prediction"}),
                           _split("vertical", 0.5,
-                                 _w({"id": "forecast", "type": "forecast-panel",
-                                     "title": "Forecast"}),
+                                 _w({"id": "ai-summary", "type": "ai-summary",
+                                     "title": "What the AI Sees Now"}),
                                  _w({"id": "timeline", "type": "events-timeline",
-                                     "title": "Events"})),
-                          _w({"id": "ai-summary", "type": "ai-summary",
-                              "title": "What the AI Sees Now"}))},
+                                     "title": "Events"})))},
         {"id": "alarms", "name": "Alarms",
          "layout": _w({"id": "alarms-panel", "type": "alarms", "view": "both"})},
     ]
@@ -242,9 +241,9 @@ _TABS: list[dict] = [
     {"id": "patient", "label": "Patient", "icon": "patient",
      "action": {"type": "menu", "menu_id": "patient"}},
     {"id": "measure-bp", "label": "Measure BP", "icon": "bp-cuff",
-     "action": {"type": "sheet", "sheet": "measure-bp"}},
+     "action": {"type": "measure", "kind": "bp"}},
     {"id": "measure-temp", "label": "Measure Temp", "icon": "thermometer",
-     "action": {"type": "sheet", "sheet": "measure-temp"}},
+     "action": {"type": "measure", "kind": "temp"}},
     {"id": "overview", "label": "AI Overview", "icon": "ai",
      "action": {"type": "toggle-ai-overlay"}},
     {"id": "silence", "label": "Silence 2 Min", "icon": "alarm-off",
@@ -319,7 +318,7 @@ _MENUS: list[dict] = [
     ]},
 ]
 
-_TOP_BAR = {"fields": ["name", "nhs_number", "bed", "alarm_status", "clock"],
+_TOP_BAR = {"fields": ["name", "nhs_number", "bed", "alarm_status", "date", "clock"],
             "buttons": _TOP_BUTTONS}
 
 _ALARM_DEFAULTS = {

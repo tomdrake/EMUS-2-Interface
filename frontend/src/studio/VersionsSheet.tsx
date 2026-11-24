@@ -2,18 +2,20 @@ import { useCallback, useEffect, useState } from "react";
 
 import { api, type VersionInfo } from "@/app/api";
 import { useUi } from "@/app/store";
+import { fmtDateTime, useFormats } from "@/design/datetime";
 import type { StoredDesign } from "@/design/types";
 
 const AUTHOR_KEY = "emus.author";
 const author = (): string => { try { return window.localStorage.getItem(AUTHOR_KEY) ?? ""; } catch { return ""; } };
 
-const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 
 /**
  * History, copies and the start-up design. Every save is a new version and nothing is ever rewritten,
  * so a revert is itself a new version. Built-in designs are read-only; copy one to change it.
  */
 export function VersionsSheet() {
+  const formats = useFormats();
+  const when = (iso: string) => fmtDateTime(iso, formats, { short: true });
   const stored = useUi((s) => s.stored)!;
   const registry = useUi((s) => s.registry)!;
   const dirty = useUi((s) => !!s.draft);

@@ -283,3 +283,18 @@ def test_a_measured_reading_is_the_scenarios_value_and_marked_simulated(client):
     assert t["kind"] == "temp" and 36 <= t["temp"]["value"] <= 41
     assert client.get("/api/examples/scn-pneumonia/measure", params={"kind": "pulse"}).status_code == 422
     assert client.get("/api/examples/nope/measure", params={"kind": "bp"}).status_code == 404
+
+
+def test_the_forecast_covers_news_and_every_main_observation_in_horizon_order():
+    s = examples.snapshot("scn-pneumonia", 120)
+    base = {f.parameter: f for f in s.forecast.forecasts if f.scenario == "baseline"}
+    assert set(base) == {"news2", "rr", "spo2", "hr", "bp_sys", "temp"}
+    for f in base.values():
+        horizons = [p.horizon_min for p in f.points]
+        assert horizons == sorted(horizons) and len(horizons) >= 3
+        for p in f.points:
+            lo50, hi50 = p.intervals["50"]; lo80, hi80 = p.intervals["80"]; lo95, hi95 = p.intervals["95"]
+            assert lo95 <= lo80 <= lo50 <= p.value <= hi50 <= hi80 <= hi95
+        assert f.certainty, "every forecast carries its certainty values"
+    # temperature is predicted as the skin value the tile shows
+    assert abs(base["temp"].points[0].value - (s.numerics["temp"])) < 1.5

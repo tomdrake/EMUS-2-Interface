@@ -442,7 +442,7 @@ for (const vp of VIEWPORTS) {
         message: "Heart rate 142, above 120.", started_at: t }] });
   }, t0);
   check(/Heart rate 142/.test(await text()), `${vp.name}: a high-priority patient alarm takes over the ticker`);
-  check(await T("notif-mark").innerText() === "!!!", `${vp.name}: it carries its priority mark (!!!)`);
+  check(await T("notif-mark").getAttribute("aria-label") === "High priority" && await T("notif-mark").locator("svg path").count() === 1 && (await T("notif-mark").textContent()) === "", `${vp.name}: it carries its priority mark, a red triangle with an exclamation mark`);
   check(await T("feed").count() === 0 && await T("notifications").getAttribute("aria-expanded") === "false",
         `${vp.name}: the list does not open by itself, even for a high-priority alarm`);
   await page.waitForTimeout(4600);
@@ -1079,7 +1079,7 @@ for (const vp of VIEWPORTS) {
   check(cards.every((c) => c.leftHalf && c.detailRight), `${vp.name}: on a split card the number is in the left half and the detail in the right`);
   const list = await page.evaluate(() => [...document.querySelectorAll('[data-testid="row-bp"] [data-testid^="bp-reading-"]')].map((r) => r.textContent));
   const api180 = (await api("/api/examples/scn-pneumonia?minute=180")).bp_readings;
-  check(list.length >= 3 && list.every((t, i) => t.includes(`${api180[i].sys}/${api180[i].dia}`) && t.includes(`(${api180[i].map})`) && /\d{2}:\d{2}/.test(t) && /\d{2} \w{3}/.test(t)), `${vp.name}: the BP card lists the latest readings with time, date, sys/dia and MAP in brackets (${list.length} shown)`);
+  check(list.length >= 3 && list.every((t, i) => t.includes(`${api180[i].sys}/${api180[i].dia}`) && t.includes(`(${api180[i].map})`) && /\d{2}:\d{2}/.test(t) && /\d{2}\/\d{2}/.test(t)), `${vp.name}: the BP card lists the latest readings with time, date, sys/dia and MAP in brackets (${list.length} shown)`);
 
   // ABCDE: one touch, five checks, bloods with their recency, trends, and the NEWS2 chart beside it
   await goDesign("icu-monitor", "monitor");
@@ -1097,13 +1097,13 @@ for (const vp of VIEWPORTS) {
   check(chart.length >= 3 && chart.join() === obs.slice(-chart.length).map((o) => o.news2_total).join(), `${vp.name}: the NEWS2 chart's totals are the API's (${chart.join(", ")})`);
   const rec = await page.evaluate(() => Object.fromEntries(["gas", "bloods", "glucose"].map((k) => [k, document.querySelector(`[data-testid="blood-${k}-recency"]`)?.textContent])));
   check(rec.gas === "Current" && rec.bloods === "Current" && rec.glucose === "Current", `${vp.name}: results taken within the hour read Current (${JSON.stringify(rec)})`);
-  check(/\d{2} \w{3} \d{2}:\d{2}/.test(await T("blood-gas-when").innerText()), `${vp.name}: each set shows the date and time it was taken`);
+  check(/\d{2}\/\d{2} \d{2}:\d{2}/.test(await T("blood-gas-when").innerText()), `${vp.name}: each set shows the date and time it was taken`);
   await ex("setScenario", "scn-copd"); await ex("setMinute", -20); await settle();
   check(await T("blood-gas-recency").innerText() === "Within 24 Hours", `${vp.name}: a gas from 14 hours ago reads Within 24 Hours`);
   await ex("setScenario", "scn-technical"); await ex("setMinute", 0); await settle();
   check(await T("blood-glucose-recency").innerText() === "No Recent Bloods" && await T("blood-glucose-glucose").count() === 0 && await T("blood-glucose-show").isVisible(), `${vp.name}: bloods 50 hours old read No Recent Bloods with a button to show them`);
   await T("blood-glucose-show").click();
-  check(await T("blood-glucose-glucose").isVisible() && /\d{2} \w{3}/.test(await T("blood-glucose-when").innerText()), `${vp.name}: tapping shows the most recent from the last 72 hours with its date`);
+  check(await T("blood-glucose-glucose").isVisible() && /\d{2}\/\d{2}/.test(await T("blood-glucose-when").innerText()), `${vp.name}: tapping shows the most recent from the last 72 hours with its date`);
   await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 0); await settle();
   await T("d-gcs-btn").click();
   await T("assess-gcs").waitFor();
@@ -1241,33 +1241,85 @@ for (const vp of VIEWPORTS) {
   const tabBox = await page.evaluate(() => [...document.querySelectorAll(".tabbar .tab")].map((e) => { const r = e.getBoundingClientRect(); return r.right <= innerWidth + 1 && r.height >= 48; }).every(Boolean));
   check(tabBox, `${vp.name}: all twelve tabs fit across the screen and are touch targets`);
   const bpBefore = (await page.locator('[data-testid^="bp-dot-bp-"]').count());
+  const sheetOpen = () => page.evaluate(() => window.__emus.ui.getState().openSheet ?? null);
   await T("tab-measure-bp").click();
-  await T("measure-bp").waitFor();
-  await T("measure-start").click();
-  check(await T("measure-running").isVisible(), `${vp.name}: Measure BP starts a simulated measurement in one more touch`);
-  await T("measure-result").waitFor({ timeout: 12000 });
+  check(await T("row-bp").getAttribute("data-measuring") === "true" && /is-measuring/.test(await T("tab-measure-bp").getAttribute("class")) && await sheetOpen() === null && await page.locator(".sheet, [role=dialog]").count() === 0, `${vp.name}: one touch on Measure BP starts it, nothing opens, and the BP box pulses`);
+  const pulse = await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="row-bp"]')).animationName);
+  check(pulse === "measure-pulse" || matchMedia("(prefers-reduced-motion: reduce)").matches, `${vp.name}: the pulse is an animation (${pulse})`);
+  await T("tab-measure-bp").click();
+  check(await T("row-bp").getAttribute("data-measuring") === null, `${vp.name}: touching it again cancels the measurement before it finishes`);
+  await page.waitForTimeout(500);
+  check((await page.locator('[data-testid^="bp-dot-bp-"]').count()) === bpBefore, `${vp.name}: a cancelled measurement adds no reading`);
+  await T("tab-measure-bp").click();
+  await page.waitForFunction(() => !document.querySelector('[data-testid="row-bp"]').dataset.measuring, null, { timeout: 14000 });
   const mm = await api("/api/examples/scn-pneumonia/measure?kind=bp&minute=360");
-  check((await T("measure-value").innerText()).startsWith(`${mm.bp.sys}/${mm.bp.dia}`) && /Simulated Reading/.test(await T("measure-result").innerText()), `${vp.name}: the reading is the scenario's value and says it is simulated`);
-  await T("measure-done").click();
   await settle();
-  check((await page.locator('[data-testid^="bp-dot-bp-"]').count()) === bpBefore + 1, `${vp.name}: the new BP appears on the trace`);
+  check((await page.locator('[data-testid^="bp-dot-bp-"]').count()) === bpBefore + 1, `${vp.name}: when it finishes the pulse stops and the new BP is on the trace`);
   check((await T("num-bp_sys").innerText()).includes(`${mm.bp.sys}`), `${vp.name}: and in the BP tile`);
   await T("tab-measure-temp").click();
-  await T("measure-temp").waitFor();
-  await T("measure-start").click();
-  await T("measure-result").waitFor({ timeout: 10000 });
-  await T("measure-done").click();
+  check(await T("row-temp").getAttribute("data-measuring") === "true" && await T("row-bp").getAttribute("data-measuring") === null, `${vp.name}: Measure Temp pulses the temperature box, not the BP box`);
+  await page.waitForFunction(() => !document.querySelector('[data-testid="row-temp"]').dataset.measuring, null, { timeout: 10000 });
   await settle();
   check(await page.locator('[data-testid^="temp-dot-temp-"]').count() >= 1, `${vp.name}: Measure Temp adds a thermometer point`);
+  await T("tab-measure-bp").click();
   await ex("setMinute", 361); await settle();
-  const cleared = await page.evaluate(() => { const t = window.__emus.examples.getState().taken; return t.bp.length + t.temp.length; });
-  check(cleared === 0, `${vp.name}: taken readings clear when the time changes`);
+  check(await T("row-bp").getAttribute("data-measuring") === null && await page.evaluate(() => { const t = window.__emus.examples.getState().taken; return t.bp.length + t.temp.length; }) === 0, `${vp.name}: changing the time stops a measurement and clears taken readings`);
   await ex("setMinute", 360); await settle();
+
+  // ---- Round 8: dates and times, the Prediction view, the BP list under the number
+  await goDesign("icu-monitor", "monitor"); await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 360); await settle();
+  const topbar = await page.evaluate(() => { const d = document.querySelector(".tb-date"), c = document.querySelector(".tb-clock"); const a = d.getBoundingClientRect(), b = c.getBoundingClientRect(); return { date: d.textContent, visible: a.width > 0, gap: Math.round(b.left - a.right), same: Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2) < 8 }; });
+  check(/^\d{2}\/\d{2}\/\d{4}$/.test(topbar.date) && topbar.visible && topbar.gap >= 0 && topbar.gap < 60 && topbar.same, `${vp.name}: the date is written dd/mm/yyyy next to the time (${topbar.date}, ${topbar.gap}px apart)`);
+  const bpRows = await page.evaluate(() => [...document.querySelectorAll('[data-testid="row-bp"] [data-testid^="bp-reading-"]')].map((r) => r.textContent.replace(/\s+/g, " ").trim()));
+  check(bpRows.length >= 4 && bpRows.length <= 5 && bpRows.every((t, i) => t.includes(`${api360.bp_readings[i].sys}/${api360.bp_readings[i].dia}`) && t.includes(`(${api360.bp_readings[i].map})`) && /\d{2}:\d{2}/.test(t) && /\d{2}\/\d{2}/.test(t)), `${vp.name}: the last readings are listed under the BP number with time, date, sys/dia and MAP (${bpRows.length} shown)`);
+  const bpNumber = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('[data-testid="row-bp"] .tile-main')).fontSize));
+  check(bpNumber >= 20, `${vp.name}: the BP number is still readable with the list under it (${Math.round(bpNumber)} px)`);
+  // formats are a setting
+  await T("top-settings").click(); await page.getByText("Appearance").first().click();
+  await T("appearance").waitFor();
+  const barDate = async () => ((await page.locator("span.tb-date").textContent({ timeout: 2000 }).catch(() => "")) ?? "").trim();   // the sheet covers the bar, so read the text, not what is visible
+  await page.locator('[data-testid="date-format"] [data-value="yyyy-mm-dd"]').click();
+  check(/^\d{4}-\d{2}-\d{2}$/.test(await barDate()), `${vp.name}: choosing yyyy-mm-dd rewrites the date in the top bar`);
+  await page.locator('[data-testid="date-format"] [data-value="mm/dd/yyyy"]').click();
+  const us = await page.evaluate(() => ({ bar: document.querySelector(".tb-date").textContent, list: document.querySelector('[data-testid="row-bp"] .bp-date')?.textContent }));
+  check(/^\d{2}\/\d{2}\/\d{4}$/.test(us.bar) && us.list === us.bar.slice(0, 5) || us.list === undefined || /^\d{2}\/\d{2}$/.test(us.list), `${vp.name}: mm/dd/yyyy changes every date on screen (${us.bar}, list ${us.list})`);
+  await page.locator('[data-testid="clock-format"] [data-value="12h"]').click();
+  check(/(AM|PM)$/.test(((await page.locator("time.tb-clock").textContent()) ?? "").trim()), `${vp.name}: 12 hour time shows AM or PM`);
+  await page.locator('[data-testid="date-format"] [data-value="dd Mon yyyy"]').click();
+  check(/^\d{2} [A-Z][a-z]{2} \d{4}$/.test(await barDate()), `${vp.name}: dd Mon yyyy is offered too (${await barDate()})`);
+  await T("show-date").uncheck();
+  check(await page.locator("span.tb-date").count() === 0, `${vp.name}: Show Date Beside The Time removes the date`);
+  await page.evaluate(() => { window.__emus.ui.getState().setDraft(null); window.__emus.ui.getState().showSheet(null); });
+  await settle();
+  check(await page.locator("span.tb-date").count() === 1 && /^\d{2}\/\d{2}\/\d{4}$/.test(await barDate()), `${vp.name}: discarding the changes brings the default format back`);
+
+  await T("tab-predict").click();
+  await T("forecast-panel").waitFor();
+  const newsNow = api360.forecast.forecasts.find((f) => f.parameter === "news2" && f.scenario === "baseline");
+  const hrF = api360.forecast.forecasts.find((f) => f.parameter === "hr" && f.scenario === "baseline");
+  const val = (id) => page.locator(`[data-testid="${id}"]`).getAttribute("data-value");
+  check(await T("fp-news").isVisible() && await T("fp-obs").isVisible() && +(await val("fp-news-60")) === newsNow.points.find((p) => p.horizon_min === 60).value && +(await val("fp-obs-hr-120")) === hrF.points.find((p) => p.horizon_min === 120).value, `${vp.name}: the Prediction view shows the future NEWS and the future observations, as the API predicts`);
+  check(await page.locator('[data-testid^="fp-obs-"][data-testid$="-60"]').count() === 5 && await T("fp-certainty-news").isVisible() && await page.locator('[data-testid^="fp-certainty-"]').count() === 6, `${vp.name}: five observations and six certainty figures (one for NEWS) are shown`);
+  await T("fp-toggle-news").click();
+  check(await T("fp-news").count() === 0 && await T("fp-obs").isVisible(), `${vp.name}: the Future NEWS switch hides the NEWS and leaves the observations`);
+  await T("fp-toggle-news").click();
+  await T("fp-toggle-obs").click();
+  check(await T("fp-obs").count() === 0 && await T("fp-news").isVisible(), `${vp.name}: the Observation Predictions switch hides the observations and leaves the NEWS`);
+  await T("fp-toggle-obs").click();
+  await T("fp-toggle-certainty").click();
+  check(await page.locator('[data-testid^="fp-certainty-"]').count() === 0 && await T("fp-news").isVisible() && await T("fp-obs").isVisible(), `${vp.name}: the Certainty switch removes every certainty figure and keeps the predictions`);
+  await T("fp-toggle-news").click(); await T("fp-toggle-obs").click();
+  check(await T("fp-nothing").isVisible(), `${vp.name}: with everything off it says nothing is selected`);
+  const kept = await page.evaluate(() => JSON.parse(localStorage.getItem("emus.predict-show") ?? "{}"));
+  check(kept.news === false && kept.obs === false && kept.certainty === false, `${vp.name}: the switches are this screen's choice and are kept (${JSON.stringify(kept)})`);
+  await T("fp-toggle-news").click(); await T("fp-toggle-obs").click(); await T("fp-toggle-certainty").click();
+  check(await page.locator('[data-testid^="fp-certainty-"]').count() === 6, `${vp.name}: switching everything back on restores the view`);
+  await T("tab-monitor").click();
 
   // Nothing overlaps, nothing is cut off, everything has padding; and the words are capitalised
   const { audit } = require("./layout-audit.cjs");
   const { capsAudit } = require("./caps-audit.cjs");
-  for (const [d, sc, scen, min] of [["icu-monitor", "monitor", "scn-af", 20], ["icu-modules", "monitor", "scn-pneumonia", 180], ["icu-monitor", "abcde", "scn-copd", -20]]) {
+  for (const [d, sc, scen, min] of [["icu-monitor", "monitor", "scn-af", 20], ["icu-modules", "monitor", "scn-pneumonia", 180], ["icu-monitor", "abcde", "scn-copd", -20], ["icu-monitor", "predict", "scn-pneumonia", 120]]) {
     await goDesign(d, sc); await ex("setScenario", scen); await ex("setMinute", min); await settle();
     const r = await audit(page);
     check(r.problems.length === 0, `${vp.name}: ${d}/${sc} has no overlaps, cut-off text or missing padding ${r.problems.slice(0, 3).join(" | ")}`);

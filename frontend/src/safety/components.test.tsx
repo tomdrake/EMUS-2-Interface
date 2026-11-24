@@ -186,7 +186,9 @@ describe("notification ticker", () => {
       act(() => { vi.advanceTimersByTime(4000); });
     }
     expect(dom.getByTestId("notifications").dataset.held).toBe("true");
-    expect(dom.getByTestId("notif-mark").textContent).toBe("!!!");
+    expect(dom.getByTestId("notif-mark").getAttribute("aria-label")).toBe("High priority");
+    expect(dom.getByTestId("notif-mark").querySelector("svg path")).not.toBeNull();   // a triangle, not text
+    expect(dom.getByTestId("notif-mark").textContent).toBe("");
     expect(dom.getByTestId("notifications").textContent).toContain("PATIENT");
     expect(dom.getByTestId("notif-count").textContent).toBe("1/3");
   });

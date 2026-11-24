@@ -366,6 +366,7 @@
           "discriminator": {
             "mapping": {
               "edit-layout": "#/$defs/EditLayoutAction",
+              "measure": "#/$defs/MeasureAction",
               "menu": "#/$defs/MenuAction",
               "open-settings": "#/$defs/SettingsAction",
               "screen": "#/$defs/ScreenAction",
@@ -404,6 +405,9 @@
             },
             {
               "$ref": "#/$defs/EditLayoutAction"
+            },
+            {
+              "$ref": "#/$defs/MeasureAction"
             }
           ],
           "title": "Action"
@@ -831,12 +835,19 @@
     },
     "ForecastPanelWidget": {
       "additionalProperties": false,
+      "description": "The Prediction view: future NEWS and the future observations, with their certainty. Each of the three\ncan be switched on or off on the screen; these are what it starts with.",
       "properties": {
         "id": {
           "description": "Lowercase id: letters, digits, hyphens.",
           "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
           "title": "Id",
           "type": "string"
+        },
+        "show_certainty": {
+          "default": true,
+          "description": "Start with the certainty of each prediction shown.",
+          "title": "Show Certainty",
+          "type": "boolean"
         },
         "show_contributors": {
           "default": true,
@@ -850,7 +861,14 @@
         },
         "show_news_number": {
           "default": true,
+          "description": "Start with the future NEWS shown.",
           "title": "Show News Number",
+          "type": "boolean"
+        },
+        "show_observations": {
+          "default": true,
+          "description": "Start with the future observation predictions shown.",
+          "title": "Show Observations",
           "type": "boolean"
         },
         "title": {
@@ -879,6 +897,8 @@
         "title",
         "type",
         "show_news_number",
+        "show_observations",
+        "show_certainty",
         "show_events",
         "show_contributors"
       ],
@@ -1074,6 +1094,32 @@
       "title": "LabsWidget",
       "type": "object"
     },
+    "MeasureAction": {
+      "additionalProperties": false,
+      "description": "Starts a blood pressure or temperature measurement on one touch and cancels it on the next. There\nis no menu or sheet: the module for that measurement pulses until the reading is in. (In this\nprototype the reading is simulated.)",
+      "properties": {
+        "kind": {
+          "enum": [
+            "bp",
+            "temp"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "type": {
+          "const": "measure",
+          "default": "measure",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "kind"
+      ],
+      "title": "MeasureAction",
+      "type": "object"
+    },
     "Menu": {
       "additionalProperties": false,
       "properties": {
@@ -1137,6 +1183,7 @@
           "discriminator": {
             "mapping": {
               "edit-layout": "#/$defs/EditLayoutAction",
+              "measure": "#/$defs/MeasureAction",
               "open-settings": "#/$defs/SettingsAction",
               "screen": "#/$defs/ScreenAction",
               "sheet": "#/$defs/SheetAction",
@@ -1171,6 +1218,9 @@
             },
             {
               "$ref": "#/$defs/EditLayoutAction"
+            },
+            {
+              "$ref": "#/$defs/MeasureAction"
             }
           ],
           "title": "Action"
@@ -2051,8 +2101,6 @@
             "explanation-examples",
             "trends",
             "abcde-assess",
-            "measure-bp",
-            "measure-temp",
             "forecast-horizon",
             "news2-variant",
             "home-screen",
@@ -2591,6 +2639,17 @@
           "title": "Clock Format",
           "type": "string"
         },
+        "date_format": {
+          "default": "dd/mm/yyyy",
+          "enum": [
+            "dd/mm/yyyy",
+            "mm/dd/yyyy",
+            "yyyy-mm-dd",
+            "dd Mon yyyy"
+          ],
+          "title": "Date Format",
+          "type": "string"
+        },
         "fields": {
           "description": "Left to right. Must include 'name' and 'clock'.",
           "items": {
@@ -2638,6 +2697,7 @@
       "required": [
         "fields",
         "clock_format",
+        "date_format",
         "show_seconds",
         "height_px",
         "buttons",

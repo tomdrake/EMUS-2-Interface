@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { useUi } from "@/app/store";
 import type { ExampleSnapshot } from "@/contracts/types.gen";
+import { fmtTime, useFormats } from "@/design/datetime";
 import type { WidgetOf } from "@/design/types";
 import { useSnapshot } from "@/examples/store";
 import { gcsTotal, isOverdue, useAbcde, type Airway } from "@/abcde/store";
@@ -48,7 +49,6 @@ function Choices<T extends string>({ value, options, onPick, testId }: { value: 
   );
 }
 
-const at = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 function Bloods({ snapshot }: { snapshot: ExampleSnapshot }) {
   const registry = useUi((s) => s.registry)!;
@@ -64,6 +64,7 @@ function Bloods({ snapshot }: { snapshot: ExampleSnapshot }) {
 }
 
 function BloodSetView({ set, nowIso, shown, onReveal }: { set: BloodSet; nowIso: string; shown: boolean; onReveal: () => void }) {
+  const formats = useFormats();
   const registry = useUi((s) => s.registry)!;
   const r = set.taken ? recency(set.taken, nowIso) : null;
   const recent = r && r.kind !== "none";
@@ -72,7 +73,7 @@ function BloodSetView({ set, nowIso, shown, onReveal }: { set: BloodSet; nowIso:
     <div className="blood-set" data-testid={`blood-${set.key}`} data-recency={r?.kind ?? "none"}>
       <div className="blood-head">
         <strong>{set.title}</strong>
-        {set.taken && (recent || reveal) && <span className="blood-when" data-testid={`blood-${set.key}-when`}>{takenAt(set.taken)}</span>}
+        {set.taken && (recent || reveal) && <span className="blood-when" data-testid={`blood-${set.key}-when`}>{takenAt(set.taken, formats)}</span>}
         <span className="blood-recency" data-testid={`blood-${set.key}-recency`}>{recent ? r!.label : "No Recent Bloods"}</span>
       </div>
       {(recent || reveal) && (
@@ -107,6 +108,8 @@ function BloodSetView({ set, nowIso, shown, onReveal }: { set: BloodSet; nowIso:
  */
 export function Abcde({ widget }: { widget: WidgetOf<"abcde"> }) {
   const snapshot = useSnapshot();
+  const formats = useFormats();
+  const at = (iso: string) => fmtTime(iso, formats);
   const registry = useUi((s) => s.registry);
   const m = useAbcde();
   if (!snapshot || !registry) {
@@ -173,7 +176,7 @@ export function Abcde({ widget }: { widget: WidgetOf<"abcde"> }) {
         <dl>
           <Row k="AVPU" v={m.avpu ? `${m.avpu.value}, recorded ${at(m.avpu.at)}` : `${n.acvpu ?? "-"}, from the chart`} testId="d-avpu" />
           {m.gcs && <Row k="GCS" v={`${gcsTotal(m.gcs.value)} (E${m.gcs.value.e} V${m.gcs.value.v} M${m.gcs.value.m}), recorded ${at(m.gcs.at)}`} testId="d-gcs" />}
-          <Row k="Glucose" v={(() => { const g = snapshot.labs.find((l) => l.test === "glucose"); return g ? `${g.value} mmol/L, ${takenAt(g.collected_at)}` : "No Recent Result"; })()} testId="d-glucose" />
+          <Row k="Glucose" v={(() => { const g = snapshot.labs.find((l) => l.test === "glucose"); return g ? `${g.value} mmol/L, ${takenAt(g.collected_at, formats)}` : "No Recent Result"; })()} testId="d-glucose" />
         </dl>
         {isOverdue(m.avpu) && isOverdue(m.gcs) && <p className="abcde-prompt" data-testid="d-prompt">Assess consciousness: nothing recorded in the last hour.</p>}
         <div className="panel-buttons">

@@ -111,7 +111,7 @@ const worst = (kinds: string[]) => kinds.sort((a, b) => SEVERITY.indexOf(a) - SE
  * signal is ok or poor. Every numeric goes through here so the rules in status.ts
  * apply everywhere. M2 passes the live values.
  */
-export function Tile({ values }: { values: TileValue[] }) {
+export function Tile({ values, below }: { values: TileValue[]; below?: React.ReactNode }) {
   const design = useDesign()!;
   const registry = useUi((s) => s.registry)!;
   const signals = useSafety((s) => s.signals);
@@ -186,6 +186,7 @@ export function Tile({ values }: { values: TileValue[] }) {
                     {c.d.flagged && <span className="tile-flag" aria-label="poor trace">?</span>}
                   </span>
                 ) : <span className="tile-state">{c.d.text}</span>}
+                {i === 0 && c.d.showValue && below}
                 {c.d.last && <span className="tile-last">last {c.d.last.value} · {c.d.last.age}</span>}
               </span>
             </span>

@@ -246,7 +246,7 @@ MODULE_SIZES: dict[str, dict] = {
     "large": {"label": "Large", "cols": 2, "rows": 2, "full": False, "flow": "split",
               "fits": ["number", "trace", "ai", "certainty", "explain", "readings"]},
     "row": {"label": "Full Row", "cols": 0, "rows": 1, "full": True, "flow": "row",
-            "fits": ["number", "trace", "ai", "certainty"]},
+            "fits": ["number", "trace", "ai", "certainty", "readings"]},
     "row-tall": {"label": "Full Row Double", "cols": 0, "rows": 2, "full": True, "flow": "row",
                  "fits": ["number", "trace", "ai", "certainty", "explain", "forecast", "readings"]},
 }

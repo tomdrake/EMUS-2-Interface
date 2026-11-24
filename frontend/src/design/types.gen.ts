@@ -394,7 +394,8 @@ export interface MenuItem {
     | ThemeToggleAction
     | AiToggleAction
     | AiOverlayAction
-    | EditLayoutAction;
+    | EditLayoutAction
+    | MeasureAction;
   icon:
     | "monitor"
     | "chart"
@@ -463,8 +464,6 @@ export interface SheetAction {
     | "explanation-examples"
     | "trends"
     | "abcde-assess"
-    | "measure-bp"
-    | "measure-temp"
     | "forecast-horizon"
     | "news2-variant"
     | "home-screen"
@@ -538,6 +537,18 @@ export interface AiOverlayAction {
  */
 export interface EditLayoutAction {
   type: "edit-layout";
+}
+/**
+ * Starts a blood pressure or temperature measurement on one touch and cancels it on the next. There
+ * is no menu or sheet: the module for that measurement pulses until the reading is in. (In this
+ * prototype the reading is simulated.)
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "MeasureAction".
+ */
+export interface MeasureAction {
+  kind: "bp" | "temp";
+  type: "measure";
 }
 /**
  * The notification ticker: the one place alarms and monitoring problems are listed.
@@ -1044,6 +1055,9 @@ export interface AiSummaryWidget {
   type: "ai-summary";
 }
 /**
+ * The Prediction view: future NEWS and the future observations, with their certainty. Each of the three
+ * can be switched on or off on the screen; these are what it starts with.
+ *
  * This interface was referenced by `Design`'s JSON-Schema
  * via the `definition` "ForecastPanelWidget".
  */
@@ -1052,9 +1066,20 @@ export interface ForecastPanelWidget {
    * Lowercase id: letters, digits, hyphens.
    */
   id: string;
+  /**
+   * Start with the certainty of each prediction shown.
+   */
+  show_certainty: boolean;
   show_contributors: boolean;
   show_events: boolean;
+  /**
+   * Start with the future NEWS shown.
+   */
   show_news_number: boolean;
+  /**
+   * Start with the future observation predictions shown.
+   */
+  show_observations: boolean;
   title: string | null;
   type: "forecast-panel";
 }
@@ -1187,7 +1212,8 @@ export interface Button {
     | ThemeToggleAction
     | AiToggleAction
     | AiOverlayAction
-    | EditLayoutAction;
+    | EditLayoutAction
+    | MeasureAction;
   colour: string | null;
   icon:
     | "monitor"
@@ -1303,6 +1329,7 @@ export interface TopBar {
     | [Button, Button, Button, Button, Button]
     | [Button, Button, Button, Button, Button, Button];
   clock_format: "24h" | "12h";
+  date_format: "dd/mm/yyyy" | "mm/dd/yyyy" | "yyyy-mm-dd" | "dd Mon yyyy";
   /**
    * Left to right. Must include 'name' and 'clock'.
    */

@@ -47,3 +47,11 @@ describe("navigation", () => {
     expect(() => resolveAction(broken, tab(3))).toThrow(/settings/);
   });
 });
+
+describe("measure buttons", () => {
+  it("resolve to a measurement of that kind, not to a sheet or a menu", () => {
+    const d = { menus: [] } as any;
+    expect(resolveAction(d, { type: "measure", kind: "bp" })).toEqual({ kind: "measure", which: "bp" });
+    expect(resolveAction(d, { type: "measure", kind: "temp" })).toEqual({ kind: "measure", which: "temp" });
+  });
+});

@@ -2,6 +2,7 @@ import type { Widget, WidgetOf, WidgetType } from "@/design/types";
 
 import { MonitorGrid } from "./MonitorGrid";
 import { Abcde } from "./Abcde";
+import { ForecastPanel } from "./ForecastPanel";
 import { News2Chart } from "./News2Chart";
 import { Placeholder } from "./Placeholder";
 
@@ -25,7 +26,7 @@ export const WIDGETS: { [T in WidgetType]: WidgetComponent<T> } = {
   "epr-labs": stub("Laboratory results", "M6"),
   "epr-imaging": stub("Imaging", "M6"),
   "ai-summary": stub("AI findings", "M7"),
-  "forecast-panel": stub("Forecast and future NEWS", "M7"),
+  "forecast-panel": ForecastPanel,
   "events-timeline": stub("Events timeline", "M7"),
   alarms: stub("Alarm limits and history", "M2"),
   oxygen: stub("Oxygen", "M2"),

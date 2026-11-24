@@ -140,3 +140,11 @@ The monitor is five full-width traces (ECG, SpO2, respiration, blood pressure, t
 - **Blood pressure** on the trace is a down arrow (systolic), an up arrow (diastolic) and an X (MAP), each joined by dashes, with a key and five values on the scale. The tile shows the diastolic as large as the systolic.
 - **Boxes** show the rhythm in words under the HR, Regular or Irregular for breathing, the 24 h high and low temperature, falls in the last 24 hours, time standing, walking and moving, and the NEWS2 total over time and by date and time. These come from the example snapshot (`falls_24h`, `activity_24h`, `extremes_24h`, `rhythm`, `resp_pattern`).
 - **Measure BP** and **Measure Temp** tab buttons run a simulated reading (`GET /api/examples/{scenario}/measure`), added to the list, trend and tile until the time changes. It is marked simulated and reaches no record.
+
+## Dates, predictions and measuring (round 8)
+
+- **Date and time formats** are a setting (Settings, Appearance, Date And Time): date as 24/11/2026 (default), 11/24/2026, 2026-11-24 or 24 Nov 2026; 12 or 24 hour time; seconds; and whether the date sits beside the clock. Every date and time on screen follows it (`design/datetime.ts`); exports keep ISO.
+- **Prediction view** (the Predict tab): future NEWS for each horizon with its 80 % range and a chart running into the prediction, and a table of predicted heart rate, respiration, SpO2, systolic BP and temperature, each with certainty. Three switches (Future NEWS, Observation Predictions, Certainty) turn each part on or off; the choice is kept on the screen. The predictions are from example data until the causal model (M7) is connected.
+- **Last five BP readings** sit under the BP number in the main view; the number takes the room the list leaves and the oldest lines drop out where the row is short.
+- **Measure BP / Measure Temp** are one-touch: the first touch starts a simulated measurement and the box for it pulses until the reading is in; the next touch cancels it. No sheet or menu opens.
+- **Red emergency alerts** are a red triangle with an exclamation mark, not "!!!".

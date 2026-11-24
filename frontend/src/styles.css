@@ -55,9 +55,7 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .tb-date { font-variant-numeric: tabular-nums; }
 .tb-field.tb-date { margin-left: auto; }
 .tb-field.tb-date + .tb-field.tb-clock { margin-left: 0; }
-@media (max-width: 1180px) {
-  .tb-field.tb-date { display: none; }
-  .tb-field.tb-clock, .tb-field.tb-date + .tb-field.tb-clock { margin-left: auto; }
+.tb-field.tb-date { flex: none; margin-right: 10px; white-space: nowrap; }
 }
 .badge { flex: none; font-size: 0.7em; font-weight: 700; letter-spacing: 0.06em; padding: 3px 8px;
   border-radius: 999px; border: 1px solid var(--c-border); color: var(--c-text-muted); line-height: 1.2; }
@@ -325,7 +323,11 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
    here and on the frame, not on the text. */
 .notif-mark { flex: none; font-size: 0.7em; font-weight: 900; letter-spacing: 0.02em; padding: 0 5px;
   border-radius: 4px; line-height: 1.5; border: 1px solid currentColor; }
-.mark-high { background: var(--c-alarm-high); color: var(--c-background); border-color: var(--c-alarm-high); }
+/* High priority: a red triangle with an exclamation mark, no box around it. */
+.mark-high { background: none; border: 0; padding: 0; display: inline-flex; align-items: center; line-height: 1; color: var(--c-alarm-high); }
+.priority-triangle { display: block; }
+.priority-triangle .pt-body { fill: var(--c-alarm-high); stroke: var(--c-alarm-high); stroke-width: 1.6; stroke-linejoin: round; }
+.priority-triangle .pt-mark { fill: #ffffff; }
 .mark-medium { background: var(--c-alarm-medium); color: var(--c-background); border-color: var(--c-alarm-medium); }
 .notif-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
 .notif-count { flex: none; font-weight: 800; font-size: 0.8em; padding: 2px 7px; border-radius: 999px;
@@ -786,16 +788,16 @@ button:disabled { opacity: 0.45; }
 .height-opt { min-height: var(--touch); flex: 1 1 auto; }
 .height-opt.is-current { box-shadow: inset 0 0 0 2px var(--c-accent); background: var(--c-surface-alt); }
 
-/* Measure BP and Measure Temp sheets */
-.measure { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
-.measure-go { min-height: 64px; font-size: 1.1rem; }
-.measure-run, .measure-result { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--c-border); border-radius: var(--radius); }
-.measure-bar { height: 14px; border-radius: 7px; background: var(--c-surface-alt); overflow: hidden; }
-.measure-bar span { display: block; height: 100%; background: var(--c-accent); transition: width 0.9s linear; }
-.measure-value { font-size: 2.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-.measure-value small { font-size: 1rem; font-weight: 600; }
-.measure-kind, .measure-time, .measure-added, .measure-left, .measure-last { color: var(--c-text-muted); font-size: 0.9rem; margin: 0; }
-@media (prefers-reduced-motion: reduce) { .measure-bar span { transition: none; } }
+/* A measurement under way: the module pulses (a ring and a tint in its own colour) until the reading is in. */
+@keyframes measure-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px currentColor; background-color: color-mix(in srgb, currentColor 4%, transparent); }
+  50% { box-shadow: inset 0 0 0 5px currentColor; background-color: color-mix(in srgb, currentColor 20%, transparent); }
+}
+.module.is-measuring { animation: measure-pulse 1.1s ease-in-out infinite; }
+.tab.is-measuring { animation: measure-pulse 1.1s ease-in-out infinite; color: var(--c-text); }
+@media (prefers-reduced-motion: reduce) {
+  .module.is-measuring, .tab.is-measuring { animation: none; box-shadow: inset 0 0 0 4px currentColor; background-color: color-mix(in srgb, currentColor 16%, transparent); }
+}
 
 /* Blood pressure markers: arrows and an X in the row's colour. */
 .discrete-arrow { fill: currentColor; stroke: var(--c-background); stroke-width: 0.6; }
@@ -896,3 +898,59 @@ button:disabled { opacity: 0.45; }
 /* Top-bar buttons keep one-line labels, centred; only the tab bar wraps two-line labels from the top. */
 .topbtn { justify-content: center; padding-top: 0; }
 .topbtn .tab-label { white-space: nowrap; max-width: none; text-wrap: nowrap; }
+
+/* The Prediction view */
+.forecast-panel { flex: 1 1 0; min-height: 0; min-width: 0; overflow: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; }
+.fp-toggles { display: flex; flex-wrap: wrap; gap: 8px; flex: none; }
+.fp-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: var(--touch); padding: 0 10px 0 8px; font-size: 0.9rem; border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--c-surface); font-weight: 700; }
+.fp-toggle-track { width: 38px; height: 22px; border-radius: 11px; background: var(--c-surface-alt); border: 1px solid var(--c-border); position: relative; flex: none; }
+.fp-toggle-track i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--c-text-muted); transition: transform 0.15s; }
+.fp-toggle.is-on { box-shadow: inset 0 0 0 2px var(--c-accent); }
+.fp-toggle.is-on .fp-toggle-track { background: var(--c-accent); border-color: var(--c-accent); }
+.fp-toggle.is-on .fp-toggle-track i { transform: translateX(16px); background: var(--c-background); }
+.fp-note, .fp-hint { margin: 0; color: var(--c-text-muted); font-size: 0.8rem; flex: none; }
+.fp-section { flex: none; border: 1px solid var(--c-border); border-radius: var(--radius); padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; }
+.fp-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fp-head h3 { margin: 0; font-size: 1rem; }
+.fp-cells { display: flex; gap: 8px; }
+.fp-cell { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border: 1px solid var(--c-border); border-radius: calc(var(--radius) - 2px); }
+.fp-cell.fp-now { border-style: solid; box-shadow: inset 0 0 0 1px var(--c-text-muted); }
+.fp-when { font-size: 0.75rem; font-weight: 700; color: var(--c-text-muted); }
+.fp-big { font-size: 1.8rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.fp-range, .fp-bands { font-size: 0.75rem; color: var(--c-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fp-threshold { margin: 0; font-weight: 600; }
+.fan { height: 54px; min-width: 0; }
+.fan svg { display: block; overflow: visible; }
+.fan-band { fill: currentColor; fill-opacity: 0.18; stroke: none; }
+.fan-past { fill: none; stroke: currentColor; stroke-width: 1.8; }
+.fan-future { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-dasharray: 5 4; }
+.fan-now { fill: currentColor; stroke: var(--c-background); stroke-width: 1; }
+.fp-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.fp-table th, .fp-table td { padding: 3px 6px; text-align: center; border-bottom: 1px solid var(--c-border); vertical-align: middle; }
+.fp-table thead th { font-size: 0.75rem; color: var(--c-text-muted); font-weight: 700; }
+.fp-table th[scope="row"] { text-align: left; white-space: nowrap; }
+.fp-table td b { display: block; font-size: 1.05rem; }
+.fp-table td .fp-range { display: block; }
+.fp-none { color: var(--c-text-muted); font-size: 0.8rem; }
+.fp-col-chart { width: 120px; min-width: 100px; }
+.fp-col-chart .fan { height: 40px; }
+@container (max-width: 1px) { .fp-col-chart { display: none; } }
+@media (max-width: 1100px) { .fp-col-chart { display: none; } }
+@media (prefers-reduced-motion: reduce) { .fp-toggle-track i { transition: none; } }
+
+/* The last five blood pressures under the BP number, in the tile. The row keeps its height, so the number takes what the lines
+   leave and the lines that do not fit are dropped (oldest first); each step also tells the number how much room it has lost. */
+.tile .bp-tile { width: 100%; margin-top: 6px; font-size: 10.5px; line-height: 12.5px; font-variant-numeric: tabular-nums; }
+.tile .bp-tile table { width: 100%; border-collapse: collapse; font-size: inherit; }
+.tile .bp-tile td { padding: 0 4px 0 0; white-space: nowrap; text-align: left; line-height: 12.5px; }
+.tile .bp-tile .bp-value { text-align: right; padding-right: 0; font-weight: 700; }
+.tile .bp-tile tr.is-newest { font-size: 1em; font-weight: 800; }
+.tile .bp-tile tr:nth-child(n+2) td { opacity: 0.9; }
+.tile .bp-tile .bp-age { text-align: right; padding-left: 4px; font-weight: 700; }
+.tile:has(.bp-tile) .tile-cell { --list-h: 70px; }
+.tile:has(.bp-tile) .tile-primary .tile-value, .tile:has(.bp-tile) .tile-primary:has(.tile-extra) .tile-value { font-size: min(calc(2.2rem * var(--numeric-scale)), calc((var(--body-h) - var(--list-h, 0px)) / 1.3), 21cqw); }
+@container tile (max-height: 137px) { .tile .bp-tile tr:nth-child(n+5) { display: none; } .tile:has(.bp-tile) .tile-cell { --list-h: 58px; } }
+@container tile (max-height: 124px) { .tile .bp-tile tr:nth-child(n+4) { display: none; } .tile:has(.bp-tile) .tile-cell { --list-h: 45px; } }
+@container tile (max-height: 111px) { .tile .bp-tile tr:nth-child(n+3) { display: none; } .tile:has(.bp-tile) .tile-cell { --list-h: 33px; } }
+@container tile (max-height: 99px) { .tile .bp-tile tr:nth-child(n+2) { display: none; } .tile:has(.bp-tile) .tile-cell { --list-h: 20px; } }
+@container tile (max-height: 86px) { .tile .bp-tile { display: none; } .tile:has(.bp-tile) .tile-cell { --list-h: 0px; } }

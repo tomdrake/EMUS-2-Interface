@@ -11,6 +11,7 @@ import { visibleContent, type Placement } from "@/layout/grid";
 import { RowStatus, Tile, type TileValue } from "@/safety/Tile";
 import { TraceFrame } from "@/traces/TraceFrame";
 
+import { useMeasure } from "@/examples/measure";
 import { ActivityDetail, FallsDetail, NewsTrend, OxygenDetail, RISK_COLOUR } from "./ModuleDetails";
 
 /** The values a row's tile holds, primary first. Blood pressure reads as one value, "120/80 (93)". */
@@ -71,6 +72,8 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
   const colour = risk ? RISK_COLOUR[risk] : row.colour ?? (row.parameter ? paramVar(row.parameter) : "var(--c-text)");
   const title = rowTitle(row, design, registry);
   const flow = spec.flow;
+  // The module whose measurement is running pulses until the reading is in.
+  const measuring = useMeasure((s) => (row.parameter === "bp_sys" ? s.running.bp != null : row.parameter === "temp" ? s.running.temp != null : false));
   const tall = placement.rowSpan > 1;
 
   // A single-height row has no room under its trace: its certainty rides in the chip. Taller
@@ -96,7 +99,10 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
       {row.parameter && <RowStatus parameter={row.parameter} />}
     </div>
   );
-  const tile = values.length ? <Tile values={values} /> : <span className="tile tile-empty" aria-hidden="true" />;
+  // In a full row the last five blood pressures sit under the number, in the tile.
+  const underNumber = flow === "row" && vis.readings && row.parameter === "bp_sys" && snapshot
+    ? <BpReadings readings={snapshot.bp_readings} nowIso={snapshot.generated_at} variant="tile" /> : null;
+  const tile = values.length ? <Tile values={values} below={underNumber} /> : <span className="tile tile-empty" aria-hidden="true" />;
   // Falls, activity and the NEWS2 history have no trace; they show their own small summaries instead.
   const summary = flow === "row" ? null : row.parameter === "falls" ? <FallsDetail /> : row.parameter === "activity" ? <ActivityDetail />
     : row.parameter === "o2_flow" ? <OxygenDetail />
@@ -113,11 +119,11 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
     <div className="module-ai">{chipInBlock && chip}{extras}</div>);
 
   return (
-    <div className={`module module-${flow} size-${placement.size}${flow === "row" ? " row" : ""}`}
+    <div className={`module module-${flow} size-${placement.size}${flow === "row" ? " row" : ""}${measuring ? " is-measuring" : ""}`}
          style={{ gridColumn: `${placement.col} / span ${placement.colSpan}`,
                   gridRow: `${placement.row} / span ${placement.rowSpan}`, color: colour }}
          data-testid={`row-${row.id}`} data-parameter={row.parameter ?? ""} data-size={placement.size} data-selected={selected || undefined}
-         data-flow={flow} data-content={[vis.trace && "trace", vis.ai && "ai", vis.certainty && "certainty",
+         data-flow={flow} data-measuring={measuring || undefined} aria-busy={measuring || undefined} data-content={[vis.trace && "trace", vis.ai && "ai", vis.certainty && "certainty",
                                           vis.explain && "explain", vis.forecast && "forecast", vis.readings && "readings"].filter(Boolean).join(" ")}
          data-dropped={vis.dropped.join(" ")}>
       <button type="button" className="row-hit" data-testid={`row-hit-${row.id}`}

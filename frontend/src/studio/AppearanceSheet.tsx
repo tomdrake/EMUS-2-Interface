@@ -4,7 +4,9 @@ import { api } from "@/app/api";
 import { useDesign, useTheme, useUi } from "@/app/store";
 import type { Design, Theme } from "@/design/types";
 
-import { Choice, DraftNote, Stepper } from "./controls";
+import { DATE_FORMATS, type DateFormat } from "@/design/datetime";
+
+import { Choice, DraftNote, Stepper, Switch } from "./controls";
 import { useEditor } from "./editor";
 
 const ACCENTS = ["#3B82F6", "#22C55E", "#F59E0B", "#EF4444", "#A855F7", "#14B8A6", "#EC4899", "#E5E7EB"];
@@ -48,6 +50,21 @@ export function AppearanceSheet() {
       <Choice testId="density" label="Spacing" value={design.theme.density}
               options={[{ value: "compact", label: "Compact" }, { value: "comfortable", label: "Comfortable" }, { value: "large", label: "Large" }]}
               onChange={(v) => apply((d) => bothThemes(d, { density: v }))} />
+      <h4>Date And Time</h4>
+      <Choice testId="date-format" label="Date Format" value={design.top_bar.date_format as DateFormat} options={DATE_FORMATS}
+              onChange={(v) => apply((d) => ({ ...d, top_bar: { ...d.top_bar, date_format: v } }) as Design)} />
+      <Choice testId="clock-format" label="Time Format" value={design.top_bar.clock_format}
+              options={[{ value: "24h", label: "24 Hour" }, { value: "12h", label: "12 Hour" }]}
+              onChange={(v) => apply((d) => ({ ...d, top_bar: { ...d.top_bar, clock_format: v } }) as Design)} />
+      <Switch testId="show-seconds" label="Show Seconds" checked={design.top_bar.show_seconds}
+              onChange={(v) => apply((d) => ({ ...d, top_bar: { ...d.top_bar, show_seconds: v } }) as Design)} />
+      <Switch testId="show-date" label="Show Date Beside The Time" checked={(design.top_bar.fields ?? []).includes("date")}
+              onChange={(v) => apply((d) => {
+                const fields: Design["top_bar"]["fields"] = (d.top_bar.fields ?? []).filter((f) => f !== "date");
+                const at = fields.indexOf("clock");
+                if (v) fields.splice(at < 0 ? fields.length : at, 0, "date");
+                return { ...d, top_bar: { ...d.top_bar, fields } } as Design;
+              })} />
       <h4>Accent Colour ({theme.mode === "dark" ? "Dark" : "Light"} Theme)</h4>
       <div className="swatches" role="radiogroup" aria-label="Accent colour">
         {ACCENTS.map((c) => (

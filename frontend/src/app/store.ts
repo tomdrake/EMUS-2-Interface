@@ -30,6 +30,8 @@ interface UiState {
   aiOverride: boolean | null;
   /** The AI overview overlay (boxes on traces saying what the AI used): on or off for this screen. */
   aiOverlay: boolean;
+  /** What the Prediction view shows on this screen: each block switched on or off; undefined = as the design says. Local. */
+  predictShow: Partial<Record<PredictBlock, boolean>>;
   /** CSS pixels per millimetre used for trace gain and sweep speed. Nominal unless
    *  this screen has been calibrated (the calibration sheet is milestone M4). */
   pxPerMm: number;
@@ -45,10 +47,20 @@ interface UiState {
   toggleMode(): void;
   toggleAi(): void;
   toggleAiOverlay(): void;
+  setPredictShow(block: PredictBlock, on: boolean): void;
   /** Set (or with null, clear) one trace's x scale on this screen. */
   setXScale(rowId: string, value: number | null): void;
   setNotice(text: string | null): void;
   fail(message: string): void;
+}
+
+export type PredictBlock = "news" | "obs" | "certainty";
+const PREDICT_KEY = "emus.predict-show";
+function readPredict(): Partial<Record<PredictBlock, boolean>> {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(PREDICT_KEY) ?? "{}");
+    return Object.fromEntries((["news", "obs", "certainty"] as const).filter((k) => typeof v?.[k] === "boolean").map((k) => [k, v[k]]));
+  } catch { return {}; }
 }
 
 export const DEFAULT_PATIENT = "scn-pneumonia";
@@ -99,7 +111,7 @@ function writeMode(mode: ThemeMode): void {
 export const useUi = create<UiState>((set) => ({
   stored: null, draft: null, registry: null, error: null,
   screenId: null, openMenu: null, openSheet: null, sheetContext: null,
-  editMode: false, mode: readMode(), aiOverride: readAi(), aiOverlay: readOverlay(), xScale: readXScale(), pxPerMm: NOMINAL_PX_PER_MM, patientId: DEFAULT_PATIENT, notice: null,
+  editMode: false, mode: readMode(), aiOverride: readAi(), aiOverlay: readOverlay(), predictShow: readPredict(), xScale: readXScale(), pxPerMm: NOMINAL_PX_PER_MM, patientId: DEFAULT_PATIENT, notice: null,
 
   load: (stored, registry) =>
     set((s) => ({ stored, registry, error: null,
@@ -127,6 +139,11 @@ export const useUi = create<UiState>((set) => ({
     const next = !(s.aiOverride ?? design?.ai.enabled ?? true);
     writeAi(next);
     return { aiOverride: next };
+  }),
+  setPredictShow: (block, on) => set((s) => {
+    const predictShow = { ...s.predictShow, [block]: on };
+    try { window.localStorage.setItem(PREDICT_KEY, JSON.stringify(predictShow)); } catch { /* not persisted */ }
+    return { predictShow };
   }),
   toggleAiOverlay: () => set((s) => {
     writeOverlay(!s.aiOverlay);

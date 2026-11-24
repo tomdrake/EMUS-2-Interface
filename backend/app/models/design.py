@@ -278,8 +278,13 @@ class AiSummaryWidget(_Widget):
 
 
 class ForecastPanelWidget(_Widget):
+    """The Prediction view: future NEWS and the future observations, with their certainty. Each of the three
+    can be switched on or off on the screen; these are what it starts with."""
+
     type: Literal["forecast-panel"] = "forecast-panel"
-    show_news_number: bool = True
+    show_news_number: bool = Field(True, description="Start with the future NEWS shown.")
+    show_observations: bool = Field(True, description="Start with the future observation predictions shown.")
+    show_certainty: bool = Field(True, description="Start with the certainty of each prediction shown.")
     show_events: bool = True
     show_contributors: bool = True
 
@@ -359,7 +364,7 @@ SheetId = Literal[
     # clinical
     "alarm-limits", "oxygen", "patient", "new-patient", "discharge-patient",
     "record-observations", "finding-explain", "underlying-data", "explanation-examples",
-    "trends", "abcde-assess", "measure-bp", "measure-temp",
+    "trends", "abcde-assess",
     "forecast-horizon", "news2-variant", "home-screen",
     # design studio sections (each one touch from the Settings menu)
     "studio-appearance", "studio-layout", "studio-rows", "studio-navigation",
@@ -409,6 +414,15 @@ class AiOverlayAction(_Model):
     type: Literal["toggle-ai-overlay"] = "toggle-ai-overlay"
 
 
+class MeasureAction(_Model):
+    """Starts a blood pressure or temperature measurement on one touch and cancels it on the next. There
+    is no menu or sheet: the module for that measurement pulses until the reading is in. (In this
+    prototype the reading is simulated.)"""
+
+    type: Literal["measure"] = "measure"
+    kind: Literal["bp", "temp"]
+
+
 class EditLayoutAction(_Model):
     """Enters Edit Layout: tap a module to change its size, content and place. Edits stay local
     to this screen until they are saved as a new design version."""
@@ -418,13 +432,13 @@ class EditLayoutAction(_Model):
 
 ButtonAction = Annotated[
     Union[ScreenAction, MenuAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction,
-          AiToggleAction, AiOverlayAction, EditLayoutAction],
+          AiToggleAction, AiOverlayAction, EditLayoutAction, MeasureAction],
     Field(discriminator="type"),
 ]
 # Menu items cannot open another menu: that is what keeps everything within two touches.
 MenuItemAction = Annotated[
     Union[ScreenAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction,
-          AiToggleAction, AiOverlayAction, EditLayoutAction],
+          AiToggleAction, AiOverlayAction, EditLayoutAction, MeasureAction],
     Field(discriminator="type"),
 ]
 
@@ -468,6 +482,8 @@ class TopBar(_Model):
     fields: list[TopBarField] = Field(
         description="Left to right. Must include 'name' and 'clock'.")
     clock_format: Literal["24h", "12h"] = "24h"
+    #: How dates are written everywhere on screen: 24/11/2026, 11/24/2026, 2026-11-24 or 24 Nov 2026.
+    date_format: Literal["dd/mm/yyyy", "mm/dd/yyyy", "yyyy-mm-dd", "dd Mon yyyy"] = "dd/mm/yyyy"
     show_seconds: bool = True
     height_px: int = Field(64, ge=48, le=96)
     buttons: list[Button] = Field(

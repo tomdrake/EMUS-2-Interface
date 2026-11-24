@@ -624,13 +624,17 @@ def _forecast_bundle(sc, minute, now, quality: float) -> ForecastBundle:
 
     def point_values(param: str, horizon: int) -> float:
         fut = scenario_values(sc_id, minute + horizon)
-        return float(_news(fut, scale).total) if param == "news2" else float(fut[param])
+        if param == "news2":
+            return float(_news(fut, scale).total)
+        # temperature is predicted as the skin value the tile shows, not the core value of the script
+        return float(fut[param]) + (SKIN_OFFSET_C if param == "temp" else 0.0)
 
-    spans = {"news2": 6.0, "rr": 12.0, "spo2": 8.0, "hr": 40.0}
+    # the width of interval that would be a useless forecast: certainty falls toward 0 as the 6 h interval nears it
+    spans = {"news2": 12.0, "rr": 24.0, "spo2": 16.0, "hr": 80.0, "bp_sys": 120.0, "temp": 4.0}
     forecasts: list[Forecast] = []
-    for param in ("news2", "rr", "spo2", "hr"):
+    for param in ("news2", "rr", "spo2", "hr", "bp_sys", "temp"):
         pts = []
-        base_sd = {"news2": 0.7, "rr": 1.5, "spo2": 1.0, "hr": 5.0}[param]
+        base_sd = {"news2": 0.7, "rr": 1.5, "spo2": 1.0, "hr": 5.0, "bp_sys": 6.0, "temp": 0.25}[param]
         for h in HORIZONS:
             val = point_values(param, h)
             sd = base_sd * (1 + h / 120)
