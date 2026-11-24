@@ -207,6 +207,19 @@ is, **and of what** ("80% agreement", never a bare percentage). Rules the exampl
   would differ.
 - AI On / Off is a choice of this screen (like dark / light), kept locally; it changes no layout.
 
+## Editing the screen
+
+Edit Layout, and every settings sheet, change the screen **while it is open**: the blue bar
+(EDITING LAYOUT or UNSAVED CHANGES) and the side panel take room, and modules shrink to suit. It
+is for workshops, not for a bedside, and the bar says so whenever something is unsaved.
+
+- Edits show at once and are saved only on request, as a new version with who and why. A save
+  never replaces history, and built-in designs are read-only, so saving one makes a copy.
+- A design that would be unsafe or unreadable (a colour below 4.5:1 contrast in either theme, a
+  missing silence button) cannot be saved, and the bar says why as soon as it happens.
+- Editing never changes data: it only moves and configures rows that point at the registry.
+- Undo steps back one edit at a time. Discard returns to the saved design.
+
 ## Traces
 
 Each waveform and trend carries the marks needed to read it (a design choice, all on

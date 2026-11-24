@@ -805,9 +805,9 @@ for (const vp of VIEWPORTS) {
   await ex("setMinute", 180);
   await settle();
   const modAi = await page.evaluate(() => [...document.querySelectorAll(".widget-monitor-grid .module")].map((m) => ({
-    id: m.dataset.testid, size: m.dataset.size, chip: !!m.querySelector(".ai-chip"), cert: !!m.querySelector(".ai-certainty"),
-    over: [...m.querySelectorAll(".ai-chip-pill, .ai-certainty, .ai-explain")].some((e) => { const a = m.getBoundingClientRect(), b = e.getBoundingClientRect(); return b.right > a.right + 1 || b.bottom > a.bottom + 1 || b.left < a.left - 1; }) })));
-  check(modAi.every((m) => !m.over), `${vp.name}: no AI mark overflows its module in the Modular Example`);
+    id: m.dataset.testid, size: m.dataset.size, chip: !!m.querySelector(".ai-chip"), cert: !!m.querySelector(".ai-certainty"), offenders: [...m.querySelectorAll(".ai-chip-pill, .ai-certainty, .ai-explain")].filter((e) => { const a = m.getBoundingClientRect(), b = e.getBoundingClientRect(); return b.width > 0 && (b.right > a.right + 1 || b.bottom > a.bottom + 1 || b.left < a.left - 1); }).map((e) => e.className + JSON.stringify([m.getBoundingClientRect().toJSON(), e.getBoundingClientRect().toJSON()].map((r) => [r.left, r.top, r.right, r.bottom].map(Math.round)))),
+    over: [...m.querySelectorAll(".ai-chip-pill, .ai-certainty, .ai-explain")].some((e) => { const a = m.getBoundingClientRect(), b = e.getBoundingClientRect(); return b.width > 0 && (b.right > a.right + 1 || b.bottom > a.bottom + 1 || b.left < a.left - 1); }) })));
+  check(modAi.every((m) => !m.over), `${vp.name}: no AI mark overflows its module in the Modular Example ${JSON.stringify(modAi.filter((m) => m.over).map((m) => [m.id, m.offenders]))}`);
   check(modAi.filter((m) => m.size === "compact").every((m) => !m.chip), `${vp.name}: small squares show no AI chip`);
   check(modAi.some((m) => m.size === "large" && m.chip && m.cert), `${vp.name}: a large module shows the chip and its certainty block`);
   await shot("modular-ai");
@@ -889,6 +889,146 @@ for (const vp of VIEWPORTS) {
   check(await T("ex-whatif-whatif").count() === 1 && await T("ex-whatif-baseline").count() === 1, `${vp.name}: the what-if style draws both courses`);
   await shot("gallery-whatif");
   await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+
+  // --- the customisation tool: Edit Layout, sizes, content, save as a version, history, appearance, AI settings
+  const reset = () => page.evaluate(async () => { await fetch("/api/active-design", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ design_id: "icu-monitor" }) }); });
+  try {
+    await ex("setScenario", "scn-pneumonia");
+    await ex("setMinute", 180);
+    await settle();
+    await page.evaluate(async () => { const st = window.__emus.ui.getState(); const d = await (await fetch("/api/designs/icu-modules")).json(); st.load(d, st.registry); st.go(d.document.home_screen); });
+    const gridInfo = () => page.evaluate(() => {
+      const grid = document.querySelector(".widget-monitor-grid .module-grid") || document.querySelector(".module-grid"); const g = grid.getBoundingClientRect();
+      const mods = [...grid.querySelectorAll(".module")].map((m) => { const r = m.getBoundingClientRect(); return { id: m.dataset.testid, size: m.dataset.size, x: r.x, y: r.y, w: r.width, h: r.height }; });
+      const cols = Number(grid.dataset.columns), rows = Number(grid.dataset.rows), cw = g.width / cols, ch = g.height / rows;
+      let overlap = false;
+      for (const a of mods) for (const b of mods) if (a !== b && a.x < b.x + b.w - 2 && b.x < a.x + a.w - 2 && a.y < b.y + b.h - 2 && b.y < a.y + a.h - 2) overlap = true;
+      const inside = mods.every((m) => m.x >= g.x - 1 && m.y >= g.y - 1 && m.x + m.w <= g.right + 1 && m.y + m.h <= g.bottom + 1);
+      return { mods, cols, rows, cw, ch, overlap, inside, scroll: document.documentElement.scrollHeight <= window.innerHeight && document.documentElement.scrollWidth <= window.innerWidth };
+    });
+    const before = await gridInfo();
+    // two touches to enter, and the bar and panel say so
+    await T("top-settings").click();
+    await page.getByText("Edit Layout").first().click();
+    await T("edit-bar").waitFor();
+    check(/EDITING LAYOUT/.test(await T("edit-title").innerText()) && await T("edit-panel").isVisible() && await T("edit-exit").isVisible(), `${vp.name}: Settings, then Edit Layout (two touches) shows the EDITING LAYOUT bar, the panel and Exit`);
+    check(/own copy/.test(await T("edit-note").innerText()), `${vp.name}: a built-in design says edits are saved as a copy`);
+    // tap a module, then each size in turn: the module takes exactly that many cells
+    await T("row-hit-temp").click();
+    check(await T("panel-title").innerText().then((t) => /Temperature/.test(t)), `${vp.name}: tapping a module selects it`);
+    check(await page.evaluate(() => document.querySelector('[data-testid="row-temp"]').dataset.selected === "true"), `${vp.name}: the selected module is outlined`);
+    const sizeErrs = [];
+    for (const [id, cols, rows, full] of [["compact", 1, 1, false], ["tile", 2, 1, false], ["tall", 1, 2, false], ["wide", 3, 1, false], ["large", 2, 2, false], ["row", 0, 1, true], ["row-tall", 0, 2, true]]) {
+      await T(`size-${id}`).click();
+      await page.waitForTimeout(150);
+      const g = await gridInfo();
+      const m = g.mods.find((x) => x.id === "row-temp");
+      const wantW = (full ? g.cols : cols) * g.cw, wantH = rows * g.ch;
+      if (!(Math.abs(m.w - wantW) <= 2 && Math.abs(m.h - wantH) <= 2 && !g.overlap && g.inside && g.scroll && m.size === id)) sizeErrs.push(`${id} ${m.w.toFixed(0)}x${m.h.toFixed(0)} want ${wantW.toFixed(0)}x${wantH.toFixed(0)} overlap=${g.overlap}`);
+    }
+    check(sizeErrs.length === 0, `${vp.name}: one touch gives a module any of the seven sizes, exactly that many cells, no overlap, no scroll ${sizeErrs.join("; ")}`);
+    await T("size-large").click();
+    await shot("edit-layout");
+    check((await T("edit-save").isEnabled()) && /Not saved|Built-in/.test(await T("edit-note").innerText()), `${vp.name}: an edit enables Save and nothing is saved yet`);
+    const stillSaved = await page.evaluate(async () => (await (await fetch("/api/designs/icu-modules")).json()).version);
+    check(stillSaved === 1, `${vp.name}: the server still has the original (editing is local until saved)`);
+    // the panel's controls are touch targets
+    const panelTargets = await page.evaluate(() => [...document.querySelectorAll('[data-testid="edit-panel"] button, [data-testid="edit-bar"] button')].filter((b) => !b.disabled).every((b) => b.getBoundingClientRect().height >= 47));
+    check(panelTargets, `${vp.name}: every button in the edit bar and panel is a touch target`);
+    // move, duplicate, remove, undo
+    const order = () => page.evaluate(() => [...document.querySelectorAll(".module-grid .module")].map((m) => m.dataset.testid.replace("row-", "")));
+    const o0 = await order();
+    await T("move-earlier").click();
+    const o1 = await order();
+    check(o1.indexOf("temp") !== o0.indexOf("temp") || o1.join() !== o0.join(), `${vp.name}: Earlier changes the module's place`);
+    await T("duplicate-module").click();
+    check((await order()).length === o1.length + 1 && await T("row-temp-2").count() === 1, `${vp.name}: Duplicate adds a separate module`);
+    await T("content-ai").uncheck();
+    check(await T("ai-temp-2").count() === 0 && await T("noroom-forecast").count() >= 0, `${vp.name}: AI off on one module removes its AI mark`);
+    await T("remove-module").click();
+    check((await order()).length === o1.length && await T("row-temp-2").count() === 0, `${vp.name}: Remove takes it off the screen`);
+    await T("edit-undo").click(); await T("edit-undo").click(); await T("edit-undo").click();
+    check((await order()).join() === o1.join(), `${vp.name}: Undo steps back one edit at a time`);
+    // add a module
+    await T("add-parameter").selectOption("hr");
+    await T("add-size-tile").click();
+    await T("add-module").click();
+    check(await T("row-hr-2").count() === 1 && (await gridInfo()).mods.find((m) => m.id === "row-hr-2").size === "tile", `${vp.name}: Add Module puts a new module of the chosen size on the screen`);
+    // a colour that cannot be read is refused, with the reason, before saving
+    await T("colour-FFFFFF").click();
+    await page.waitForFunction(() => /Cannot save/.test(document.querySelector('[data-testid="edit-note"]').textContent), null, { timeout: 5000 }).catch(() => {});
+    check(/Cannot save/.test(await T("edit-note").innerText()) && !(await T("edit-save").isEnabled()), `${vp.name}: a colour that is hard to read blocks Save and says why`);
+    await T("colour-default").click();
+    await page.waitForFunction(() => !/Cannot save/.test(document.querySelector('[data-testid="edit-note"]').textContent), null, { timeout: 5000 });
+    // save as a copy with who and why
+    await T("edit-save").click();
+    await T("save-name").fill(`E2E Copy ${vp.name}`);
+    await T("save-author").fill("RN Test");
+    await T("save-note").fill("Large temperature, extra heart rate");
+    await T("save-confirm").click();
+    await T("notice").waitFor();
+    check(/version 2/.test(await T("notice").innerText()), `${vp.name}: saving a built-in design saves a copy as a new version`);
+    const saved = await page.evaluate(async () => { const a = await (await fetch("/api/active-design")).json(); const v = await (await fetch(`/api/designs/${a.meta.id}/versions`)).json(); return { id: a.meta.id, name: a.meta.name, builtin: a.meta.builtin, parent: a.meta.parent_id, v: v.map((x) => [x.version, x.author, x.note, x.source, x.touched.join()]) }; });
+    check(saved.name === `E2E Copy ${vp.name}` && !saved.builtin && saved.parent === "icu-modules", `${vp.name}: the copy is the start-up design and records where it came from`);
+    check(saved.v.length === 2 && saved.v[0][1] === "RN Test" && /Large temperature/.test(saved.v[0][2]) && saved.v[0][4].includes("screens"), `${vp.name}: the version records who saved it, why, and what it touched`);
+    check(await T("edit-bar").getAttribute("data-dirty") === "false", `${vp.name}: after saving there is nothing unsaved`);
+    await T("edit-exit").click();
+    await T("edit-bar").waitFor({ state: "detached", timeout: 3000 });
+    // the saved layout survives a reload
+    await page.reload({ waitUntil: "networkidle" });
+    await T("app").waitFor();
+    await page.waitForTimeout(800);
+    const after = await gridInfo();
+    check((await T("app").getAttribute("data-design")) === `E2E Copy ${vp.name}` && after.mods.find((m) => m.id === "row-temp").size === "large" && after.mods.some((m) => m.id === "row-hr-2"), `${vp.name}: the saved design and its sizes are still there after a reload`);
+    // appearance: text size changes the screen and saves as another version
+    await T("top-settings").click();
+    await page.getByText("Appearance").first().click();
+    await T("appearance").waitFor();
+    const fontBefore = await page.evaluate(() => parseFloat(getComputedStyle(document.body).fontSize));
+    await page.getByLabel("Increase Text Size").click();
+    await page.waitForTimeout(200);
+    const fontAfter = await page.evaluate(() => parseFloat(getComputedStyle(document.body).fontSize));
+    check(fontAfter > fontBefore && await T("edit-bar").getAttribute("data-dirty") === "true", `${vp.name}: Appearance, Text Size + changes the whole screen and is unsaved`);
+    await shot("appearance");
+    await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+    // AI settings: marks and certainty follow the design
+    await T("top-settings").click();
+    await page.getByText("AI and Certainty").first().click();
+    await T("ai-settings").waitFor();
+    await T("ai-annotations").uncheck();
+    await page.getByText("Bars", { exact: true }).click();
+    await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+    await ex("setScenario", "scn-af"); await ex("setMinute", 20); await settle();
+    const aiNow = await page.evaluate(() => ({ marks: document.querySelectorAll(".trace-mark:not(.is-technical)").length, bars: document.querySelectorAll(".certainty-bars").length, chips: document.querySelectorAll(".ai-chip").length }));
+    check(aiNow.marks === 0 && aiNow.chips > 0, `${vp.name}: AI settings can turn off trace marks and keep the chips`);
+    await T("edit-save").click();
+    await T("save-author").fill("RN Test");
+    await T("save-confirm").click();
+    await T("notice").waitFor();
+    // versions: history, revert as a new version, start-up design, export, delete
+    await T("top-settings").click();
+    await page.getByText("Versions").first().click();
+    await T("versions").waitFor();
+    check(await page.locator('[data-testid="version-list"] li').count() === 3, `${vp.name}: Versions lists every saved version`);
+    await T("revert-2").click();
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="version-list"] li').length === 4, null, { timeout: 5000 });
+    const rev = await page.evaluate(async () => { const a = await (await fetch("/api/active-design")).json(); const v = await (await fetch(`/api/designs/${a.meta.id}/versions`)).json(); return { cur: a.version, top: v[0].source, n: v.length }; });
+    check(rev.cur === 4 && rev.top === "revert" && rev.n === 4, `${vp.name}: Revert adds a new version and rewrites no history`);
+    const dl = page.waitForEvent("download", { timeout: 5000 }).catch(() => null);
+    await T("export-design").click();
+    check(!!(await dl), `${vp.name}: Export downloads the design as JSON`);
+    await shot("versions");
+    check(await page.locator('[data-testid^="startup-"]').count() >= 6, `${vp.name}: the start-up design can be chosen from every design`);
+    await T("delete-design").click();
+    await T("delete-confirm").click();
+    await page.waitForFunction(() => /Deleted/.test(document.querySelector('[data-testid="versions-message"]')?.textContent ?? ""), null, { timeout: 5000 });
+    check((await page.evaluate(async () => (await (await fetch("/api/active-design")).json()).meta.id)) === "icu-monitor", `${vp.name}: deleting the active design falls back to the default`);
+  } finally {
+    await reset();
+    await page.evaluate(() => { try { localStorage.removeItem("emus.author"); } catch {} });
+  }
+  await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+  await page.evaluate(async () => { const st = window.__emus.ui.getState(); const s = await (await fetch("/api/designs/icu-monitor")).json(); st.load(s, st.registry); st.setDraft(null); st.setEditMode(false); });
 
   check(errors.length === 0, `${vp.name}: no page errors ${errors.join(" | ")}`);
   await context.close();

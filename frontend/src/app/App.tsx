@@ -7,6 +7,8 @@ import { ScreenRenderer } from "@/layout/ScreenRenderer";
 import { Sheet } from "@/layout/Sheet";
 import { TabBar } from "@/layout/TabBar";
 import { TopBar } from "@/layout/TopBar";
+import { EditBar } from "@/studio/EditBar";
+import { EditPanel } from "@/studio/EditPanel";
 import { NotificationBox } from "@/safety/NotificationBox";
 import { startLinkWatchdog, useSafety } from "@/safety/store";
 
@@ -18,6 +20,7 @@ export function App() {
   const screenId = useUi((s) => s.screenId);
   const error = useUi((s) => s.error);
   const notice = useUi((s) => s.notice);
+  const editMode = useUi((s) => s.editMode);
 
   useEffect(() => {
     Promise.all([api.activeDesign(), api.registry()])
@@ -55,13 +58,17 @@ export function App() {
   const strip = <div className="notif-strip"><NotificationBox placement="strip" /></div>;
 
   return (
-    <div className="app" data-testid="app" data-design={design.name} data-link={link}
+    <div className={`app${editMode ? " is-editing" : ""}`} data-testid="app" data-design={design.name} data-link={link}
          data-mode={theme?.mode}
          style={{ "--tabbar-h": `${design.tab_bar.height_px}px`,
                   "--topbar-h": `${design.top_bar.height_px}px` } as React.CSSProperties}>
       <TopBar />
       {where === "strip-top" && strip}
-      <ScreenRenderer screen={screen} />
+      <EditBar />
+      <div className="stage">
+        <ScreenRenderer screen={screen} />
+        {editMode && <EditPanel />}
+      </div>
       {where === "strip-above-tabs" && strip}
       <MenuSheet />
       <Sheet />

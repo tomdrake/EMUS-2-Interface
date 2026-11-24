@@ -22,8 +22,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     let detail: any;
     try { detail = (await res.json()).detail; } catch { /* not JSON */ }
     const milestone = typeof detail === "object" ? detail?.milestone : undefined;
+    const errors: string[] = Array.isArray(detail?.errors) ? detail.errors : [];
     const message = milestone ? `Not built yet (${milestone})`
-      : typeof detail === "string" ? detail : `${method} ${path} failed (${res.status})`;
+      : errors.length ? errors.join("; ")
+        : typeof detail === "string" ? detail : `${method} ${path} failed (${res.status})`;
     throw new ApiError(res.status, message, detail, milestone);
   }
   return res.json() as Promise<T>;
@@ -85,6 +87,11 @@ export interface PatchPreview {
   max_touch_depth?: number;
 }
 
+export interface VersionInfo {
+  version: number; source: string; author: string; note: string; created_at: string;
+  patch: unknown[] | null; touched: string[];
+}
+
 export const api = {
   registry: () => get<Registry>("/api/registry"),
   activeDesign: () => get<StoredDesign>("/api/active-design"),
@@ -97,6 +104,19 @@ export const api = {
   examples: () => get<ExampleScenarioInfo[]>("/api/examples"),
   example: (scenario: string, minute: number) =>
     get<ExampleSnapshot>(`/api/examples/${scenario}?minute=${minute}`),
+  validateDesign: (document: unknown) =>
+    post<{ ok: boolean; errors: string[]; document: Design | null }>("/api/validate-design", document),
+  saveVersion: (id: string, body: { document: Design; author: string; note: string }) =>
+    post<StoredDesign>(`/api/designs/${id}/versions`, { ...body, source: "manual" }),
+  versions: (id: string) => get<VersionInfo[]>(`/api/designs/${id}/versions`),
+  revert: (id: string, version: number, author: string) =>
+    post<StoredDesign>(`/api/designs/${id}/revert`, { version, author }),
+  duplicate: (id: string, name: string, author: string) =>
+    post<StoredDesign>(`/api/designs/${id}/duplicate`, { name, author }),
+  setActive: (designId: string, author = "") => put<StoredDesign>("/api/active-design", { design_id: designId, author }),
+  deleteDesign: (id: string) => del<{ deleted: string }>(`/api/designs/${id}`),
+  exportDesign: (id: string) => get<Record<string, unknown>>(`/api/designs/${id}/export`),
+  importDesign: (payload: unknown) => post<StoredDesign>("/api/designs/import", payload),
   // Later milestones add their calls here (patients, stream, alarms, chat, ...).
   silence: (patientId: string, by = "") =>
     post<{ silenced_until: string | null }>(`/api/patients/${patientId}/alarms/silence`, { by }),

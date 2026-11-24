@@ -6,7 +6,8 @@ export type Resolved =
   | { kind: "sheet"; sheet: Extract<Action, { type: "sheet" }>["sheet"] }
   | { kind: "silence" }
   | { kind: "theme" }
-  | { kind: "ai" };
+  | { kind: "ai" }
+  | { kind: "edit" };
 
 /** What a tab or menu item does. Settings opens the menu with id "settings". */
 export function resolveAction(design: Design, action: Action): Resolved {
@@ -25,6 +26,8 @@ export function resolveAction(design: Design, action: Action): Resolved {
       return { kind: "theme" };
     case "toggle-ai":
       return { kind: "ai" };
+    case "edit-layout":
+      return { kind: "edit" };
   }
 }
 

@@ -102,6 +102,14 @@ how sure it is; brackets on the trace say why. The interpretation is a short, re
 rule over the synthetic signal (not a clinical model) so each finding can be explained.
 The AI button in the top bar turns every AI mark off for the screen.
 
+## Customising the screen
+
+Settings, then **Edit Layout**: tap a module, choose its size from seven pictured shapes (small
+square to double-height row), move, copy or remove it, change what it measures, its name, colour
+and content, and turn its AI off. **Appearance**, **Tabs and Menus** and **AI and Certainty** change
+the rest. Changes show at once and are saved as a new version with your name and a note;
+**Versions** keeps the history, reverts, copies, exports and imports.
+
 ## Data and standards
 
 - The monitor is a grid of modules: a small square, a tile (number and trend), tall, wide,

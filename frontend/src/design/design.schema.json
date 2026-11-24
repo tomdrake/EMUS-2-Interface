@@ -297,6 +297,7 @@
         "action": {
           "discriminator": {
             "mapping": {
+              "edit-layout": "#/$defs/EditLayoutAction",
               "menu": "#/$defs/MenuAction",
               "open-settings": "#/$defs/SettingsAction",
               "screen": "#/$defs/ScreenAction",
@@ -328,6 +329,9 @@
             },
             {
               "$ref": "#/$defs/AiToggleAction"
+            },
+            {
+              "$ref": "#/$defs/EditLayoutAction"
             }
           ],
           "title": "Action"
@@ -532,6 +536,23 @@
         "show_metric_name"
       ],
       "title": "CertaintyDisplay",
+      "type": "object"
+    },
+    "EditLayoutAction": {
+      "additionalProperties": false,
+      "description": "Enters Edit Layout: tap a module to change its size, content and place. Edits stay local\nto this screen until they are saved as a new design version.",
+      "properties": {
+        "type": {
+          "const": "edit-layout",
+          "default": "edit-layout",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "EditLayoutAction",
       "type": "object"
     },
     "EventsTimelineWidget": {
@@ -1042,6 +1063,7 @@
         "action": {
           "discriminator": {
             "mapping": {
+              "edit-layout": "#/$defs/EditLayoutAction",
               "open-settings": "#/$defs/SettingsAction",
               "screen": "#/$defs/ScreenAction",
               "sheet": "#/$defs/SheetAction",
@@ -1069,6 +1091,9 @@
             },
             {
               "$ref": "#/$defs/AiToggleAction"
+            },
+            {
+              "$ref": "#/$defs/EditLayoutAction"
             }
           ],
           "title": "Action"

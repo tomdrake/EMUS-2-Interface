@@ -387,15 +387,22 @@ class AiToggleAction(_Model):
     type: Literal["toggle-ai"] = "toggle-ai"
 
 
+class EditLayoutAction(_Model):
+    """Enters Edit Layout: tap a module to change its size, content and place. Edits stay local
+    to this screen until they are saved as a new design version."""
+
+    type: Literal["edit-layout"] = "edit-layout"
+
+
 ButtonAction = Annotated[
     Union[ScreenAction, MenuAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction,
-          AiToggleAction],
+          AiToggleAction, EditLayoutAction],
     Field(discriminator="type"),
 ]
 # Menu items cannot open another menu: that is what keeps everything within two touches.
 MenuItemAction = Annotated[
     Union[ScreenAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction,
-          AiToggleAction],
+          AiToggleAction, EditLayoutAction],
     Field(discriminator="type"),
 ]
 

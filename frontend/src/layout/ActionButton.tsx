@@ -15,6 +15,7 @@ export function runAction(design: Design, action: Action): void {
   else if (r.kind === "sheet") ui.showSheet(r.sheet);
   else if (r.kind === "theme") ui.toggleMode();
   else if (r.kind === "ai") ui.toggleAi();
+  else if (r.kind === "edit") ui.setEditMode(true);
   // 'silence' is handled by SilenceButton itself.
 }
 

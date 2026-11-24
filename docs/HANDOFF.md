@@ -26,6 +26,8 @@ are ready to be implemented, one at a time, in order.
 | AI on the monitor: chips with certainty, marks on traces saying why, a master On / Off switch per screen and a per-module off | Done (`frontend/src/ai/`, `traces/AnnotationLayer.tsx`); the interpretation is a transparent rule over the synthetic signal, not a clinical model |
 | Monitor as a grid of modules of different sizes (small square, tile, tall, wide, large, full row, full row double), packed to fill the pane; the Modular Example design | Done (`widgets/MonitorGrid.tsx`, `Module.tsx`, `layout/grid.ts`); AI parts of a module arrive with the AI layer |
 | Top-bar buttons (new patient, discharge, dark / light, settings), light and dark theme pair, Title Case labels with method of collection | Done; new patient and discharge sheets are M2 |
+| Versioned design persistence (save, revert, duplicate, delete, export, import, start-up design, audit log) | Done (`backend/app/db.py`, `routers/designs.py`); M4 acceptance tests pass |
+| Customisation tool: Edit Layout (tap a module; seven sizes drawn as cell diagrams; place, duplicate, remove; item, name, method, colour, trace; content switches with a note on what the size has no room for; per-module AI off), Add Module, undo, an always-visible edit bar, save with author and note (a built-in design is saved as a copy), Appearance, Tabs and Menus, AI and Certainty and Versions sheets | Done (`frontend/src/studio/`). Left for later: editing split screens and widget types, the alarm defaults sheet, AI / prediction / underlying-data cards as module types, drag and drop |
 | Frontend widgets and sheets | Placeholders naming their milestone (`frontend/src/widgets`, `frontend/src/studio`) |
 | Generated TypeScript types | Done (`make types`) |
 

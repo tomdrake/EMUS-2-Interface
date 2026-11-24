@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 from app import db, patching, registry
 from app.defaults import THEME_PRESETS
 from app.models.design import json_schema, max_touch_depth, Design
-from app.routers._stub import todo
 
 router = APIRouter(prefix="/api", tags=["designs"])
 
@@ -80,7 +79,7 @@ def validate_design(document: dict = Body(...)) -> dict:
     return {"ok": result.ok, "errors": result.errors, "document": result.design}
 
 
-# ------------------------------------------------------------------ M4 (stubs)
+# --------------------------------------------------------------- versioned writes (M4)
 
 class SaveRequest(BaseModel):
     """Exactly one of ``document`` (full replacement) or ``ops`` (patch) is given."""
@@ -93,27 +92,62 @@ class SaveRequest(BaseModel):
     chat_message_id: int | None = None
 
 
+def _refuse(e: db.DesignError):
+    """Map a refused operation to HTTP. 422 carries the validator's errors."""
+    detail = {"message": e.message, "errors": e.errors} if e.status == 422 else e.message
+    raise HTTPException(e.status, detail)
+
+
+def _found(con, design_id: str) -> dict:
+    found = db.get_design(con, design_id)
+    assert found is not None
+    return found
+
+
 @router.put("/active-design")
-def set_active_design(design_id: str = Body(..., embed=True)) -> dict:
-    todo("M4", "choose which design is shown on start-up")
+def set_active_design(design_id: str = Body(..., embed=True), author: str = Body("", embed=True)) -> dict:
+    """Choose which design is shown on start-up."""
+    try:
+        with db.session() as con:
+            db.set_active(con, design_id, author=author)
+            return _found(con, design_id)
+    except db.DesignError as e:
+        _refuse(e)
 
 
 @router.post("/designs/{design_id}/versions")
 def save_version(design_id: str, body: SaveRequest) -> dict:
     """Validate and store a new immutable version. 409 for built-in designs
     (duplicate first), 422 with errors when validation fails."""
-    todo("M4", "save a new design version")
+    try:
+        with db.session() as con:
+            version = db.save_version(con, design_id, document=body.document, ops=body.ops, source=body.source,
+                                      author=body.author, note=body.note, chat_message_id=body.chat_message_id)
+            return _found(con, design_id) | {"version": version}
+    except db.DesignError as e:
+        _refuse(e)
 
 
 @router.get("/designs/{design_id}/versions")
 def list_versions(design_id: str) -> list[dict]:
-    todo("M4", "version history with author, note, source and touched sections")
+    """Version history, newest first, with author, note, source and the sections each touched."""
+    try:
+        with db.session() as con:
+            return db.list_versions(con, design_id)
+    except db.DesignError as e:
+        _refuse(e)
 
 
 @router.post("/designs/{design_id}/revert")
 def revert(design_id: str, version: int = Body(..., embed=True),
            author: str = Body("", embed=True)) -> dict:
-    todo("M4", "revert by saving a new version equal to an old one")
+    """Save a new version equal to an old one. History is never rewritten."""
+    try:
+        with db.session() as con:
+            new = db.revert(con, design_id, version, author=author)
+            return _found(con, design_id) | {"version": new}
+    except db.DesignError as e:
+        _refuse(e)
 
 
 class DuplicateRequest(BaseModel):
@@ -123,19 +157,41 @@ class DuplicateRequest(BaseModel):
 
 @router.post("/designs/{design_id}/duplicate")
 def duplicate(design_id: str, body: DuplicateRequest) -> dict:
-    todo("M4", "copy a design so it can be edited")
+    """Copy a design (built-in or not) so it can be edited."""
+    try:
+        with db.session() as con:
+            new_id = db.duplicate(con, design_id, body.name, author=body.author)
+            return _found(con, new_id)
+    except db.DesignError as e:
+        _refuse(e)
 
 
 @router.delete("/designs/{design_id}")
 def delete_design(design_id: str) -> dict:
-    todo("M4", "delete a non-builtin design")
+    try:
+        with db.session() as con:
+            db.delete_design(con, design_id)
+        return {"deleted": design_id}
+    except db.DesignError as e:
+        _refuse(e)
 
 
 @router.get("/designs/{design_id}/export")
 def export_design(design_id: str) -> dict:
-    todo("M4", "export design JSON with its version history")
+    """The design, its metadata and its whole version history, as JSON."""
+    try:
+        with db.session() as con:
+            return db.export_design(con, design_id)
+    except db.DesignError as e:
+        _refuse(e)
 
 
 @router.post("/designs/import")
 def import_design(document: dict = Body(...)) -> dict:
-    todo("M4", "import a design JSON as a new design")
+    """Import an exported design (or a bare design document) as a new design."""
+    try:
+        with db.session() as con:
+            new_id = db.import_design(con, document)
+            return _found(con, new_id)
+    except db.DesignError as e:
+        _refuse(e)

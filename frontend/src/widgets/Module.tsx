@@ -2,6 +2,7 @@ import { AiCertainty, AiChip, AiExplain } from "@/ai/AiChip";
 import { useDesign, useUi } from "@/app/store";
 import type { ExampleSnapshot } from "@/contracts/types.gen";
 import { useSnapshot } from "@/examples/store";
+import { useEditor } from "@/studio/editor";
 import { rowTitle } from "@/design/text";
 import { paramVar } from "@/design/theme";
 import type { Row } from "@/design/types";
@@ -42,6 +43,8 @@ export function tileValues(row: Row, numerics?: ExampleSnapshot["numerics"]): Ti
 export function Module({ row, placement }: { row: Row; placement: Placement }) {
   const design = useDesign()!;
   const registry = useUi((s) => s.registry)!;
+  const editing = useUi((s) => s.editMode);
+  const selected = useEditor((s) => s.selected === row.id);
   const spec = registry.module_sizes[placement.size] ?? registry.module_sizes.row!;
   const drawsTrace = row.trace === "waveform" || row.trace === "trend";
   const vis = visibleContent(spec, row.content, drawsTrace);
@@ -88,13 +91,14 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
     <div className={`module module-${flow} size-${placement.size}${flow === "row" ? " row" : ""}`}
          style={{ gridColumn: `${placement.col} / span ${placement.colSpan}`,
                   gridRow: `${placement.row} / span ${placement.rowSpan}`, color: colour }}
-         data-testid={`row-${row.id}`} data-parameter={row.parameter ?? ""} data-size={placement.size}
+         data-testid={`row-${row.id}`} data-parameter={row.parameter ?? ""} data-size={placement.size} data-selected={selected || undefined}
          data-flow={flow} data-content={[vis.trace && "trace", vis.ai && "ai", vis.certainty && "certainty",
                                           vis.explain && "explain", vis.forecast && "forecast"].filter(Boolean).join(" ")}
          data-dropped={vis.dropped.join(" ")}>
       <button type="button" className="row-hit" data-testid={`row-hit-${row.id}`}
-              aria-label={`${title.name}: alarm limits`}
-              onClick={() => useUi.getState().showSheet("alarm-limits", row.id)} />
+              aria-label={editing ? `Edit ${title.name}` : `${title.name}: alarm limits`}
+              aria-pressed={editing ? selected : undefined}
+              onClick={() => (editing ? useEditor.getState().select(row.id) : useUi.getState().showSheet("alarm-limits", row.id))} />
       {flow === "row" && (
         <>
           <div className="row-trace">{head}{chip}{trace}{extras}</div>

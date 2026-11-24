@@ -383,7 +383,8 @@ export interface Menu {
  * via the `definition` "MenuItem".
  */
 export interface MenuItem {
-  action: ScreenAction | SheetAction | SilenceAction | SettingsAction | ThemeToggleAction | AiToggleAction;
+  action:
+    ScreenAction | SheetAction | SilenceAction | SettingsAction | ThemeToggleAction | AiToggleAction | EditLayoutAction;
   icon:
     | "monitor"
     | "chart"
@@ -502,6 +503,16 @@ export interface ThemeToggleAction {
  */
 export interface AiToggleAction {
   type: "toggle-ai";
+}
+/**
+ * Enters Edit Layout: tap a module to change its size, content and place. Edits stay local
+ * to this screen until they are saved as a new design version.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "EditLayoutAction".
+ */
+export interface EditLayoutAction {
+  type: "edit-layout";
 }
 /**
  * The notification ticker: the one place alarms and monitoring problems are listed.
@@ -1116,7 +1127,15 @@ export interface TabBar {
  * via the `definition` "Button".
  */
 export interface Button {
-  action: ScreenAction | MenuAction | SheetAction | SilenceAction | SettingsAction | ThemeToggleAction | AiToggleAction;
+  action:
+    | ScreenAction
+    | MenuAction
+    | SheetAction
+    | SilenceAction
+    | SettingsAction
+    | ThemeToggleAction
+    | AiToggleAction
+    | EditLayoutAction;
   colour: string | null;
   icon:
     | "monitor"

@@ -9,6 +9,10 @@ Clinicians can change anything about the screen by touch, see it immediately, an
 save it. Every save is kept as a version with who made it and why, so a workshop
 leaves a record of what people changed.
 
+> **Status.** The backend below is done and its acceptance tests pass. The first studio sheets are
+> built (Edit Layout, Appearance, Tabs and Menus, AI and Certainty, Versions); what remains is listed
+> in `docs/HANDOFF.md` (split screens and widget types, alarm defaults, card module types, drag and drop).
+
 ## Backend
 
 | File | Build |

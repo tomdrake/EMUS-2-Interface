@@ -43,7 +43,7 @@ export function useRowAi(row: Row) {
  */
 export function AiChip({ row, withCertainty }: { row: Row; withCertainty: boolean }) {
   const { on, top, more, paused, cfg, registry, design } = useRowAi(row);
-  if (!on) return null;
+  if (!on || !design.ai.show_row_chips) return null;
   const value = top ? pickCertainty(top.certainty, cfg.finding_metric) : null;
   const opacity = value && cfg.display === "opacity" ? certaintyView(value, cfg, registry).opacity : 1;
   const dash = value && cfg.display === "dash-density" ? certaintyView(value, cfg, registry).dash : "";
@@ -65,7 +65,7 @@ export function AiChip({ row, withCertainty }: { row: Row; withCertainty: boolea
       <span className="ai-chip-pill" style={{ opacity, borderStyle: dash ? "dashed" : undefined }}>
         <span className="ai-mark">AI</span>
         <span className="ai-text">{technical ? top.label : top.status === "resolved" ? top.summary : top.summary}</span>
-        {value && !withCertainty && <Certainty value={value} cfg={cfg} registry={registry} short />}
+        {value && !withCertainty && design.ai.show_confidence && <Certainty value={value} cfg={cfg} registry={registry} short />}
         {more > 0 && <span className="ai-more">+{more}</span>}
         {design.ai.show_explain_link && <span className="ai-why">Why?</span>}
       </span>

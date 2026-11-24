@@ -1,7 +1,11 @@
 import type { SheetId } from "@/design/types";
 import { Placeholder } from "@/widgets/Placeholder";
 
+import { AiSettingsSheet } from "./AiSettingsSheet";
+import { AppearanceSheet } from "./AppearanceSheet";
 import { DemoControls } from "./DemoControls";
+import { NavigationSheet } from "./NavigationSheet";
+import { VersionsSheet } from "./VersionsSheet";
 import { ExplanationExamples } from "./ExplanationExamples";
 import { UnderlyingData } from "./UnderlyingData";
 import { WhySheet } from "./WhySheet";
@@ -25,13 +29,13 @@ export const SHEETS: Record<SheetId, { title: string; Component: () => JSX.Eleme
   "demo-controls": { title: "Demo Controls", Component: DemoControls },
   "news2-variant": { title: "NEWS2 Chart Style", Component: stub("Light bands / dark bands / dark trend", "M3") },
   "home-screen": { title: "Home Screen", Component: stub("Choose the home screen", "M3") },
-  "studio-appearance": { title: "Appearance", Component: stub("Theme presets, colours, text size", "M4") },
+  "studio-appearance": { title: "Appearance", Component: AppearanceSheet },
   "studio-layout": { title: "Screens and Layout", Component: stub("Screens, splits, widgets", "M4") },
   "studio-rows": { title: "Rows", Component: stub("Add, remove, reorder and style rows", "M4") },
-  "studio-navigation": { title: "Tabs and Menus", Component: stub("Tabs, menus, top bar fields", "M4") },
+  "studio-navigation": { title: "Tabs and Menus", Component: NavigationSheet },
   "studio-alarms": { title: "Alarm Defaults", Component: stub("Default limits and alarm presentation", "M4") },
-  "studio-forecast": { title: "Forecast and Certainty", Component: stub("Forecast display options and certainty metric", "M7") },
-  versions: { title: "Versions", Component: stub("Version history, revert, duplicate, export", "M4") },
+  "studio-forecast": { title: "AI and Certainty", Component: AiSettingsSheet },
+  versions: { title: "Versions", Component: VersionsSheet },
   assistant: { title: "Redesign With AI", Component: stub("Chat to redesign", "M5") },
   "api-tokens": { title: "API Tokens", Component: stub("Claude and ELM tokens", "M5") },
   "forecast-horizon": { title: "Forecast Horizon", Component: stub("Choose how far ahead to look", "M7") },
