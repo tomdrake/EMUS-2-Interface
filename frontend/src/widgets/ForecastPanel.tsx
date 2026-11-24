@@ -53,7 +53,7 @@ export function FanChart({ past, now, future, colour, testId }: { past: Past[]; 
   );
 }
 
-function Toggle({ id, label, on, onChange }: { id: PredictBlock; label: string; on: boolean; onChange: (v: boolean) => void }) {
+export function Toggle({ id, label, on, onChange }: { id: PredictBlock; label: string; on: boolean; onChange: (v: boolean) => void }) {
   return (
     <button type="button" role="switch" aria-checked={on} className={`fp-toggle${on ? " is-on" : ""}`} data-testid={`fp-toggle-${id}`}
             onClick={() => onChange(!on)}>
@@ -72,19 +72,20 @@ function Toggle({ id, label, on, onChange }: { id: PredictBlock; label: string; 
  *
  * Everything here is a prediction from example data until the causal model is connected (M7).
  */
+/** What the prediction views show: this screen's switches, starting from the widget's own defaults. Shared by every prediction view. */
+export function usePredictShow(defaults: { show_news_number: boolean; show_observations: boolean; show_certainty: boolean }) {
+  const local = useUi((s) => s.predictShow);
+  const set = useUi((s) => s.setPredictShow);
+  return { set, show: { news: local.news ?? defaults.show_news_number, obs: local.obs ?? defaults.show_observations, certainty: local.certainty ?? defaults.show_certainty } };
+}
+
 export function ForecastPanel({ widget }: { widget: WidgetOf<"forecast-panel"> }) {
   const design = useDesign()!;
   const registry = useUi((s) => s.registry)!;
-  const local = useUi((s) => s.predictShow);
-  const set = useUi((s) => s.setPredictShow);
+  const { show, set } = usePredictShow(widget);
   const snapshot = useSnapshot();
   const formats = useFormats();
   const cfg = design.forecast.certainty;
-  const show = {
-    news: local.news ?? widget.show_news_number,
-    obs: local.obs ?? widget.show_observations,
-    certainty: local.certainty ?? widget.show_certainty,
-  };
 
   const toggles = (
     <div className="fp-toggles" role="group" aria-label="What the prediction view shows">

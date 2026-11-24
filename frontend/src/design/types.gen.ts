@@ -29,7 +29,7 @@ export interface Design {
   tab_bar: TabBar;
   /**
    * @minItems 2
-   * @maxItems 12
+   * @maxItems 14
    */
   tabs:
     | [Button, Button]
@@ -42,7 +42,9 @@ export interface Design {
     | [Button, Button, Button, Button, Button, Button, Button, Button, Button]
     | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button]
     | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button]
-    | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button];
+    | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button]
+    | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button]
+    | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button];
   theme: Theme1;
   tiles: TileDisplay;
   top_bar: TopBar;
@@ -237,7 +239,7 @@ export interface NewsBandColours {
  */
 export interface Forecast {
   certainty: CertaintyDisplay;
-  default_horizon_min: 60 | 120 | 240 | 360 | 720;
+  default_horizon_min: 60 | 120 | 240 | 360 | 480 | 720;
   enabled: boolean;
   event_types: (
     | "news2_ge_5"
@@ -255,7 +257,7 @@ export interface Forecast {
   /**
    * @minItems 1
    */
-  horizons_min: [60 | 120 | 240 | 360 | 720, ...(60 | 120 | 240 | 360 | 720)[]];
+  horizons_min: [60 | 120 | 240 | 360 | 480 | 720, ...(60 | 120 | 240 | 360 | 480 | 720)[]];
   max_contributors: number;
   news_number: "none" | "value-range" | "band-probabilities" | "time-to-threshold";
   news_threshold: number;
@@ -395,7 +397,8 @@ export interface MenuItem {
     | AiToggleAction
     | AiOverlayAction
     | EditLayoutAction
-    | MeasureAction;
+    | MeasureAction
+    | PredictionOverlayAction;
   icon:
     | "monitor"
     | "chart"
@@ -464,6 +467,7 @@ export interface SheetAction {
     | "explanation-examples"
     | "trends"
     | "abcde-assess"
+    | "news2-breakdown"
     | "forecast-horizon"
     | "news2-variant"
     | "home-screen"
@@ -549,6 +553,16 @@ export interface EditLayoutAction {
 export interface MeasureAction {
   kind: "bp" | "temp";
   type: "measure";
+}
+/**
+ * Switches the main screen between the monitor and the prediction overlay: the monitor on the left half, the
+ * trends with their predicted future and intervals on the right. A local preference of the screen.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "PredictionOverlayAction".
+ */
+export interface PredictionOverlayAction {
+  type: "toggle-prediction-overlay";
 }
 /**
  * The notification ticker: the one place alarms and monitoring problems are listed.
@@ -920,6 +934,7 @@ export interface WidgetNode {
     | ImagingWidget
     | AiSummaryWidget
     | ForecastPanelWidget
+    | PredictionTrendsWidget
     | EventsTimelineWidget
     | AlarmsWidget
     | OxygenWidget
@@ -1084,6 +1099,41 @@ export interface ForecastPanelWidget {
   type: "forecast-panel";
 }
 /**
+ * The trends with their predicted future and prediction intervals, on one time axis, with the future NEWS
+ * over time. Used on the right of the prediction overlay of the main screen.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "PredictionTrendsWidget".
+ */
+export interface PredictionTrendsWidget {
+  /**
+   * How far ahead the prediction runs, right of now.
+   */
+  ahead_hours: number;
+  /**
+   * How far back the history runs, left of now.
+   */
+  back_hours: number;
+  /**
+   * Lowercase id: letters, digits, hyphens.
+   */
+  id: string;
+  /**
+   * Start with the certainty of each prediction shown.
+   */
+  show_certainty: boolean;
+  /**
+   * Start with the future NEWS shown.
+   */
+  show_news_number: boolean;
+  /**
+   * Start with the observation predictions shown.
+   */
+  show_observations: boolean;
+  title: string | null;
+  type: "prediction-trends";
+}
+/**
  * This interface was referenced by `Design`'s JSON-Schema
  * via the `definition` "EventsTimelineWidget".
  */
@@ -1213,7 +1263,8 @@ export interface Button {
     | AiToggleAction
     | AiOverlayAction
     | EditLayoutAction
-    | MeasureAction;
+    | MeasureAction
+    | PredictionOverlayAction;
   colour: string | null;
   icon:
     | "monitor"

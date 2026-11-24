@@ -32,6 +32,8 @@ interface UiState {
   aiOverlay: boolean;
   /** What the Prediction view shows on this screen: each block switched on or off; undefined = as the design says. Local. */
   predictShow: Partial<Record<PredictBlock, boolean>>;
+  /** The screen the prediction overlay was switched on from, to go back to; null when it is off. */
+  overlayFrom: string | null;
   /** CSS pixels per millimetre used for trace gain and sweep speed. Nominal unless
    *  this screen has been calibrated (the calibration sheet is milestone M4). */
   pxPerMm: number;
@@ -48,6 +50,8 @@ interface UiState {
   toggleAi(): void;
   toggleAiOverlay(): void;
   setPredictShow(block: PredictBlock, on: boolean): void;
+  /** Switch between the main screen and the prediction overlay (monitor left, predicted trends right). */
+  togglePredictionOverlay(): void;
   /** Set (or with null, clear) one trace's x scale on this screen. */
   setXScale(rowId: string, value: number | null): void;
   setNotice(text: string | null): void;
@@ -55,6 +59,8 @@ interface UiState {
 }
 
 export type PredictBlock = "news" | "obs" | "certainty";
+/** The screen the Prediction Overlay button shows (and takes you back from). */
+export const PREDICTION_OVERLAY_SCREEN = "monitor-predict";
 const PREDICT_KEY = "emus.predict-show";
 function readPredict(): Partial<Record<PredictBlock, boolean>> {
   try {
@@ -111,7 +117,7 @@ function writeMode(mode: ThemeMode): void {
 export const useUi = create<UiState>((set) => ({
   stored: null, draft: null, registry: null, error: null,
   screenId: null, openMenu: null, openSheet: null, sheetContext: null,
-  editMode: false, mode: readMode(), aiOverride: readAi(), aiOverlay: readOverlay(), predictShow: readPredict(), xScale: readXScale(), pxPerMm: NOMINAL_PX_PER_MM, patientId: DEFAULT_PATIENT, notice: null,
+  editMode: false, mode: readMode(), aiOverride: readAi(), aiOverlay: readOverlay(), predictShow: readPredict(), overlayFrom: null, xScale: readXScale(), pxPerMm: NOMINAL_PX_PER_MM, patientId: DEFAULT_PATIENT, notice: null,
 
   load: (stored, registry) =>
     set((s) => ({ stored, registry, error: null,
@@ -139,6 +145,11 @@ export const useUi = create<UiState>((set) => ({
     const next = !(s.aiOverride ?? design?.ai.enabled ?? true);
     writeAi(next);
     return { aiOverride: next };
+  }),
+  togglePredictionOverlay: () => set((s) => {
+    const home = s.stored?.document.home_screen ?? "monitor";
+    if (s.screenId === PREDICTION_OVERLAY_SCREEN) return { screenId: s.overlayFrom ?? home, overlayFrom: null, openMenu: null, openSheet: null };
+    return { overlayFrom: s.screenId ?? home, screenId: PREDICTION_OVERLAY_SCREEN, openMenu: null, openSheet: null };
   }),
   setPredictShow: (block, on) => set((s) => {
     const predictShow = { ...s.predictShow, [block]: on };

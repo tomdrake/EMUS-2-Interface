@@ -298,3 +298,69 @@ def test_the_forecast_covers_news_and_every_main_observation_in_horizon_order():
         assert f.certainty, "every forecast carries its certainty values"
     # temperature is predicted as the skin value the tile shows
     assert abs(base["temp"].points[0].value - (s.numerics["temp"])) < 1.5
+
+
+def test_the_live_news2_is_the_score_of_the_numbers_on_screen():
+    """The total must be checkable by eye: it scores exactly what the tiles show (the displayed temperature, whole
+    numbers), plus the oxygen and consciousness the breakdown lists."""
+    from app import news2
+    for sid, sc in SCENARIOS.items():
+        for minute in (sc["start_min"], 0, (sc["start_min"] + sc["end_min"]) // 2, sc["end_min"] // 2, sc["end_min"]):
+            s = examples.snapshot(sid, minute)
+            n = s.numerics
+            if any(n.get(k) is None for k in ("rr", "spo2", "bp_sys", "hr", "temp", "acvpu")):
+                continue
+            r = news2.news2(rr=n["rr"], spo2=n["spo2"], on_oxygen=n["o2_flow"] > 0, bp_sys=n["bp_sys"], pulse=n["hr"],
+                            acvpu=n["acvpu"], temp=n["temp"], spo2_scale=s.spo2_scale)
+            assert s.news2.total == r.total == n["news2"], (sid, minute, s.news2.components, r.components)
+            assert s.news2.components == r.components
+            assert sum(s.news2.components.values()) == s.news2.total
+            shown = {k: n[k] for k in ("rr", "spo2", "o2_flow", "bp_sys", "hr", "acvpu", "temp")}
+            assert s.news2.inputs == shown, (sid, minute)
+
+
+def test_the_pneumonia_example_at_six_hours_scores_16_from_what_is_shown():
+    s = examples.snapshot("scn-pneumonia", 360)
+    assert s.numerics["temp"] == 38.8 and s.news2.components["temp"] == 1       # the skin value shown, one point
+    assert s.news2.components == {"rr": 3, "spo2": 3, "o2_flow": 2, "bp_sys": 2, "hr": 2, "acvpu": 3, "temp": 1}
+    assert s.news2.total == 16 and s.news2.risk == "high"
+
+
+def test_the_forecast_news_scores_the_displayed_temperature_too():
+    s = examples.snapshot("scn-pneumonia", 360)
+    news = next(f for f in s.forecast.forecasts if f.parameter == "news2" and f.scenario == "baseline")
+    assert news.points[0].value <= s.news2.total + 6 and all(p.value >= 0 for p in news.points)
+
+
+def test_the_forecast_runs_every_half_hour_out_to_eight_hours():
+    s = examples.snapshot("scn-pneumonia", 120)
+    for f in (f for f in s.forecast.forecasts if f.scenario == "baseline"):
+        assert [p.horizon_min for p in f.points] == list(range(30, 481, 30)), f.parameter
+        assert f.points[-1].intervals["95"][1] >= f.points[-1].intervals["80"][1] >= f.points[-1].value
+    assert [b.horizon_min for b in s.forecast.news_bands] == list(range(30, 481, 30))
+
+
+def test_predicted_events_are_in_the_window_with_a_probability_and_a_time():
+    seen = set()
+    for sid, sc in SCENARIOS.items():
+        s = examples.snapshot(sid, sc["end_min"] // 2)
+        for e in s.forecast.events:
+            seen.add(e.event)
+            assert 0 <= e.probability <= 1 and e.horizon_min == 480
+            assert e.earliest_at <= e.expected_at <= e.latest_at
+            assert 0 <= (e.latest_at - s.generated_at).total_seconds() / 60 <= 480
+    assert {"news2_ge_5", "desaturation"} <= seen, seen
+
+
+def test_forecast_intervals_never_leave_what_the_measure_allows(client):
+    """A NEWS2 interval below 0 or a saturation above 100 % is nonsense on screen; the bounds hold at every horizon."""
+    limits = {"news2": (0, 20), "spo2": (0, 100), "rr": (0, 60)}
+    for scn in ("scn-pneumonia", "scn-stable", "scn-copd"):
+        for minute in (0, 240, 360):
+            for f in client.get(f"/api/examples/{scn}?minute={minute}").json()["forecast"]["forecasts"]:
+                for pt in f["points"]:
+                    assert pt["value"] >= 0
+                    for lo, hi in pt["intervals"].values():
+                        assert lo <= pt["value"] <= hi
+                        if f["parameter"] in limits:
+                            assert limits[f["parameter"]][0] <= lo and hi <= limits[f["parameter"]][1]

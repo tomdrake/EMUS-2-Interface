@@ -9,6 +9,7 @@ export type Resolved =
   | { kind: "ai" }
   | { kind: "edit" }
   | { kind: "overlay" }
+  | { kind: "prediction-overlay" }
   | { kind: "measure"; which: "bp" | "temp" };
 
 /** What a tab or menu item does. Settings opens the menu with id "settings". */
@@ -32,6 +33,8 @@ export function resolveAction(design: Design, action: Action): Resolved {
       return { kind: "edit" };
     case "toggle-ai-overlay":
       return { kind: "overlay" };
+    case "toggle-prediction-overlay":
+      return { kind: "prediction-overlay" };
     case "measure":
       return { kind: "measure", which: action.kind };
   }

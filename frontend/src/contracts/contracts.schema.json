@@ -2447,6 +2447,38 @@
           "title": "Components",
           "type": "object"
         },
+        "inputs": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Inputs",
+          "type": "object"
+        },
+        "monitoring_hours": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Monitoring Hours"
+        },
         "response": {
           "default": "",
           "title": "Response",
@@ -2480,7 +2512,9 @@
         "risk",
         "complete",
         "components",
-        "response"
+        "response",
+        "inputs",
+        "monitoring_hours"
       ],
       "title": "News2Now",
       "type": "object"

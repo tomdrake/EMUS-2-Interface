@@ -47,7 +47,12 @@ RESP_CV_LIMIT = 0.15                           # breath-interval spread above th
 STATS_WINDOW_MIN, STATS_STEP_MIN = 24 * 60, 10
 MOVEMENT_ACTIVITY = 15                        # activity at or above this counts as movement
 READ_S = 8.0                                  # the rule reads the most recent 8 s
-HORIZONS = (60, 120, 240, 360)
+#: Every half hour out to eight hours, so a fan of intervals is smooth. A view shows the horizons its design chooses.
+HORIZONS = tuple(range(30, 481, 30))
+HORIZON_END = HORIZONS[-1]
+#: How the spread of a prediction grows with how far ahead it looks (one unit of `base_sd` per this many minutes).
+SPREAD_MIN = 180
+LIMITS = {"news2": (0.0, 20.0), "rr": (0.0, 60.0), "spo2": (0.0, 100.0), "hr": (0.0, 300.0), "bp_sys": (0.0, 300.0), "temp": (25.0, 45.0)}
 TREND_MINUTES = 1440
 TREND_STEP = 10
 
@@ -605,10 +610,19 @@ def _imaging_findings(sc, minute, now):
 
 # ------------------------------------------------------------------------- forecast
 
-def _news(v: dict, scale: int) -> news2_mod.News2Result:
-    return news2_mod.news2(rr=v["rr"], spo2=v["spo2"], on_oxygen=v["oxygen"]["flow_l_min"] > 0,
-                           bp_sys=v["bp_sys"], pulse=v["hr"], acvpu=v["acvpu"], temp=v["temp"],
-                           spo2_scale=scale)
+def news_inputs(v: dict, *, skin: bool = False) -> dict:
+    """The observations NEWS2 scores, written the way they are shown and charted: whole numbers, and the
+    temperature to a tenth. ``skin`` scores the continuous temperature the monitor displays (the live total
+    and the forecast); a charted set keeps the thermometer value the nurse wrote down."""
+    return {"rr": round(v["rr"]), "spo2": round(v["spo2"]), "o2_flow": v["oxygen"]["flow_l_min"],
+            "bp_sys": round(v["bp_sys"]), "hr": round(v["hr"]), "acvpu": v["acvpu"],
+            "temp": round(v["temp"] + (SKIN_OFFSET_C if skin else 0.0), 1)}
+
+
+def _news(v: dict, scale: int, *, skin: bool = False) -> news2_mod.News2Result:
+    i = news_inputs(v, skin=skin)
+    return news2_mod.news2(rr=i["rr"], spo2=i["spo2"], on_oxygen=i["o2_flow"] > 0, bp_sys=i["bp_sys"],
+                           pulse=i["hr"], acvpu=i["acvpu"], temp=i["temp"], spo2_scale=scale)
 
 
 def _phi(x: float) -> float:
@@ -625,7 +639,7 @@ def _forecast_bundle(sc, minute, now, quality: float) -> ForecastBundle:
     def point_values(param: str, horizon: int) -> float:
         fut = scenario_values(sc_id, minute + horizon)
         if param == "news2":
-            return float(_news(fut, scale).total)
+            return float(_news(fut, scale, skin=True).total)
         # temperature is predicted as the skin value the tile shows, not the core value of the script
         return float(fut[param]) + (SKIN_OFFSET_C if param == "temp" else 0.0)
 
@@ -637,8 +651,10 @@ def _forecast_bundle(sc, minute, now, quality: float) -> ForecastBundle:
         base_sd = {"news2": 0.7, "rr": 1.5, "spo2": 1.0, "hr": 5.0, "bp_sys": 6.0, "temp": 0.25}[param]
         for h in HORIZONS:
             val = point_values(param, h)
-            sd = base_sd * (1 + h / 120)
-            iv = {k: (round(val - z * sd, 1), round(val + z * sd, 1))
+            sd = base_sd * (1 + h / SPREAD_MIN)
+            # a value cannot leave what the measure allows (NEWS2 is 0 to 20, saturation to 100 %), so neither can its interval
+            floor, ceil = LIMITS[param]
+            iv = {k: (round(max(floor, val - z * sd), 1), round(min(ceil, val + z * sd), 1))
                   for k, z in (("50", 0.674), ("80", 1.282), ("95", 1.96))}
             pts.append(ForecastPoint(horizon_min=h, at=now + timedelta(minutes=h), value=round(val, 1),
                                      intervals=iv))
@@ -667,7 +683,7 @@ def _forecast_bundle(sc, minute, now, quality: float) -> ForecastBundle:
                                                  for k, (a, b) in p.intervals.items()}) for p in pts],
                 certainty=forecasts[-1].certainty, model=MODEL))
 
-    sd_news = {h: 0.7 * (1 + h / 120) for h in HORIZONS}
+    sd_news = {h: 0.7 * (1 + h / SPREAD_MIN) for h in HORIZONS}
     bands, events = [], []
     for h in HORIZONS:
         val = point_values("news2", h)
@@ -677,7 +693,7 @@ def _forecast_bundle(sc, minute, now, quality: float) -> ForecastBundle:
         bands.append(NewsBandProbabilities(horizon_min=h, low=round(1 - high_or_med, 3),
                                            medium=round(high_or_med - high, 3), high=round(high, 3)))
     minutes_to = None
-    for off in range(0, 361, 10):
+    for off in range(0, HORIZON_END + 1, 10):
         if point_values("news2", off) >= 5:
             minutes_to = float(off)
             break
@@ -689,15 +705,35 @@ def _forecast_bundle(sc, minute, now, quality: float) -> ForecastBundle:
         label = registry.EVENT_TYPES[event]["label"]
         t_med = minutes_to if (event == "news2_ge_5" and minutes_to is not None) else 240.0
         events.append(EventPrediction(
-            id=f"{sc_id}-{event}", event=event, label=label, horizon_min=360,
+            id=f"{sc_id}-{event}", event=event, label=label, horizon_min=HORIZON_END,
             probability=round(p, 3), expected_at=now + timedelta(minutes=t_med),
             earliest_at=now + timedelta(minutes=max(0.0, t_med - 60)),
-            latest_at=now + timedelta(minutes=min(360.0, t_med + 90)),
+            latest_at=now + timedelta(minutes=min(float(HORIZON_END), t_med + 90)),
             certainty=[certainty.build("calibrated_probability", p=p),
                        certainty.build("ppv_natural_frequency", ppv=p),
                        certainty.build("time_to_event", q25_min=max(0, t_med - 60), median_min=t_med,
-                                       q75_min=min(360, t_med + 90), horizon_min=360)],
+                                       q75_min=min(HORIZON_END, t_med + 90), horizon_min=HORIZON_END)],
             contributors=contributors, suggested_causes=causes, model=MODEL, generated_at=now))
+    # Desaturation and hypotension: the chance, at the end of the window, that SpO2 or systolic BP is below its limit,
+    # from the same spread as the forecast intervals; the expected time is when the predicted value first crosses it.
+    for event, param, limit, base_sd in (("desaturation", "spo2", 89.5, 1.0), ("hypotension", "bp_sys", 89.5, 6.0)):
+        sd_end = base_sd * (1 + HORIZON_END / SPREAD_MIN)
+        p = _phi((limit - point_values(param, HORIZON_END)) / sd_end)
+        if p < 0.05:
+            continue
+        cross = next((float(h) for h in HORIZONS if point_values(param, h) <= limit), None)
+        t_med = cross if cross is not None else float(HORIZON_END) * 0.75
+        events.append(EventPrediction(
+            id=f"{sc_id}-{event}", event=event, label=registry.EVENT_TYPES[event]["label"], horizon_min=HORIZON_END,
+            probability=round(p, 3), expected_at=now + timedelta(minutes=t_med),
+            earliest_at=now + timedelta(minutes=max(0.0, t_med - 60)),
+            latest_at=now + timedelta(minutes=min(float(HORIZON_END), t_med + 90)),
+            certainty=[certainty.build("calibrated_probability", p=p),
+                       certainty.build("ppv_natural_frequency", ppv=p),
+                       certainty.build("time_to_event", q25_min=max(0, t_med - 60), median_min=t_med,
+                                       q75_min=min(HORIZON_END, t_med + 90), horizon_min=HORIZON_END)],
+            contributors=contributors if param == "spo2" else [], suggested_causes=causes if param == "spo2" else [],
+            model=MODEL, generated_at=now))
     return ForecastBundle(
         patient_id=sc_id, generated_at=now, model=MODEL, forecasts=forecasts, news_bands=bands,
         minutes_to_news_threshold={"5": minutes_to}, events=events)
@@ -921,7 +957,7 @@ def snapshot(scenario_id: str, minute: float, now: datetime | None = None) -> Ex
         "falls": sum(1 for e in sc["events"] if e["type"] == "fall" and e["at_min"] <= minute),
         "sleep": "Asleep" if v["asleep"] else "Awake",
     }
-    n2 = _news(v, sc["spo2_scale"])
+    n2 = _news(v, sc["spo2_scale"], skin=True)
     numerics["news2"] = n2.total
     oxygen = OxygenTherapy(at=now, flow_l_min=ox["flow_l_min"], device=ox["device"], source="simulated")
 
@@ -1064,7 +1100,7 @@ def snapshot(scenario_id: str, minute: float, now: datetime | None = None) -> Ex
         rhythm=(ecg_strip.reading if ecg_strip else None),
         resp_pattern=(breath_regularity(resp_strip.samples, resp_strip.hz) if resp_strip and resp_strip.quality.sqi >= 0.5 else None),
         news2=News2Now(total=n2.total, risk=n2.risk, complete=n2.complete, components=n2.components,
-                       response=n2.response),
+                       response=n2.response, inputs=news_inputs(v, skin=True), monitoring_hours=n2.monitoring_hours),
         devices=devices, signals=signals, quality=quality, alarms=alarm_state, strips=strips,
         trends=trends, bp_readings=_bp_readings(sc, minute, now, bool(cuff and cuff.connection == "connected")),
         temp_readings=_temp_readings(obs_sets), labs=_labs(sc, minute, now), obs_sets=obs_sets, findings=findings, finding_data=data, forecast=forecast)

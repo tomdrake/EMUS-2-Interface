@@ -124,9 +124,9 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
                                           vis.explain && "explain", vis.forecast && "forecast", vis.readings && "readings"].filter(Boolean).join(" ")}
          data-dropped={vis.dropped.join(" ")}>
       <button type="button" className="row-hit" data-testid={`row-hit-${row.id}`}
-              aria-label={editing ? `Edit ${title.name}` : `${title.name}: alarm limits`}
+              aria-label={editing ? `Edit ${title.name}` : row.parameter === "news2" ? `${title.name}: how it was scored` : `${title.name}: alarm limits`}
               aria-pressed={editing ? selected : undefined}
-              onClick={() => (editing ? useEditor.getState().select(row.id) : useUi.getState().showSheet("alarm-limits", row.id))} />
+              onClick={() => (editing ? useEditor.getState().select(row.id) : row.parameter === "news2" ? useUi.getState().showSheet("news2-breakdown") : useUi.getState().showSheet("alarm-limits", row.id))} />
       {flow === "row" && (
         <>
           <div className="row-trace">{head}{chip}{trace}{extras}</div>

@@ -208,7 +208,7 @@ export function TraceFrame({ row, mini = false }: { row: Row; mini?: boolean }) 
               // Points along the dashed line count too, so the key never sits on a segment.
               const pts = [...dots, ...lineSamples(dots), ...series.points.filter((q) => q.t >= -windowMin).map((q) => ({ x: gutter + 2 + ((q.t + windowMin) / windowMin) * (right - gutter - 2), y: y(q.v) }))];
               const plot = { x0: frame.x0, x1: frame.x1, h: plotH };
-              if (h >= MIN_X_PX) children.push(<TempKey key="key" corner={keySize(plotH).compact && plotH < h ? "strip" : keyCorner(pts, plot, keySize(plotH))} plot={plot} rowId={row.id} />);
+              if (h >= MIN_X_PX && right - gutter >= 280) children.push(<TempKey key="key" corner={keySize(plotH).compact && plotH < h ? "strip" : keyCorner(pts, plot, keySize(plotH))} plot={plot} rowId={row.id} />);
             }
           }
         }

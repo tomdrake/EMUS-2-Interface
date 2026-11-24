@@ -98,7 +98,7 @@ def test_the_tab_bar_has_measure_buttons_that_start_a_measurement_and_open_nothi
     measure = {t.id: t.action.kind for t in d.tabs if t.action.type == "measure"}
     assert measure == {"measure-bp": "bp", "measure-temp": "temp"}
     assert not [t for t in d.tabs if t.action.type == "sheet"]      # no sheet, no menu: one touch starts it
-    assert len(d.tabs) == 12
+    assert len(d.tabs) == 13
 
 
 def test_modular_example_shows_every_kind_of_size_and_all_its_rows():
@@ -173,3 +173,26 @@ def test_the_old_rows_widget_is_gone(icu_design):
         w["row_ids"] = [i["row_id"] for i in w["items"]]
         del w["items"]
     _broken(icu_design, swap)
+
+
+def test_the_prediction_overlay_is_a_tab_toggle_and_a_split_of_the_monitor_and_the_predicted_trends():
+    d = validated_defaults()["icu-monitor"]
+    tab = next(t for t in d.tabs if t.id == "prediction-overlay")
+    assert tab.action.type == "toggle-prediction-overlay" and tab.label == "Predict Overlay"
+    screen = next(s for s in d.screens if s.id == "monitor-predict")
+    left, right = screen.layout.children
+    assert screen.layout.direction == "horizontal" and screen.layout.ratio == 0.5
+    assert left.widget.type == "monitor-grid" and right.widget.type == "prediction-trends"
+    assert [i.row_id for i in left.widget.items] == ["ecg", "spo2", "resp", "bp", "temp"]     # the traces and number boxes
+    assert (right.widget.back_hours, right.widget.ahead_hours) == (4, 8)
+
+
+def test_the_trends_widget_runs_no_further_than_eight_hours_ahead(icu_design):
+    import copy
+    from app.models.design import Design
+    doc = copy.deepcopy(icu_design)
+    doc["screens"][0]["layout"] = {"kind": "widget", "widget": {"id": "pt", "type": "prediction-trends", "ahead_hours": 9}}
+    with pytest.raises(ValidationError):
+        Design.model_validate(doc)
+    doc["screens"][0]["layout"]["widget"]["ahead_hours"] = 8
+    assert Design.model_validate(doc)

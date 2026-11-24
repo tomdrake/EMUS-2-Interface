@@ -155,6 +155,10 @@ class News2Now(_Model):
     complete: bool
     components: dict[str, int]
     response: str = ""
+    #: What was scored, as shown on screen: whole numbers, and the continuous temperature the tile displays.
+    inputs: dict[str, float | int | str | None] = Field(default_factory=dict)
+    #: How often to observe, in hours (0 = continuously).
+    monitoring_hours: float | None = None
 
 
 class ExampleSnapshot(_Model):

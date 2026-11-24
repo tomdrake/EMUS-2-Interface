@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import type { Axis, Band } from "@/app/api";
-import { useTheme, useUi } from "@/app/store";
+import { useDesign, useTheme, useUi } from "@/app/store";
 import type { ExampleSnapshot } from "@/contracts/types.gen";
 import { fmtDate, fmtTime, useFormats } from "@/design/datetime";
 import { useSnapshot } from "@/examples/store";
@@ -116,6 +116,7 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
   const snapshot = useSnapshot();
   const theme = useTheme();
   const registry = useUi((s) => s.registry);
+  const horizons = useDesign()?.forecast.horizons_min ?? [60, 120, 240, 360];
   const [ref, { w, h }] = useSize<HTMLDivElement>();
   const formats = useFormats();
   const [shown, setShown] = useState<1 | 2 | null>(null);
@@ -131,7 +132,8 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
   const left = NAME_W + LABEL_W;
 
   const news = snapshot.forecast.forecasts.find((f) => f.parameter === "news2" && f.scenario === "baseline");
-  const futureAll = widget.show_future && news ? news.points : [];
+  // The forecast has a point every 30 minutes; the chart shows the columns the design chose.
+  const futureAll = widget.show_future && news ? news.points.filter((p) => horizons.includes(p.horizon_min as never)) : [];
   const groups = chartGroups(registry.news2_bands, scale);
   const axesOf = registry.news2_axes ?? {};
   // Geometry. Rows share the height. If even the smallest readable rows do not fit, the whole drawing is scaled

@@ -1317,10 +1317,68 @@ for (const vp of VIEWPORTS) {
   check(await page.locator('[data-testid^="fp-certainty-"]').count() === 6, `${vp.name}: switching everything back on restores the view`);
   await T("tab-monitor").click();
 
+  // ---- Round 9: the NEWS2 Breakdown, the Prediction Overlay, the full Prediction tab
+  await goDesign("icu-monitor", "monitor"); await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 360); await settle();
+  await page.locator('[data-parameter="news2"] [data-testid^="row-hit-"]').first().click();
+  await T("news2-breakdown").waitFor();
+  const comp = api360.news2.components;
+  const pts = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="n2b-"][data-points]')].map((r) => +r.getAttribute("data-points")));
+  const shown = +(await T("n2b-total").getAttribute("data-total"));
+  check(shown === api360.news2.total && pts.reduce((a, b) => a + b, 0) === shown && shown === Object.values(comp).reduce((a, b) => a + b, 0), `${vp.name}: one touch on the NEWS box opens the breakdown and its points add up to the total (${shown})`);
+  check(+(await T("n2b-temp").getAttribute("data-points")) === comp.temp && (await T("n2b-temp").textContent()).includes(api360.numerics.temp.toFixed(1)), `${vp.name}: the temperature scored is the one displayed (${api360.numerics.temp.toFixed(1)})`);
+  await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+  await settle();
+
+  const half = async () => page.evaluate(() => { const L = document.querySelector('[data-testid="screen-monitor-predict"]'); const r = L.getBoundingClientRect(); const m = document.querySelector('[data-testid="row-ecg"]').getBoundingClientRect(); const p = document.querySelector('[data-testid="prediction-trends"]').getBoundingClientRect(); return { sw: r.width, mRight: m.right, pLeft: p.left, pRight: p.right, left: r.left }; });
+  check(await T("tab-prediction-overlay").getAttribute("aria-pressed") === null || await T("tab-prediction-overlay").getAttribute("aria-pressed") === "false", `${vp.name}: the Prediction Overlay button starts off`);
+  await T("tab-prediction-overlay").click();
+  await T("prediction-trends").waitFor();
+  const h = await half();
+  check(h.mRight <= h.left + h.sw / 2 + 4 && h.pLeft >= h.left + h.sw / 2 - 4 && h.pRight <= h.left + h.sw + 1, `${vp.name}: the monitor is on the left half and the trends on the right half (${Math.round(h.mRight)} | ${Math.round(h.pLeft)})`);
+  check(await T("tab-prediction-overlay").getAttribute("aria-pressed") === "true" && await page.locator('[data-testid^="row-"][data-parameter="spo2"]').first().isVisible() && await T("row-ecg").isVisible(), `${vp.name}: the button shows it is on, and the monitor rows are on the left`);
+  const pt = await T("prediction-trends");
+  check(await T("pt-axis").getAttribute("data-max") === "480" && await T("pt-axis").getAttribute("data-min") === "-240" && await T("pt-mark-480").isVisible() && await T("pt-mark--240").isVisible(), `${vp.name}: the shared time axis runs from -4 H to +8 H`);
+  for (const id of ["news", "hr", "rr", "spo2", "bp_sys", "temp"]) {
+    const base = id === "news" ? "news2" : id;
+    const f = api360.forecast.forecasts.find((x) => x.parameter === base && x.scenario === "baseline");
+    const endPt = f.points.find((q) => q.horizon_min === 480);
+    const chart = `pt-${id}-chart`;
+    const ok = await T(`${chart}-band95`).count() === 1 && await T(`${chart}-band80`).count() === 1 && await T(`${chart}-future`).count() === 1
+      && +(await T(`${chart}-end`).getAttribute("data-value")) === endPt.value;
+    check(ok, `${vp.name}: ${id} shows its predicted trend with 80 % and 95 % intervals, ending at the API's +8 H value (${endPt.value})`);
+    check(await T(`pt-certainty-${id}`).isVisible(), `${vp.name}: ${id} shows its certainty`);
+  }
+  await T("fp-toggle-certainty").click();
+  check(await page.locator('[data-testid^="pt-certainty-"]').count() === 0, `${vp.name}: the Certainty switch works on the overlay`);
+  await T("fp-toggle-certainty").click();
+  await T("fp-toggle-news").click();
+  await T("tab-predict").click(); await T("forecast-panel").waitFor();
+  check(await T("fp-news").count() === 0, `${vp.name}: the overlay's switches are the Prediction view's too`);
+  await T("fp-toggle-news").click();
+  await T("tab-prediction-overlay").click();
+  await T("prediction-trends").waitFor();
+  await T("tab-prediction-overlay").click();
+  await settle();
+  check(await T("tab-prediction-overlay").getAttribute("aria-pressed") === "false" && await page.locator('[data-testid="screen-monitor-predict"]').count() === 0, `${vp.name}: pressing the button again goes back to the screen it came from`);
+
+  // the Prediction tab: AI findings and events
+  await T("tab-predict").click(); await T("ai-summary").waitFor();
+  const active = api360.findings.filter((f) => f.status === "active").length;
+  check(+(await T("ai-summary").getAttribute("data-count")) === Math.min(6, active) && await page.locator('[data-testid^="ais-"][data-status="active"]').count() === Math.min(6, active), `${vp.name}: What the AI Sees Now lists the ${active} active findings`);
+  await page.locator('[data-testid^="ais-"][data-status="active"]').first().click();
+  check(await page.evaluate(() => window.__emus.ui.getState().openSheet) === "finding-explain", `${vp.name}: one touch on a finding opens its Why sheet`);
+  await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+  await settle();
+  const evs = api360.forecast.events;
+  check(await page.locator('[data-testid^="evt-row-"]').count() === evs.length && evs.every((e) => true), `${vp.name}: the events timeline lists the ${evs.length} predicted events`);
+  const evProb = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="evt-row-"]')].map((r) => +r.getAttribute("data-probability")));
+  check(evs.every((e) => evProb.includes(e.probability)), `${vp.name}: each event shows the API's probability`);
+  await T("tab-monitor").click();
+
   // Nothing overlaps, nothing is cut off, everything has padding; and the words are capitalised
   const { audit } = require("./layout-audit.cjs");
   const { capsAudit } = require("./caps-audit.cjs");
-  for (const [d, sc, scen, min] of [["icu-monitor", "monitor", "scn-af", 20], ["icu-modules", "monitor", "scn-pneumonia", 180], ["icu-monitor", "abcde", "scn-copd", -20], ["icu-monitor", "predict", "scn-pneumonia", 120]]) {
+  for (const [d, sc, scen, min] of [["icu-monitor", "monitor", "scn-af", 20], ["icu-modules", "monitor", "scn-pneumonia", 180], ["icu-monitor", "abcde", "scn-copd", -20], ["icu-monitor", "predict", "scn-pneumonia", 120], ["icu-monitor", "monitor-predict", "scn-pneumonia", 360]]) {
     await goDesign(d, sc); await ex("setScenario", scen); await ex("setMinute", min); await settle();
     const r = await audit(page);
     check(r.problems.length === 0, `${vp.name}: ${d}/${sc} has no overlaps, cut-off text or missing padding ${r.problems.slice(0, 3).join(" | ")}`);

@@ -289,10 +289,22 @@ class ForecastPanelWidget(_Widget):
     show_contributors: bool = True
 
 
+class PredictionTrendsWidget(_Widget):
+    """The trends with their predicted future and prediction intervals, on one time axis, with the future NEWS
+    over time. Used on the right of the prediction overlay of the main screen."""
+
+    type: Literal["prediction-trends"] = "prediction-trends"
+    back_hours: int = Field(4, ge=1, le=24, description="How far back the history runs, left of now.")
+    ahead_hours: int = Field(8, ge=1, le=8, description="How far ahead the prediction runs, right of now.")
+    show_news_number: bool = Field(True, description="Start with the future NEWS shown.")
+    show_observations: bool = Field(True, description="Start with the observation predictions shown.")
+    show_certainty: bool = Field(True, description="Start with the certainty of each prediction shown.")
+
+
 class EventsTimelineWidget(_Widget):
     type: Literal["events-timeline"] = "events-timeline"
-    hours_back: int = Field(6, ge=0, le=48)
-    hours_ahead: int = Field(6, ge=1, le=24)
+    hours_back: int = Field(4, ge=0, le=48)
+    hours_ahead: int = Field(8, ge=1, le=24)
 
 
 class AlarmsWidget(_Widget):
@@ -316,7 +328,7 @@ class TextWidget(_Widget):
 Widget = Annotated[
     Union[
         MonitorGridWidget, News2ChartWidget, AbcdeWidget, LabsWidget, ImagingWidget, AiSummaryWidget,
-        ForecastPanelWidget, EventsTimelineWidget, AlarmsWidget, OxygenWidget,
+        ForecastPanelWidget, PredictionTrendsWidget, EventsTimelineWidget, AlarmsWidget, OxygenWidget,
         PatientWidget, TextWidget,
     ],
     Field(discriminator="type"),
@@ -364,7 +376,7 @@ SheetId = Literal[
     # clinical
     "alarm-limits", "oxygen", "patient", "new-patient", "discharge-patient",
     "record-observations", "finding-explain", "underlying-data", "explanation-examples",
-    "trends", "abcde-assess",
+    "trends", "abcde-assess", "news2-breakdown",
     "forecast-horizon", "news2-variant", "home-screen",
     # design studio sections (each one touch from the Settings menu)
     "studio-appearance", "studio-layout", "studio-rows", "studio-navigation",
@@ -423,6 +435,13 @@ class MeasureAction(_Model):
     kind: Literal["bp", "temp"]
 
 
+class PredictionOverlayAction(_Model):
+    """Switches the main screen between the monitor and the prediction overlay: the monitor on the left half, the
+    trends with their predicted future and intervals on the right. A local preference of the screen."""
+
+    type: Literal["toggle-prediction-overlay"] = "toggle-prediction-overlay"
+
+
 class EditLayoutAction(_Model):
     """Enters Edit Layout: tap a module to change its size, content and place. Edits stay local
     to this screen until they are saved as a new design version."""
@@ -432,13 +451,13 @@ class EditLayoutAction(_Model):
 
 ButtonAction = Annotated[
     Union[ScreenAction, MenuAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction,
-          AiToggleAction, AiOverlayAction, EditLayoutAction, MeasureAction],
+          AiToggleAction, AiOverlayAction, EditLayoutAction, MeasureAction, PredictionOverlayAction],
     Field(discriminator="type"),
 ]
 # Menu items cannot open another menu: that is what keeps everything within two touches.
 MenuItemAction = Annotated[
     Union[ScreenAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction,
-          AiToggleAction, AiOverlayAction, EditLayoutAction, MeasureAction],
+          AiToggleAction, AiOverlayAction, EditLayoutAction, MeasureAction, PredictionOverlayAction],
     Field(discriminator="type"),
 ]
 
@@ -663,12 +682,12 @@ class CertaintyDisplay(_Model):
         return self
 
 
-HorizonMin = Literal[60, 120, 240, 360, 720]
+HorizonMin = Literal[60, 120, 240, 360, 480, 720]
 
 
 class Forecast(_Model):
     enabled: bool = True
-    horizons_min: list[HorizonMin] = Field(default_factory=lambda: [60, 120, 240, 360],
+    horizons_min: list[HorizonMin] = Field(default_factory=lambda: [60, 120, 240, 360, 480],
                                            min_length=1)
     default_horizon_min: HorizonMin = 240
     #: N1 value-range, N2 band-probabilities, N3 time-to-threshold
@@ -707,7 +726,7 @@ class Design(_Model):
     alt_theme: Theme = Field(description="The other side of the dark / light switch.")
     top_bar: TopBar
     tab_bar: TabBar = Field(default_factory=TabBar)
-    tabs: list[Button] = Field(min_length=2, max_length=12)
+    tabs: list[Button] = Field(min_length=2, max_length=14)
     menus: list[Menu] = Field(default_factory=list)
     screens: list[Screen] = Field(min_length=1)
     home_screen: Slug

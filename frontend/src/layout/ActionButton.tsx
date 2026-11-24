@@ -1,5 +1,5 @@
 import { SilenceButton } from "@/alarms/SilenceButton";
-import { useDesign, useUi } from "@/app/store";
+import { PREDICTION_OVERLAY_SCREEN, useDesign, useUi } from "@/app/store";
 import { resolveAction } from "@/design/nav";
 import { label } from "@/design/text";
 import { useMeasure } from "@/examples/measure";
@@ -19,6 +19,7 @@ export function runAction(design: Design, action: Action): void {
   else if (r.kind === "edit") ui.setEditMode(true);
   else if (r.kind === "overlay") ui.toggleAiOverlay();
   else if (r.kind === "measure") useMeasure.getState().toggle(r.which);
+  else if (r.kind === "prediction-overlay") ui.togglePredictionOverlay();
   // 'silence' is handled by SilenceButton itself.
 }
 
@@ -41,7 +42,8 @@ export function ActionButton({ button, where, showLabel }:
   }
   const r = resolveAction(design, button.action);
   const active = (r.kind === "screen" && r.screenId === screenId)
-    || (r.kind === "menu" && openMenu?.id === r.menu.id) || (r.kind === "overlay" && overlayOn);
+    || (r.kind === "menu" && openMenu?.id === r.menu.id) || (r.kind === "overlay" && overlayOn)
+    || (r.kind === "prediction-overlay" && screenId === PREDICTION_OVERLAY_SCREEN);
   const text = r.kind === "theme" ? (mode === "dark" ? "Light" : "Dark")
     : r.kind === "ai" ? (aiOn ? "AI On" : "AI Off") : button.label;
   return (
@@ -50,9 +52,10 @@ export function ActionButton({ button, where, showLabel }:
             aria-label={r.kind === "theme" ? `Switch to ${text.toLowerCase()} theme`
               : r.kind === "ai" ? `AI interpretation is ${aiOn ? "on" : "off"}. Tap to turn ${aiOn ? "off" : "on"}`
                 : r.kind === "overlay" ? `AI overview is ${overlayOn ? "on" : "off"}. Tap to turn ${overlayOn ? "off" : "on"}`
-                  : r.kind === "measure" ? `${button.label}. ${measuring ? "Measuring. Tap to cancel." : "Tap to start."}`
+                  : r.kind === "prediction-overlay" ? `Prediction overlay is ${active ? "on" : "off"}. Tap to turn ${active ? "off" : "on"}`
+                    : r.kind === "measure" ? `${button.label}. ${measuring ? "Measuring. Tap to cancel." : "Tap to start."}`
                     : button.label}
-            aria-pressed={r.kind === "ai" ? aiOn : r.kind === "overlay" ? overlayOn : r.kind === "measure" ? measuring : undefined}
+            aria-pressed={r.kind === "ai" ? aiOn : r.kind === "overlay" ? overlayOn : r.kind === "measure" ? measuring : r.kind === "prediction-overlay" ? active : undefined}
             style={button.colour ? { color: button.colour } : undefined}
             onClick={() => (active && r.kind === "menu"
               ? useUi.getState().showMenu(null) : runAction(design, button.action))}>

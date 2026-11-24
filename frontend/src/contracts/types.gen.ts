@@ -760,6 +760,10 @@ export interface News2Now {
   components: {
     [k: string]: number;
   };
+  inputs: {
+    [k: string]: number | string | null;
+  };
+  monitoring_hours: number | null;
   response: string;
   risk: string | null;
   total: number | null;

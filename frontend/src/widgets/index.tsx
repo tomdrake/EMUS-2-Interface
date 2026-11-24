@@ -2,7 +2,10 @@ import type { Widget, WidgetOf, WidgetType } from "@/design/types";
 
 import { MonitorGrid } from "./MonitorGrid";
 import { Abcde } from "./Abcde";
+import { AiSummary } from "./AiSummary";
+import { EventsTimeline } from "./EventsTimeline";
 import { ForecastPanel } from "./ForecastPanel";
+import { PredictionTrends } from "./PredictionTrends";
 import { News2Chart } from "./News2Chart";
 import { Placeholder } from "./Placeholder";
 
@@ -25,9 +28,10 @@ export const WIDGETS: { [T in WidgetType]: WidgetComponent<T> } = {
   abcde: Abcde,
   "epr-labs": stub("Laboratory results", "M6"),
   "epr-imaging": stub("Imaging", "M6"),
-  "ai-summary": stub("AI findings", "M7"),
+  "ai-summary": AiSummary,
   "forecast-panel": ForecastPanel,
-  "events-timeline": stub("Events timeline", "M7"),
+  "prediction-trends": PredictionTrends,
+  "events-timeline": EventsTimeline,
   alarms: stub("Alarm limits and history", "M2"),
   oxygen: stub("Oxygen", "M2"),
   patient: stub("Patient details", "M2"),
