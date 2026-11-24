@@ -1243,27 +1243,28 @@ for (const vp of VIEWPORTS) {
   const bpBefore = (await page.locator('[data-testid^="bp-dot-bp-"]').count());
   const sheetOpen = () => page.evaluate(() => window.__emus.ui.getState().openSheet ?? null);
   await T("tab-measure-bp").click();
-  check(await T("row-bp").getAttribute("data-measuring") === "true" && /is-measuring/.test(await T("tab-measure-bp").getAttribute("class")) && await sheetOpen() === null && await page.locator(".sheet, [role=dialog]").count() === 0, `${vp.name}: one touch on Measure BP starts it, nothing opens, and the BP box pulses`);
-  const pulse = await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="row-bp"]')).animationName);
-  check(pulse === "measure-pulse" || matchMedia("(prefers-reduced-motion: reduce)").matches, `${vp.name}: the pulse is an animation (${pulse})`);
+  check(await T("tab-measure-bp").getAttribute("data-measuring") === "true" && await sheetOpen() === null && await page.locator(".sheet, [role=dialog]").count() === 0, `${vp.name}: one touch on Measure BP starts it and nothing opens`);
+  const pulse = await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="tab-measure-bp"]')).animationName);
+  check(pulse === "measure-pulse" || matchMedia("(prefers-reduced-motion: reduce)").matches, `${vp.name}: the Measure BP tab button pulses while it measures (${pulse})`);
+  check(await T("row-bp").getAttribute("data-measuring") === null && !/measure-pulse/.test(await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="row-bp"]')).animationName)), `${vp.name}: the BP box on the observations does not pulse`);
   await T("tab-measure-bp").click();
-  check(await T("row-bp").getAttribute("data-measuring") === null, `${vp.name}: touching it again cancels the measurement before it finishes`);
+  check(await T("tab-measure-bp").getAttribute("data-measuring") === null, `${vp.name}: touching it again cancels the measurement before it finishes`);
   await page.waitForTimeout(500);
   check((await page.locator('[data-testid^="bp-dot-bp-"]').count()) === bpBefore, `${vp.name}: a cancelled measurement adds no reading`);
   await T("tab-measure-bp").click();
-  await page.waitForFunction(() => !document.querySelector('[data-testid="row-bp"]').dataset.measuring, null, { timeout: 14000 });
+  await page.waitForFunction(() => !document.querySelector('[data-testid="tab-measure-bp"]').dataset.measuring, null, { timeout: 14000 });
   const mm = await api("/api/examples/scn-pneumonia/measure?kind=bp&minute=360");
   await settle();
   check((await page.locator('[data-testid^="bp-dot-bp-"]').count()) === bpBefore + 1, `${vp.name}: when it finishes the pulse stops and the new BP is on the trace`);
   check((await T("num-bp_sys").innerText()).includes(`${mm.bp.sys}`), `${vp.name}: and in the BP tile`);
   await T("tab-measure-temp").click();
-  check(await T("row-temp").getAttribute("data-measuring") === "true" && await T("row-bp").getAttribute("data-measuring") === null, `${vp.name}: Measure Temp pulses the temperature box, not the BP box`);
-  await page.waitForFunction(() => !document.querySelector('[data-testid="row-temp"]').dataset.measuring, null, { timeout: 10000 });
+  check(await T("tab-measure-temp").getAttribute("data-measuring") === "true" && await T("tab-measure-bp").getAttribute("data-measuring") === null, `${vp.name}: Measure Temp pulses its own tab button, not the BP one`);
+  await page.waitForFunction(() => !document.querySelector('[data-testid="tab-measure-temp"]').dataset.measuring, null, { timeout: 10000 });
   await settle();
   check(await page.locator('[data-testid^="temp-dot-temp-"]').count() >= 1, `${vp.name}: Measure Temp adds a thermometer point`);
   await T("tab-measure-bp").click();
   await ex("setMinute", 361); await settle();
-  check(await T("row-bp").getAttribute("data-measuring") === null && await page.evaluate(() => { const t = window.__emus.examples.getState().taken; return t.bp.length + t.temp.length; }) === 0, `${vp.name}: changing the time stops a measurement and clears taken readings`);
+  check(await T("tab-measure-bp").getAttribute("data-measuring") === null && await page.evaluate(() => { const t = window.__emus.examples.getState().taken; return t.bp.length + t.temp.length; }) === 0, `${vp.name}: changing the time stops a measurement and clears taken readings`);
   await ex("setMinute", 360); await settle();
 
   // ---- Round 8: dates and times, the Prediction view, the BP list under the number

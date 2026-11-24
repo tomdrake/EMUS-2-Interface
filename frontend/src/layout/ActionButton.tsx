@@ -46,7 +46,7 @@ export function ActionButton({ button, where, showLabel }:
     : r.kind === "ai" ? (aiOn ? "AI On" : "AI Off") : button.label;
   return (
     <button type="button" className={`${where === "tab" ? "tab" : "topbtn"}${active ? " is-active" : ""}${measuring ? " is-measuring" : ""}`}
-            data-testid={`${where}-${button.id}`} aria-current={active ? "page" : undefined}
+            data-testid={`${where}-${button.id}`} aria-current={active ? "page" : undefined} data-measuring={measuring || undefined} aria-busy={measuring || undefined}
             aria-label={r.kind === "theme" ? `Switch to ${text.toLowerCase()} theme`
               : r.kind === "ai" ? `AI interpretation is ${aiOn ? "on" : "off"}. Tap to turn ${aiOn ? "off" : "on"}`
                 : r.kind === "overlay" ? `AI overview is ${overlayOn ? "on" : "off"}. Tap to turn ${overlayOn ? "off" : "on"}`
