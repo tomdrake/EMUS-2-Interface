@@ -109,7 +109,7 @@ class ObservationSet(_Model):
     monitoring_hours: float | None = None
     escalated: bool | None = None
     recorded_by: str | None = None
-    source: Literal["charted", "continuous"] = "charted"
+    source: Literal["charted", "continuous", "predicted"] = "charted"
 
 
 class WaveformFrame(_Model):
@@ -325,6 +325,8 @@ class ForecastPoint(_Model):
     #: Interval levels present are listed in Forecast.interval_levels.
     intervals: dict[str, tuple[float, float]] = Field(
         default_factory=dict, description="{'50': [lo, hi], '80': [...], '95': [...]}")
+    #: How sure the forecast is at this horizon (the metrics that change with the horizon; the rest are on the Forecast).
+    certainty: list[CertaintyValue] = Field(default_factory=list)
 
 
 class Contributor(_Model):

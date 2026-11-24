@@ -6,7 +6,7 @@ import { fmtTime, useFormats } from "@/design/datetime";
 import { paramVar } from "@/design/theme";
 import type { Design, WidgetOf } from "@/design/types";
 import { useSnapshot } from "@/examples/store";
-import { FAN_PAD, TrendFan, axisMarks, markText, type FanPoint } from "@/traces/TrendFan";
+import { BpTrendFan, FAN_PAD, TrendFan, axisMarks, markText, type BpLine, type FanPoint } from "@/traces/TrendFan";
 import { useSize } from "@/traces/useSize";
 
 import { Toggle, riskOfTotal, usePredictShow } from "./ForecastPanel";
@@ -23,15 +23,15 @@ export function fanPoints(f: Forecast | undefined, maxMin: number): FanPoint[] {
 /** The rows of the monitor on the left, in order, with the observation each one predicts: the charts here are the same height as those rows. */
 const ALIGNED = [{ row: "ecg", pid: "hr" }, { row: "spo2", pid: "spo2" }, { row: "resp", pid: "rr" }, { row: "bp", pid: "bp_sys" }, { row: "temp", pid: "temp" }] as const;
 /** A box of the NEWS2 strip: a total at a time (minutes from now), charted, now or predicted. */
-interface NewsBox { t: number; total: number; kind: "past" | "now" | "future"; range?: [number, number] }
+interface NewsBox { t: number; total: number; kind: "past" | "now" | "future"; range?: [number, number]; confidence?: number }
 
 /**
  * The bottom of the predicted trends, level with the NEWS2 row of the monitor: the NEWS2 total in a box at each time it was
  * charted or is predicted (a dashed box is a prediction), and under the boxes the hours of the shared time axis. Boxes and
  * hours use the same x scale as every chart above them, so a box sits under the same moment as the traces.
  */
-function NewsStrip({ boxes, tMin, tMax, nowIso, showBoxes, hidden, certainty }: {
-  boxes: NewsBox[]; tMin: number; tMax: number; nowIso: string; showBoxes: boolean; hidden: boolean; certainty: React.ReactNode;
+function NewsStrip({ boxes, tMin, tMax, nowIso, showBoxes, hidden, showConfidence }: {
+  boxes: NewsBox[]; tMin: number; tMax: number; nowIso: string; showBoxes: boolean; hidden: boolean; showConfidence: boolean;
 }) {
   const [ref, { w }] = useSize<HTMLDivElement>();
   const formats = useFormats();
@@ -45,22 +45,27 @@ function NewsStrip({ boxes, tMin, tMax, nowIso, showBoxes, hidden, certainty }: 
   for (const b of [...boxes].sort((p, q) => Math.abs(p.t) - Math.abs(q.t))) if (kept.every((k) => Math.abs(x(k.t) - x(b.t)) >= boxW + 2)) kept.push(b);
   return (
     <div className="pt-newsstrip" ref={ref} data-testid="pt-newsstrip">
-      <div className="pt-boxes" data-testid="pt-boxes" style={{ height: showRange ? 44 : 38 }}>
+      <div className="pt-boxes" data-testid="pt-boxes">
         <span className="pt-boxname">NEWS2</span>
         {w > 0 && showBoxes && kept.map((b) => {
           const risk = riskOfTotal(b.total);
+          const left = x(b.t) - boxW / 2;
           return (
-            <span key={`${b.kind}-${b.t}`} className={`pt-box is-${b.kind}`} data-testid={`pt-box-${b.t}`} data-value={b.total} data-kind={b.kind} data-risk={risk}
-                  style={{ left: x(b.t) - boxW / 2, width: boxW, color: RISK_COLOUR[risk] }}
-                  title={`NEWS2 ${b.total}${b.range ? `, range ${b.range[0]} to ${b.range[1]}` : ""}${b.kind === "future" ? ", predicted from example data" : ""}`}>
-              <b>{b.total}</b>
-              {showRange && b.range && <small>{b.range[0]}-{b.range[1]}</small>}
+            <span key={`${b.kind}-${b.t}`} className="pt-boxcol" style={{ left, width: boxW }}>
+              <span className={`pt-box is-${b.kind}`} data-testid={`pt-box-${b.t}`} data-value={b.total} data-kind={b.kind} data-risk={risk} style={{ color: RISK_COLOUR[risk] }}
+                    title={`NEWS2 ${b.total}${b.range ? `, range ${b.range[0]} to ${b.range[1]}` : ""}${b.kind === "future" ? ", predicted from example data" : ""}`}>
+                <b>{b.total}</b>
+                {showRange && b.range && <small>{b.range[0]}-{b.range[1]}</small>}
+              </span>
+              {showConfidence && b.confidence != null && (
+                <span className="pt-conf" data-testid={`pt-conf-${b.t}`} data-value={b.confidence} title="Confidence in this prediction">{Math.round(b.confidence * 100)}%</span>
+              )}
             </span>
           );
         })}
         {showBoxes && hidden && <span className="pt-hidden pt-boxnote" data-testid="pt-hidden-news">Prediction Hidden</span>}
         {!showBoxes && <span className="demo-note pt-boxnote" data-prose data-testid="pt-news-off">Future NEWS is off.</span>}
-        <span className="pt-boxcert">{certainty}</span>
+        {showBoxes && showConfidence && !hidden && <span className="pt-confcap" data-testid="pt-confcap">Confidence</span>}
       </div>
       <div className="pt-axis" data-testid="pt-axis" data-min={tMin} data-max={tMax}>
         {w > 0 && axisMarks(tMin, tMax).map((t) => (
@@ -120,13 +125,20 @@ function Trends({ snapshot, cfg, registry, show, tMin, tMax }: {
   const weight = (rowId: string) => design.rows.find((r) => r.id === rowId)?.height_scale ?? 1;
 
   const news = baseline(fc, "news2");
+  // the certainty of this forecast at one horizon, in the design's chosen metric (the forecast's own figure for a metric that does not change with the horizon)
+  const confidenceAt = (f: Forecast | undefined, t: number): number | undefined => {
+    const pt = f?.points.find((q) => q.horizon_min === t);
+    const c = pickCertainty(pt?.certainty?.length ? pt.certainty : (f?.certainty ?? []), cfg.metric);
+    return c ? Math.min(1, Math.max(0, c.score)) : undefined;
+  };
   const newsHidden = tooUncertain(news);
   const horizons = design.forecast.horizons_min as readonly number[];
   const boxes: NewsBox[] = [
     { t: 0, total: snapshot.news2.total ?? 0, kind: "now" },
     ...snapshot.obs_sets.filter((s) => s.news2_total != null).map((s) => ({ t: Math.round((Date.parse(s.at) - nowMs) / 60000), total: s.news2_total as number, kind: "past" as const }))
       .filter((b) => b.t >= tMin && b.t < 0),
-    ...(newsHidden ? [] : fanPoints(news, tMax).filter((p) => horizons.includes(p.t)).map((p) => ({ t: p.t, total: Math.round(p.v), kind: "future" as const, range: [Math.round(p.i80[0]), Math.round(p.i80[1])] as [number, number] }))),
+    ...(newsHidden ? [] : fanPoints(news, tMax).filter((p) => horizons.includes(p.t)).map((p) => ({ t: p.t, total: Math.round(p.v), kind: "future" as const, range: [Math.round(p.i80[0]), Math.round(p.i80[1])] as [number, number],
+                                                                    confidence: confidenceAt(news, p.t) }))),
   ];
 
   const header = (name: string, unit: string, now: string | number | null | undefined, end: FanPoint | undefined, dec: number, id: string, hiddenNote: boolean) => (
@@ -149,6 +161,33 @@ function Trends({ snapshot, cfg, registry, show, tMin, tMax }: {
           const trend = snapshot.trends[pid as keyof typeof snapshot.trends];
           const now = (snapshot.numerics as Record<string, number | string | null>)[pid];
           const hidden = tooUncertain(f);
+          if (pid === "bp_sys") {
+            // blood pressure is drawn as on the monitor: systolic, MAP and diastolic together
+            const reading = (pick: (r: ExampleSnapshot["bp_readings"][number]) => number) => snapshot.bp_readings.map((r) => ({ t: (Date.parse(r.at) - nowMs) / 60000, v: pick(r) })).filter((q) => q.t >= tMin && q.t <= 0);
+            const fut = (id: string) => fanPoints(baseline(fc, id), tMax);
+            const num = (id: string) => { const v = (snapshot.numerics as Record<string, number | string | null>)[id]; return typeof v === "number" ? v : null; };
+            const lines: BpLine[] = [
+              { key: "bp_sys", marker: "down", name: "SYS", series: { past: reading((r) => r.sys), now: num("bp_sys"), future: fut("bp_sys") } },
+              { key: "bp_mean", marker: "x", name: "MAP", series: { past: reading((r) => r.map), now: num("bp_mean"), future: fut("bp_mean") } },
+              { key: "bp_dia", marker: "up", name: "DIA", series: { past: reading((r) => r.dia), now: num("bp_dia"), future: fut("bp_dia") } },
+            ];
+            const end = (id: string) => fut(id)[fut(id).length - 1];
+            const nowTxt = `${num("bp_sys") ?? "-"}/${num("bp_dia") ?? "-"} (${num("bp_mean") ?? "-"})`;
+            const endTxt = end("bp_sys") && end("bp_dia") && end("bp_mean") ? `${end("bp_sys")!.v.toFixed(0)}/${end("bp_dia")!.v.toFixed(0)} (${end("bp_mean")!.v.toFixed(0)})` : null;
+            return (
+              <section key={pid} className="pt-chart" data-testid={`pt-${pid}`} data-row={row} data-hidden={hidden || undefined} style={{ flexGrow: weight(row) }}>
+                <header className="pt-head">
+                  <span className="pt-values" data-testid={`pt-values-${pid}`}>
+                    <span className="pt-name">SYS/DIA (MAP) <small>{p.unit}</small></span>{" "}Now <b>{nowTxt}</b>
+                    {endTxt && !hidden && <> <span aria-hidden="true">to</span> {markText(tMax)} <b>{endTxt}</b></>}
+                    {hidden && <span className="pt-hidden" data-testid={`pt-hidden-${pid}`}> Prediction Hidden</span>}
+                  </span>
+                  {mark(f, pid)}
+                </header>
+                <BpTrendFan testId={`pt-${pid}-chart`} lines={lines} tMin={tMin} tMax={tMax} colour={paramVar(pid)} hidden={hidden} markersAt={[...horizons]} label="Blood pressure with its prediction: systolic, mean and diastolic" />
+              </section>
+            );
+          }
           return (
             <section key={pid} className="pt-chart" data-testid={`pt-${pid}`} data-row={row} data-hidden={hidden || undefined} style={{ flexGrow: weight(row) }}>
               <header className="pt-head">{header(p.short, p.unit, typeof now === "number" ? now : null, future[future.length - 1], dec, pid, hidden)}{mark(f, pid)}</header>
@@ -162,8 +201,7 @@ function Trends({ snapshot, cfg, registry, show, tMin, tMax }: {
           </p>
         )}
         <section className="pt-chart pt-news" data-testid="pt-news" style={{ flexGrow: weight("news") }}>
-          <NewsStrip boxes={boxes} tMin={tMin} tMax={tMax} nowIso={snapshot.generated_at} showBoxes={show.news} hidden={newsHidden}
-                     certainty={show.news ? mark(news, "news") : null} />
+          <NewsStrip boxes={boxes} tMin={tMin} tMax={tMax} nowIso={snapshot.generated_at} showBoxes={show.news} hidden={newsHidden} showConfidence={show.certainty} />
         </section>
       </div>
     </div>

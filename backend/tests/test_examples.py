@@ -288,7 +288,7 @@ def test_a_measured_reading_is_the_scenarios_value_and_marked_simulated(client):
 def test_the_forecast_covers_news_and_every_main_observation_in_horizon_order():
     s = examples.snapshot("scn-pneumonia", 120)
     base = {f.parameter: f for f in s.forecast.forecasts if f.scenario == "baseline"}
-    assert set(base) == {"news2", "rr", "spo2", "hr", "bp_sys", "temp"}
+    assert set(base) == {"news2", "rr", "spo2", "hr", "bp_sys", "bp_dia", "bp_mean", "temp"}
     for f in base.values():
         horizons = [p.horizon_min for p in f.points]
         assert horizons == sorted(horizons) and len(horizons) >= 3
@@ -364,3 +364,66 @@ def test_forecast_intervals_never_leave_what_the_measure_allows(client):
                         assert lo <= pt["value"] <= hi
                         if f["parameter"] in limits:
                             assert limits[f["parameter"]][0] <= lo and hi <= limits[f["parameter"]][1]
+
+
+def _alarms(client, scn, minute):
+    snap = client.get(f"/api/examples/{scn}?minute={minute}").json()
+    return {(a["parameter"], a["kind"]): a for a in snap["alarms"]["active"] if a["kind"] != "technical"}
+
+
+def test_diastolic_and_mean_pressure_alarm_on_their_own_limits(client):
+    """Each of systolic, diastolic and MAP alarms separately: at 480 min of the pneumonia script only the MAP (63, limit 65) is low."""
+    a = _alarms(client, "scn-pneumonia", 480)
+    assert ("bp_mean", "low") in a and a[("bp_mean", "low")]["value"] == 63 and a[("bp_mean", "low")]["limit"] == 65
+    assert ("bp_sys", "low") not in a and ("bp_dia", "low") not in a
+    assert a[("bp_mean", "low")]["message"].startswith("MAP low")
+
+
+def test_alarms_follow_every_parameters_limits_at_every_minute(client):
+    from app import registry
+    for scn in ("scn-pneumonia", "scn-stable", "scn-vt"):
+        for minute in (0, 120, 360):
+            snap = client.get(f"/api/examples/{scn}?minute={minute}").json()
+            active = {(x["parameter"], x["kind"]) for x in snap["alarms"]["active"] if x["kind"] != "technical"}
+            unmonitored = set(snap["alarms"]["unmonitored"])
+            for pid in ("hr", "spo2", "rr", "bp_sys", "bp_dia", "bp_mean", "temp"):
+                p, v = registry.PARAMETERS[pid], snap["numerics"][pid]
+                if pid in unmonitored or v is None:
+                    continue
+                assert ((pid, "low") in active) == (p.default_low is not None and v < p.default_low), (scn, minute, pid)
+                assert ((pid, "high") in active) == (p.default_high is not None and v > p.default_high), (scn, minute, pid)
+
+
+def test_each_forecast_point_has_its_own_certainty_that_falls_with_the_horizon():
+    s = examples.snapshot("scn-pneumonia", 360)
+    for f in (x for x in s.forecast.forecasts if x.scenario == "baseline"):
+        scores = []
+        for p in f.points:
+            by = {c.metric: c.score for c in p.certainty}
+            assert {"prediction_interval", "conformal_interval", "horizon_decay"} <= set(by)
+            scores.append(by["prediction_interval"])
+        assert all(a >= b - 1e-9 for a, b in zip(scores, scores[1:])), f.parameter           # wider interval, lower certainty
+        last = {c.metric: c.score for c in f.certainty}["prediction_interval"]
+        assert abs(scores[-1] - last) < 1e-9                                                  # the last point is the forecast's own figure
+
+
+def test_blood_pressure_is_predicted_as_systolic_mean_and_diastolic_in_order(client):
+    for scn, minute in (("scn-pneumonia", 360), ("scn-stable", 0), ("scn-af", 20)):
+        base = {f["parameter"]: f for f in client.get(f"/api/examples/{scn}?minute={minute}").json()["forecast"]["forecasts"] if f["scenario"] == "baseline"}
+        for a, m, d in zip(base["bp_sys"]["points"], base["bp_mean"]["points"], base["bp_dia"]["points"]):
+            assert d["value"] <= m["value"] <= a["value"]
+            assert abs(m["value"] - (a["value"] + 2 * d["value"]) / 3) <= 0.15 + 1e-6          # MAP = (SYS + 2 DIA) / 3, to rounding
+            for level in ("50", "80", "95"):
+                assert d["intervals"][level][0] <= m["intervals"][level][0] <= a["intervals"][level][0]
+                assert d["intervals"][level][1] <= m["intervals"][level][1] <= a["intervals"][level][1]
+
+
+def test_the_predicted_observation_sets_are_scored_like_the_live_total(client):
+    snap = client.get("/api/examples/scn-pneumonia?minute=360").json()
+    sets = snap["predicted_obs_sets"]
+    assert [x["at"] for x in sets] == sorted(x["at"] for x in sets) and len(sets) == 16
+    assert all(x["source"] == "predicted" for x in sets)
+    news = {p["horizon_min"]: p["value"] for f in snap["forecast"]["forecasts"] if f["parameter"] == "news2" and f["scenario"] == "baseline" for p in f["points"]}
+    for h, x in zip(range(30, 481, 30), sets):
+        assert x["news2_total"] == round(news[h]) and sum(x["news2_components"].values()) == x["news2_total"]
+        assert {"rr", "spo2", "o2_flow", "bp_sys", "bp_dia", "bp_mean", "hr", "acvpu", "temp"} <= set(x["values"])

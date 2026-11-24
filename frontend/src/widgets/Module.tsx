@@ -19,8 +19,8 @@ export function tileValues(row: Row, numerics?: ExampleSnapshot["numerics"], not
   const at = (p: string) => (numerics as Record<string, number | string | null | undefined> | undefined)?.[p];
   if (n.includes("bp_sys") && n.includes("bp_dia")) {
     return [{ parameter: "bp_sys", name: "BP", value: at("bp_sys"),
-              extra: [{ separator: "/", value: at("bp_dia") }, ...(n.includes("bp_mean")
-                ? [{ separator: " ", wrap: [" (", ")"] as [string, string], value: at("bp_mean") }] : [])] }];
+              extra: [{ separator: "/", value: at("bp_dia"), parameter: "bp_dia" }, ...(n.includes("bp_mean")
+                ? [{ separator: " ", wrap: [" (", ")"] as [string, string], value: at("bp_mean"), parameter: "bp_mean" }] : [])] }];
   }
   return n.map((parameter, i) => ({ parameter, value: at(parameter), ...(i === 0 && notes.length ? { notes } : {}) }));
 }

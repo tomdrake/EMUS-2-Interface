@@ -1428,6 +1428,16 @@
           "title": "Column Source",
           "type": "string"
         },
+        "columns": {
+          "default": "observed",
+          "description": "'observed' = the charted sets; 'predicted' = one column for each forecast horizon, with the observations the forecast predicts, scored like the live total.",
+          "enum": [
+            "observed",
+            "predicted"
+          ],
+          "title": "Columns",
+          "type": "string"
+        },
         "continuous_interval_min": {
           "default": 60,
           "maximum": 240,
@@ -1504,6 +1514,7 @@
         "show_total_row",
         "show_escalation_rows",
         "show_future",
+        "columns",
         "column_source",
         "continuous_interval_min"
       ],

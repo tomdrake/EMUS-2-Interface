@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // jsdom has no layout; give every measured element a width so the boxes and the axis are drawn
 vi.mock("@/traces/useSize", () => ({ useSize: () => [{ current: null }, { w: 640, h: 300 }] }));
 
-import { PREDICTION_OVERLAY_SCREEN, useUi } from "@/app/store";
+import { PREDICTION_OVERLAY_SCREEN, isOverlayScreen, useUi } from "@/app/store";
 import { useExample } from "@/examples/store";
 
 import { AiSummary } from "./AiSummary";
@@ -28,12 +28,13 @@ const event = (id: string, label: string, minutes: number, probability: number) 
   certainty: [{ metric: "prediction_interval", score: 0.7, text: "70%", label: "", inputs: {} }],
 });
 const snapshot = (score = 0.6) => ({
-  generated_at: "2026-11-24T12:00:00Z", news2: { total: 6, risk: "medium" }, numerics: { hr: 100, rr: 20, spo2: 95, bp_sys: 120, temp: 37 },
+  generated_at: "2026-11-24T12:00:00Z", news2: { total: 6, risk: "medium" }, numerics: { hr: 100, rr: 20, spo2: 95, bp_sys: 120, bp_dia: 70, bp_mean: 87, temp: 37 },
+  bp_readings: [{ at: "2026-11-24T10:00:00Z", sys: 124, dia: 74, map: 91 }, { at: "2026-11-24T11:00:00Z", sys: 122, dia: 72, map: 89 }],
   obs_sets: [{ at: "2026-11-24T08:00:00Z", news2_total: 3, news2_risk: "low" }],
-  trends: { hr: { points: [{ t: -60, v: 95 }] } }, bp_readings: [],
+  trends: { hr: { points: [{ t: -60, v: 95 }] } },
   findings: [finding("a", "critical", "active", "Falling oxygen saturation"), finding("b", "info", "resolved", "Old finding"), finding("c", "warning", "active", "Raised temperature")],
   forecast: {
-    forecasts: ["news2", "hr", "rr", "spo2", "bp_sys", "temp"].map((p) => forecast(p, p === "temp" ? 37 : 10, score)),
+    forecasts: ["news2", "hr", "rr", "spo2", "bp_sys", "bp_dia", "bp_mean", "temp"].map((p) => forecast(p, p === "temp" ? 37 : p === "bp_dia" ? 6 : p === "bp_mean" ? 8 : 10, score)),
     news_bands: [], minutes_to_news_threshold: { "5": 45 },
     events: [event("news2_ge_7", "NEWS2 7 or more", 240, 0.5), event("desaturation", "Desaturation", 30, 0.66)],
   },
@@ -97,11 +98,49 @@ describe("the predicted trends (right half of the overlay)", () => {
     expect(dom.getByTestId("pt-box-480").dataset.value).toBe("18");                // 10 + 480 / 60 at the horizon the design chose
     expect(dom.queryByTestId("pt-box-90")).toBeNull();                              // only the design's horizons are boxed
   });
-  it("shows a certainty for each chart and for the NEWS2, and the switch removes them all", () => {
+  it("shows a certainty for each chart, and the switch removes them all", () => {
     render(<><PredictionSwitches widget={switchesWidget} /><PredictionTrends widget={trendsWidget} /></>);
-    expect(document.querySelectorAll('[data-testid^="pt-certainty-"]')).toHaveLength(6);
+    expect(document.querySelectorAll('[data-testid^="pt-certainty-"]')).toHaveLength(5);
     fireEvent.click(dom.getByTestId("fp-toggle-certainty"));
     expect(document.querySelectorAll('[data-testid^="pt-certainty-"]')).toHaveLength(0);
+  });
+  it("draws blood pressure as systolic, MAP and diastolic, each with its measured readings and its predicted intervals", () => {
+    render(<PredictionTrends widget={trendsWidget} />);
+    for (const id of ["bp_sys", "bp_mean", "bp_dia"]) {
+      expect(dom.getByTestId(`pt-${id}-chart-band80`)).toBeTruthy();
+      expect(dom.getByTestId(`pt-${id}-chart-band95`)).toBeTruthy();
+      expect(dom.getByTestId(`pt-${id}-chart-future`)).toBeTruthy();
+    }
+    expect(dom.getByTestId("pt-bp_sys-chart-end").dataset.value).toBe("18");
+    expect(dom.getByTestId("pt-bp_mean-chart-end").dataset.value).toBe("16");
+    expect(dom.getByTestId("pt-bp_dia-chart-end").dataset.value).toBe("14");
+    expect(dom.getByTestId("pt-values-bp_sys").textContent).toContain("Now 120/70 (87)");
+    expect(dom.getByTestId("pt-values-bp_sys").textContent).toContain("+8 H 18/14 (16)");
+    expect(document.querySelectorAll(".tf-bpx").length).toBeGreaterThan(0);                  // the MAP markers
+  });
+  it("puts a % confidence under each predicted NEWS2 box and none under the charted or current ones", () => {
+    render(<PredictionTrends widget={trendsWidget} />);
+    expect(dom.getByTestId("pt-conf-480").dataset.value).toBe("0.6");
+    expect(dom.getByTestId("pt-conf-480").textContent).toBe("60%");
+    expect(dom.getByTestId("pt-conf-60")).toBeTruthy();
+    expect(dom.queryByTestId("pt-conf-0")).toBeNull();
+    expect(dom.queryByTestId("pt-conf--240")).toBeNull();
+    expect(dom.getByTestId("pt-confcap").textContent).toBe("Confidence");
+  });
+  it("uses the certainty of that horizon when the forecast point has its own", () => {
+    const s = snapshot();
+    const news = s.forecast.forecasts.find((f: any) => f.parameter === "news2");
+    news.points.find((p: any) => p.horizon_min === 480).certainty = [{ metric: "prediction_interval", score: 0.42, text: "42%", label: "", inputs: {} }];
+    useExample.setState({ snapshot: s });
+    render(<PredictionTrends widget={trendsWidget} />);
+    expect(dom.getByTestId("pt-conf-480").textContent).toBe("42%");
+    expect(dom.getByTestId("pt-conf-60").textContent).toBe("60%");
+  });
+  it("the Certainty switch removes the confidences", () => {
+    render(<><PredictionSwitches widget={switchesWidget} /><PredictionTrends widget={trendsWidget} /></>);
+    fireEvent.click(dom.getByTestId("fp-toggle-certainty"));
+    expect(document.querySelectorAll('[data-testid^="pt-conf-"]')).toHaveLength(0);
+    expect(dom.queryByTestId("pt-confcap")).toBeNull();
   });
   it("each switch hides its part, and says so when nothing is left; the time axis stays", () => {
     render(<><PredictionSwitches widget={switchesWidget} /><PredictionTrends widget={trendsWidget} /></>);
@@ -213,5 +252,25 @@ describe("the Prediction Overlay switch", () => {
     expect(useUi.getState().screenId).toBe(PREDICTION_OVERLAY_SCREEN);
     act(() => useUi.getState().togglePredictionOverlay());
     expect(useUi.getState().screenId).toBe("monitor");
+  });
+});
+
+describe("the Prediction Overlay on the NEWS2 screen", () => {
+  it("opens the NEWS2 overlay from the NEWS2 screen and goes back to it", () => {
+    useUi.setState({ screenId: "news2" } as any);
+    act(() => useUi.getState().togglePredictionOverlay());
+    expect(useUi.getState().screenId).toBe("news2-predict");
+    expect(isOverlayScreen("news2-predict")).toBe(true);
+    act(() => useUi.getState().togglePredictionOverlay());
+    expect(useUi.getState().screenId).toBe("news2");
+  });
+  it("uses the monitor overlay from any other screen, and when the design has no NEWS2 overlay", () => {
+    useUi.setState({ screenId: "abcde" } as any);
+    act(() => useUi.getState().togglePredictionOverlay());
+    expect(useUi.getState().screenId).toBe(PREDICTION_OVERLAY_SCREEN);
+    act(() => useUi.getState().togglePredictionOverlay());
+    useUi.setState({ screenId: "news2", stored: { document: { ...design, screens: [{ id: "news2" }, { id: PREDICTION_OVERLAY_SCREEN }] } } as any });
+    act(() => useUi.getState().togglePredictionOverlay());
+    expect(useUi.getState().screenId).toBe(PREDICTION_OVERLAY_SCREEN);
   });
 });

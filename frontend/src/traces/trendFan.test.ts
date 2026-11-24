@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { axisMarks, fanGeometry, markText, type FanPoint } from "./TrendFan";
+import { axisMarks, fanGeometry, markText, spreadLabels, type FanPoint } from "./TrendFan";
 
 const pt = (t: number, v: number, w = 2): FanPoint => ({ t, v, i50: [v - w / 2, v + w / 2], i80: [v - w, v + w], i95: [v - 2 * w, v + 2 * w] });
 const series = { past: [{ t: -240, v: 90 }, { t: -120, v: 95 }, { t: -30, v: 100 }], now: 100, future: [pt(60, 104), pt(240, 110), pt(480, 112)] };
@@ -55,5 +55,24 @@ describe("the shared time axis", () => {
   });
   it("writes the marks", () => {
     expect([-240, 0, 120, 480].map(markText)).toEqual(["-4 H", "Now", "+2 H", "+8 H"]);
+  });
+});
+
+describe("spreadLabels", () => {
+  it("keeps labels that are far apart where they are", () => {
+    expect(spreadLabels([20, 80, 140], 24, 8, 160)).toEqual([20, 80, 140]);
+  });
+  it("pushes labels that touch apart, keeping their order and staying inside the plot", () => {
+    const out = spreadLabels([60, 62, 64], 24, 8, 160);
+    expect(out[1]! - out[0]!).toBeGreaterThanOrEqual(24);
+    expect(out[2]! - out[1]!).toBeGreaterThanOrEqual(24);
+    const low = spreadLabels([150, 152, 158], 24, 8, 160);
+    expect(Math.max(...low)).toBeLessThanOrEqual(160);
+    expect(low[0]!).toBeLessThan(low[1]!); expect(low[1]!).toBeLessThan(low[2]!);
+  });
+  it("returns each label for its own series, whatever the order they arrive in", () => {
+    const out = spreadLabels([100, 30, 31], 24, 8, 160);
+    expect(out[0]).toBe(100);
+    expect(out[2]! - out[1]!).toBeGreaterThanOrEqual(24);
   });
 });

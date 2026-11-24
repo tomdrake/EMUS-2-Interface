@@ -59,8 +59,12 @@ interface UiState {
 }
 
 export type PredictBlock = "news" | "obs" | "certainty";
-/** The screen the Prediction Overlay button shows (and takes you back from). */
+/** The screen the Prediction Overlay button shows from the main screen (and takes you back from). */
 export const PREDICTION_OVERLAY_SCREEN = "monitor-predict";
+/** The overlay of each screen that has one of its own: NEWS2 has its observations on the left and the predicted ones on the right. */
+export const OVERLAY_OF: Readonly<Record<string, string>> = { news2: "news2-predict" };
+/** Whether a screen is a prediction overlay. */
+export const isOverlayScreen = (id: string | null | undefined): boolean => id === PREDICTION_OVERLAY_SCREEN || Object.values(OVERLAY_OF).includes(id ?? "");
 const PREDICT_KEY = "emus.predict-show";
 function readPredict(): Partial<Record<PredictBlock, boolean>> {
   try {
@@ -148,8 +152,12 @@ export const useUi = create<UiState>((set) => ({
   }),
   togglePredictionOverlay: () => set((s) => {
     const home = s.stored?.document.home_screen ?? "monitor";
-    if (s.screenId === PREDICTION_OVERLAY_SCREEN) return { screenId: s.overlayFrom ?? home, overlayFrom: null, openMenu: null, openSheet: null };
-    return { overlayFrom: s.screenId ?? home, screenId: PREDICTION_OVERLAY_SCREEN, openMenu: null, openSheet: null };
+    if (isOverlayScreen(s.screenId)) return { screenId: s.overlayFrom ?? home, overlayFrom: null, openMenu: null, openSheet: null };
+    // each screen shows its own overlay (NEWS2 shows predicted NEWS2 parameters); any other shows the monitor with predicted trends
+    const exists = (id: string) => s.stored?.document.screens?.some((x) => x.id === id) ?? true;
+    const own = OVERLAY_OF[s.screenId ?? home];
+    const target = own && exists(own) ? own : PREDICTION_OVERLAY_SCREEN;
+    return { overlayFrom: s.screenId ?? home, screenId: target, openMenu: null, openSheet: null };
   }),
   setPredictShow: (block, on) => set((s) => {
     const predictShow = { ...s.predictShow, [block]: on };

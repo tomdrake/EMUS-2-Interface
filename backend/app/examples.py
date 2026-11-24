@@ -52,7 +52,8 @@ HORIZONS = tuple(range(30, 481, 30))
 HORIZON_END = HORIZONS[-1]
 #: How the spread of a prediction grows with how far ahead it looks (one unit of `base_sd` per this many minutes).
 SPREAD_MIN = 180
-LIMITS = {"news2": (0.0, 20.0), "rr": (0.0, 60.0), "spo2": (0.0, 100.0), "hr": (0.0, 300.0), "bp_sys": (0.0, 300.0), "temp": (25.0, 45.0)}
+LIMITS = {"news2": (0.0, 20.0), "rr": (0.0, 60.0), "spo2": (0.0, 100.0), "hr": (0.0, 300.0), "bp_sys": (0.0, 300.0),
+          "bp_dia": (0.0, 200.0), "bp_mean": (0.0, 250.0), "temp": (25.0, 45.0)}
 TREND_MINUTES = 1440
 TREND_STEP = 10
 
@@ -640,15 +641,17 @@ def _forecast_bundle(sc, minute, now, quality: float) -> ForecastBundle:
         fut = scenario_values(sc_id, minute + horizon)
         if param == "news2":
             return float(_news(fut, scale, skin=True).total)
+        if param == "bp_mean":
+            return (float(fut["bp_sys"]) + 2 * float(fut["bp_dia"])) / 3
         # temperature is predicted as the skin value the tile shows, not the core value of the script
         return float(fut[param]) + (SKIN_OFFSET_C if param == "temp" else 0.0)
 
     # the width of interval that would be a useless forecast: certainty falls toward 0 as the 6 h interval nears it
-    spans = {"news2": 12.0, "rr": 24.0, "spo2": 16.0, "hr": 80.0, "bp_sys": 120.0, "temp": 4.0}
+    spans = {"news2": 12.0, "rr": 24.0, "spo2": 16.0, "hr": 80.0, "bp_sys": 120.0, "bp_dia": 80.0, "bp_mean": 90.0, "temp": 4.0}
     forecasts: list[Forecast] = []
-    for param in ("news2", "rr", "spo2", "hr", "bp_sys", "temp"):
+    for param in ("news2", "rr", "spo2", "hr", "bp_sys", "bp_dia", "bp_mean", "temp"):
         pts = []
-        base_sd = {"news2": 0.7, "rr": 1.5, "spo2": 1.0, "hr": 5.0, "bp_sys": 6.0, "temp": 0.25}[param]
+        base_sd = {"news2": 0.7, "rr": 1.5, "spo2": 1.0, "hr": 5.0, "bp_sys": 6.0, "bp_dia": 4.0, "bp_mean": 4.5, "temp": 0.25}[param]
         for h in HORIZONS:
             val = point_values(param, h)
             sd = base_sd * (1 + h / SPREAD_MIN)
@@ -656,8 +659,13 @@ def _forecast_bundle(sc, minute, now, quality: float) -> ForecastBundle:
             floor, ceil = LIMITS[param]
             iv = {k: (round(max(floor, val - z * sd), 1), round(min(ceil, val + z * sd), 1))
                   for k, z in (("50", 0.674), ("80", 1.282), ("95", 1.96))}
+            # how sure it is at this horizon: the metrics that change as the interval widens and the horizon grows
+            pt_cert = [certainty.build("prediction_interval", lo=iv["80"][0], hi=iv["80"][1], reference_width=spans[param]),
+                       certainty.build("conformal_interval", lo=iv["95"][0], hi=iv["95"][1],
+                                       reference_width=spans[param] * 1.5, coverage=0.95),
+                       certainty.build("horizon_decay", horizon_min=h, tau_min=720)]
             pts.append(ForecastPoint(horizon_min=h, at=now + timedelta(minutes=h), value=round(val, 1),
-                                     intervals=iv))
+                                     intervals=iv, certainty=pt_cert))
         last = pts[-1]
         lo, hi = last.intervals["80"]
         forecasts.append(Forecast(
@@ -680,7 +688,7 @@ def _forecast_bundle(sc, minute, now, quality: float) -> ForecastBundle:
                                       value=round(p.value + shift * min(1, p.horizon_min / 120), 1),
                                       intervals={k: (round(a + shift * min(1, p.horizon_min / 120), 1),
                                                      round(b + shift * min(1, p.horizon_min / 120), 1))
-                                                 for k, (a, b) in p.intervals.items()}) for p in pts],
+                                                 for k, (a, b) in p.intervals.items()}, certainty=p.certainty) for p in pts],
                 certainty=forecasts[-1].certainty, model=MODEL))
 
     sd_news = {h: 0.7 * (1 + h / SPREAD_MIN) for h in HORIZONS}
@@ -841,6 +849,26 @@ def _obs_sets(sc: dict, minute: float, now: datetime, count: int = 8) -> list[Ob
     return sets
 
 
+def _predicted_sets(sc: dict, minute: float, now: datetime) -> list[ObservationSet]:
+    """What NEWS2 would be scored on at each forecast horizon: the forecast's observations (temperature as the skin value the
+    tile shows; oxygen and consciousness held as scripted), scored by the same rules as the live total."""
+    sets = []
+    for h in HORIZONS:
+        v = scenario_values(sc["id"], minute + h)
+        r = _news(v, sc["spo2_scale"], skin=True)
+        ox = v["oxygen"]
+        sys_, dia = round(v["bp_sys"]), round(v["bp_dia"])
+        sets.append(ObservationSet(
+            at=now + timedelta(minutes=h),
+            values={"rr": round(v["rr"]), "spo2": round(v["spo2"]), "o2_flow": ox["flow_l_min"], "bp_sys": sys_, "bp_dia": dia,
+                    "bp_mean": round((sys_ + 2 * dia) / 3), "hr": round(v["hr"]), "acvpu": v["acvpu"],
+                    "temp": round(v["temp"] + SKIN_OFFSET_C, 1)},
+            oxygen=OxygenTherapy(at=now + timedelta(minutes=h), flow_l_min=ox["flow_l_min"], device=ox["device"], source="simulated"),
+            news2_total=r.total, news2_components=r.components, news2_risk=r.risk, news2_complete=r.complete,
+            monitoring_hours=r.monitoring_hours, source="predicted"))
+    return sets
+
+
 def _temp_readings(sets: list[ObservationSet]) -> list[TempReading]:
     return [TempReading(at=o.at, value=float(o.values["temp"])) for o in reversed(sets)][:5]  # type: ignore[arg-type]
 
@@ -965,7 +993,8 @@ def snapshot(scenario_id: str, minute: float, now: datetime | None = None) -> Ex
     active: list[AlarmEvent] = []
     alarms_off: list[str] = []
     unmonitored: list[str] = []
-    for pid in ("hr", "spo2", "rr", "bp_sys", "temp"):
+    # systolic, diastolic and mean pressure each alarm on their own limits
+    for pid in ("hr", "spo2", "rr", "bp_sys", "bp_dia", "bp_mean", "temp"):
         p = registry.PARAMETERS[pid]
         sig = signals[pid]
         if sig.state in ("standby", "connection-lost", "sensor-off"):
@@ -1103,4 +1132,4 @@ def snapshot(scenario_id: str, minute: float, now: datetime | None = None) -> Ex
                        response=n2.response, inputs=news_inputs(v, skin=True), monitoring_hours=n2.monitoring_hours),
         devices=devices, signals=signals, quality=quality, alarms=alarm_state, strips=strips,
         trends=trends, bp_readings=_bp_readings(sc, minute, now, bool(cuff and cuff.connection == "connected")),
-        temp_readings=_temp_readings(obs_sets), labs=_labs(sc, minute, now), obs_sets=obs_sets, findings=findings, finding_data=data, forecast=forecast)
+        temp_readings=_temp_readings(obs_sets), labs=_labs(sc, minute, now), obs_sets=obs_sets, predicted_obs_sets=_predicted_sets(sc, minute, now), findings=findings, finding_data=data, forecast=forecast)

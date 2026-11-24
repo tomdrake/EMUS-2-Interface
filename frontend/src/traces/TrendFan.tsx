@@ -129,3 +129,88 @@ export function TrendFan({ series, tMin, tMax, colour, unit, decimals = 0, lines
     </div>
   );
 }
+
+/** One of the three blood pressures of the BP chart: its measured readings, its prediction and the marker that tells it apart. */
+export interface BpLine {
+  key: "bp_sys" | "bp_mean" | "bp_dia";
+  /** Marker, as on the monitor's BP trend: ▼ systolic, ✕ MAP, ▲ diastolic. */
+  marker: "down" | "x" | "up";
+  name: string;
+  series: FanSeries;
+}
+
+/** Spread labels at the right edge so none touches the next: each needs `gap` px, they keep their order and stay inside [min, max]. */
+export function spreadLabels(ys: number[], gap: number, min: number, max: number): number[] {
+  const order = ys.map((y, i) => ({ y, i })).sort((a, b) => a.y - b.y);
+  const out = order.map((o) => Math.min(max, Math.max(min, o.y)));
+  for (let k = 1; k < out.length; k++) if (out[k]! - out[k - 1]! < gap) out[k] = out[k - 1]! + gap;
+  for (let k = out.length - 1; k >= 0; k--) {
+    if (out[k]! > max) out[k] = max;
+    if (k + 1 < out.length && out[k + 1]! - out[k]! < gap) out[k] = out[k + 1]! - gap;
+  }
+  const res = new Array<number>(ys.length);
+  order.forEach((o, k) => { res[o.i] = out[k]!; });
+  return res;
+}
+
+function Marker({ kind, x, y }: { kind: BpLine["marker"]; x: number; y: number }) {
+  if (kind === "x") return <g className="tf-bpx"><line x1={x - 3.4} x2={x + 3.4} y1={y - 3.4} y2={y + 3.4} /><line x1={x - 3.4} x2={x + 3.4} y1={y + 3.4} y2={y - 3.4} /></g>;
+  const d = kind === "down" ? `${x - 4.2},${y - 3.6} ${x + 4.2},${y - 3.6} ${x},${y + 3.8}` : `${x - 4.2},${y + 3.6} ${x + 4.2},${y + 3.6} ${x},${y - 3.8}`;
+  return <polygon className="tf-bpmark" points={d} />;
+}
+
+/**
+ * Blood pressure as the monitor draws it, continued into the future: systolic (▼), MAP (✕) and diastolic (▲) on one value scale,
+ * their measured readings as markers joined by dotted lines, then each prediction dashed with its 80 % and 95 % intervals, markers at
+ * the predicted times and the three end values written at the right (spread so they never touch). Shares the time scale of every
+ * other chart.
+ */
+export function BpTrendFan({ lines, tMin, tMax, colour, hidden = false, testId, label, markersAt = [] }: {
+  lines: BpLine[]; tMin: number; tMax: number; colour: string; hidden?: boolean; testId: string; label?: string; markersAt?: number[];
+}) {
+  const [ref, { w, h }] = useSize<HTMLDivElement>();
+  const shown = lines.map((l) => (hidden ? { ...l, series: { ...l.series, future: [] } } : l));
+  // one value scale over all three, so the lines keep their order and the bands line up
+  const all = shown.flatMap((l) => [...l.series.past.filter((p) => p.t >= tMin).map((p) => p.v), ...(l.series.now != null ? [l.series.now] : []),
+    ...l.series.future.filter((f) => f.t <= tMax).flatMap((f) => [f.i95[0], f.i95[1]])]);
+  const lo = all.length ? Math.min(...all) : 0, hi = all.length ? Math.max(...all) : 1, pad = Math.max(1, (hi - lo) * 0.06);
+  const geo = w > 0 && h > 0 ? shown.map((l) => fanGeometry(l.series, { tMin, tMax, w, h, yFloor: lo - pad, yCeil: hi + pad })) : null;
+  const g0 = geo?.[0];
+  const ends = shown.map((l) => l.series.future.filter((f) => f.t <= tMax).slice(-1)[0]);
+  const labelY = geo && g0 ? spreadLabels(geo.map((g, i) => (g.end && ends[i] ? g.end.y : g0.plot.b)), 24, g0.plot.t + 8, g0.plot.b - 14) : [];
+  return (
+    <div className="trend-fan trend-fan-bp" ref={ref} data-testid={testId} data-bands={geo?.some((g) => g.band80) ? "true" : undefined}>
+      {geo && g0 && (
+        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={label} style={{ color: colour }}>
+          {axisMarks(tMin, tMax).map((t) => <line key={t} className={`tf-grid${t === 0 ? " is-now" : ""}`} x1={g0.x(t)} x2={g0.x(t)} y1={g0.plot.t} y2={g0.plot.b} />)}
+          <rect className="tf-future" x={g0.x(0)} y={g0.plot.t} width={Math.max(0, g0.plot.r - g0.x(0))} height={g0.plot.b - g0.plot.t} />
+          {g0.ticks.map((v) => (
+            <g key={v}>
+              <line className="tf-tick" x1={g0.plot.l - 4} x2={g0.plot.l} y1={g0.y(v)} y2={g0.y(v)} />
+              <text className="tf-label" x={g0.plot.l - 6} y={g0.y(v) + 3.5} textAnchor="end">{v.toFixed(0)}</text>
+            </g>
+          ))}
+          {shown.map((l, i) => {
+            const g = geo[i]!, id = `pt-${l.key}-chart`, last = ends[i];
+            return (
+              <g key={l.key} data-testid={`${id}-line`}>
+                {g.band95 && <path className="tf-band95" d={g.band95} data-testid={`${id}-band95`} />}
+                {g.band80 && <path className="tf-band80" d={g.band80} data-testid={`${id}-band80`} />}
+                {g.past && <path className="tf-bppast" d={g.past} data-testid={`${id}-past`} />}
+                {g.future && l.series.future.length > 0 && <path className="tf-line" d={g.future} data-testid={`${id}-future`} />}
+                {l.series.past.filter((p) => p.t >= tMin && p.t <= 0).map((p) => <Marker key={`m${p.t}`} kind={l.marker} x={g.x(p.t)} y={g.y(p.v)} />)}
+                {l.series.future.filter((f) => markersAt.includes(f.t) && f.t <= tMax).map((f) => <Marker key={`f${f.t}`} kind={l.marker} x={g.x(f.t)} y={g.y(f.v)} />)}
+                {g.end && last && (
+                  <g data-testid={`${id}-end`} data-value={last.v}>
+                    <text className="tf-end-value" x={g.plot.r + 5} y={labelY[i]! + 3}>{l.name} {last.v.toFixed(0)}</text>
+                    <text className="tf-end-range" x={g.plot.r + 5} y={labelY[i]! + 13}>{last.i80[0].toFixed(0)}-{last.i80[1].toFixed(0)}</text>
+                  </g>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+      )}
+    </div>
+  );
+}

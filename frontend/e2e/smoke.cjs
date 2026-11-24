@@ -1338,18 +1338,21 @@ for (const vp of VIEWPORTS) {
   check(await T("tab-prediction-overlay").getAttribute("aria-pressed") === "true" && await page.locator('[data-testid^="row-"][data-parameter="spo2"]').first().isVisible() && await T("row-ecg").isVisible(), `${vp.name}: the button shows it is on, and the monitor rows are on the left`);
   const pt = await T("prediction-trends");
   check(await T("pt-axis").getAttribute("data-max") === "480" && await T("pt-axis").getAttribute("data-min") === "-240" && await T("pt-mark-480").isVisible() && await T("pt-mark--240").isVisible(), `${vp.name}: the shared time axis runs from -4 H to +8 H`);
-  for (const id of ["hr", "rr", "spo2", "bp_sys", "temp"]) {
+  for (const id of ["hr", "rr", "spo2", "bp_sys", "bp_mean", "bp_dia", "temp"]) {
     const f = api360.forecast.forecasts.find((x) => x.parameter === id && x.scenario === "baseline");
     const endPt = f.points.find((q) => q.horizon_min === 480);
     const chart = `pt-${id}-chart`;
     const ok = await T(`${chart}-band95`).count() === 1 && await T(`${chart}-band80`).count() === 1 && await T(`${chart}-future`).count() === 1
       && +(await T(`${chart}-end`).getAttribute("data-value")) === endPt.value;
     check(ok, `${vp.name}: ${id} shows its predicted trend with 80 % and 95 % intervals, ending at the API's +8 H value (${endPt.value})`);
-    check(await T(`pt-certainty-${id}`).isVisible(), `${vp.name}: ${id} shows its certainty`);
+    if (id !== "bp_mean" && id !== "bp_dia") check(await T(`pt-certainty-${id}`).isVisible(), `${vp.name}: ${id} shows its certainty`);
   }
   // the NEWS2 total in boxes along the bottom, over time
   const newsF = api360.forecast.forecasts.find((x) => x.parameter === "news2" && x.scenario === "baseline");
-  check(+(await T("pt-box-0").getAttribute("data-value")) === api360.news2.total && await T("pt-certainty-news").isVisible(), `${vp.name}: the NEWS2 box for now shows the live total (${api360.news2.total}) and its certainty`);
+  check(+(await T("pt-box-0").getAttribute("data-value")) === api360.news2.total && await T("pt-conf-0").count() === 0, `${vp.name}: the NEWS2 box for now shows the live total (${api360.news2.total}) and, being measured, no confidence`);
+  const confApi = (min) => newsF.points.find((q) => q.horizon_min === min).certainty.find((c) => c.metric === "prediction_interval").score;
+  const confShown = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-testid^="pt-conf-"]')].map((e) => [e.dataset.testid.replace("pt-conf-", ""), +e.dataset.value])));
+  check([60, 120, 240, 360, 480].every((m) => Math.abs((confShown[m] ?? -1) - confApi(m)) < 0.006) && confShown[480] < confShown[60], `${vp.name}: each predicted NEWS2 box has its own % confidence, as the API gives it, falling with the horizon (${JSON.stringify(confShown)})`);
   check(+(await T("pt-box-480").getAttribute("data-value")) === Math.round(newsF.points.find((q) => q.horizon_min === 480).value) && await T("pt-box-480").getAttribute("data-kind") === "future", `${vp.name}: a predicted NEWS2 box at +8 H matches the API`);
   const pastBoxes = await page.locator('[data-testid^="pt-box-"][data-kind="past"]').count();
   check(pastBoxes >= 1 && await page.locator('[data-testid^="pt-box-"][data-kind="future"]').count() >= 3, `${vp.name}: charted NEWS2 totals and predicted ones are boxed along the time axis (${pastBoxes} charted)`);
@@ -1372,6 +1375,26 @@ for (const vp of VIEWPORTS) {
   await settle();
   check(await T("tab-prediction-overlay").getAttribute("aria-pressed") === "false" && await page.locator('[data-testid="screen-monitor-predict"]').count() === 0, `${vp.name}: pressing the button again goes back to the screen it came from`);
 
+  // the NEWS2 screen's own overlay: the observed columns on the left, the predicted NEWS2 parameters on the right
+  await T("tab-news2").click(); await T("news2-chart").first().waitFor();
+  await T("tab-prediction-overlay").click(); await page.locator('[data-testid="screen-news2-predict"]').waitFor();
+  await page.waitForTimeout(800);
+  const charts = page.locator('[data-testid="news2-chart"]');
+  check(await charts.count() === 2, `${vp.name}: on the NEWS2 screen the overlay shows two NEWS2 charts, observed and predicted`);
+  const cols = await page.evaluate(() => [...document.querySelectorAll('[data-testid="news2-chart"]')[1].querySelectorAll("[data-minutes]")].map((e) => +e.dataset.minutes));
+  check(JSON.stringify(cols) === JSON.stringify(api360.predicted_obs_sets.filter((s) => [60, 120, 240, 360, 480].includes((Date.parse(s.at) - Date.parse(api360.generated_at)) / 60000)).map((s) => (Date.parse(s.at) - Date.parse(api360.generated_at)) / 60000)), `${vp.name}: the predicted chart has a column for each forecast horizon (${cols.join(", ")})`);
+  const predTotals = await page.evaluate(() => [...document.querySelectorAll('[data-testid="news2-chart"]')[1].querySelectorAll('[data-testid^="news-total-"]')].map((e) => [+e.dataset.total, e.dataset.confidence]));
+  const apiTotals = api360.predicted_obs_sets.filter((s) => [60, 120, 240, 360, 480].includes((Date.parse(s.at) - Date.parse(api360.generated_at)) / 60000)).map((s) => s.news2_total);
+  check(JSON.stringify(predTotals.map((x) => x[0])) === JSON.stringify(apiTotals) && predTotals.every(([, c]) => /^\d+%$/.test(c)), `${vp.name}: the predicted totals are the API's, each with a % confidence (${JSON.stringify(predTotals)})`);
+  const paramsPred = await page.evaluate(() => [...document.querySelectorAll('[data-testid="news2-chart"]')[1].querySelectorAll('[data-testid^="news-group-"]')].map((e) => e.dataset.testid.replace("news-group-", "")));
+  check(["rr", "spo2", "o2_flow", "bp_sys", "hr", "acvpu", "temp"].every((k) => paramsPred.includes(k)), `${vp.name}: every NEWS2 parameter is predicted (${paramsPred.join(", ")})`);
+  const n2Align = await page.evaluate(() => { const a = document.querySelectorAll('[data-testid="news2-chart"]'); return ["rr", "spo2", "bp_sys", "hr", "temp"].map((k) => { const l = a[0].querySelector(`[data-testid="news-group-${k}"] .n2-block`).getBoundingClientRect(), r = a[1].querySelector(`[data-testid="news-group-${k}"] .n2-block`).getBoundingClientRect(); return Math.round(Math.abs(l.top - r.top) + Math.abs(l.height - r.height)); }); });
+  check(n2Align.every((d) => d <= 2), `${vp.name}: each parameter row of the predicted chart is level with the observed one (${n2Align.join(",")})`);
+  check(await T("tab-prediction-overlay").getAttribute("aria-pressed") === "true", `${vp.name}: the overlay button shows it is on`);
+  await T("tab-prediction-overlay").click(); await settle();
+  check(await page.locator('[data-testid="screen-news2"]').count() === 1 && await T("tab-prediction-overlay").getAttribute("aria-pressed") === "false", `${vp.name}: pressing it again returns to the NEWS2 screen`);
+  await T("tab-monitor").click();
+
   // the Prediction tab: AI findings and events
   await T("tab-predict").click(); await T("ai-summary").waitFor();
   const active = api360.findings.filter((f) => f.status === "active").length;
@@ -1386,10 +1409,53 @@ for (const vp of VIEWPORTS) {
   check(evs.every((e) => evProb.includes(e.probability)), `${vp.name}: each event shows the API's probability`);
   await T("tab-monitor").click();
 
+  // ---- Round 12: a value in alarm is a box of its own colour with white digits, alternating with the normal number
+  const alarmed = async (minute) => {
+    await goDesign("icu-monitor", "monitor"); await ex("setScenario", "scn-pneumonia"); await ex("setMinute", minute); await settle();
+    return page.evaluate(() => [...document.querySelectorAll("[data-alarm]")].map((e) => `${e.closest('[data-testid^="cell-"]').dataset.testid.replace("cell-", "")}:${e.textContent}:${e.dataset.alarm}`).sort());
+  };
+  const apiAlarm = async (minute) => (await api(`/api/examples/scn-pneumonia?minute=${minute}`)).alarms.active.filter((a) => a.kind !== "technical").map((a) => `${a.parameter}:${a.value}`);
+  const a360 = await alarmed(360), a360api = await apiAlarm(360);
+  check(["hr", "spo2", "rr", "temp"].every((p) => a360.some((x) => x.startsWith(`${p}:`))) && a360api.some((x) => x.startsWith("hr:")) && !a360.some((x) => x.startsWith("pulse")), `${vp.name}: at 360 min HR, SpO2, RR and temperature are highlighted, as the API alarms them (${a360.join(" ")})`);
+  const a480 = await alarmed(480);
+  check(a480.some((x) => x.endsWith(":medium") && x.startsWith("bp_sys:63")) && !a480.some((x) => x.startsWith("bp_sys:90") || x.includes(":50:")), `${vp.name}: at 480 min only the MAP (63) of the blood pressure is highlighted (${a480.join(" ")})`);
+  check((await apiAlarm(480)).includes("bp_mean:63") && !(await apiAlarm(480)).some((x) => x.startsWith("bp_sys") || x.startsWith("bp_dia")), `${vp.name}: the API alarms the MAP alone at 480 min`);
+  // alternation: sample for two and a half seconds; a high priority number must be seen both highlighted and normal
+  const seen = new Set();
+  for (let i = 0; i < 25; i++) { seen.add(await page.evaluate(() => document.querySelector('[data-alarm="high"]').dataset.flash)); await page.waitForTimeout(100); }
+  check(seen.has("on") && seen.has("off"), `${vp.name}: a high priority number alternates between the box and the normal number (${[...seen].join(",")})`);
+  const look = await page.evaluate(() => new Promise((res) => { const find = () => { const e = document.querySelector('[data-alarm="high"][data-flash="on"]'); if (!e) return requestAnimationFrame(find); const o = getComputedStyle(e), i = getComputedStyle(e.firstElementChild); res({ bg: o.backgroundColor, colour: o.color, ink: i.color, dark: e.dataset.ink }); }; find(); }));
+  check(look.bg === look.colour && (look.dark === "dark" ? look.ink === "rgb(0, 0, 0)" : look.ink === "rgb(255, 255, 255)"), `${vp.name}: in the highlighted phase the box is the observation's own colour with white digits (${JSON.stringify(look)})`);
+  const numSizes = await page.evaluate(() => [...document.querySelectorAll('[data-alarm]')].map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)].join("x"); }));
+  await page.waitForTimeout(700);
+  const numSizes2 = await page.evaluate(() => [...document.querySelectorAll('[data-alarm]')].map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)].join("x"); }));
+  check(JSON.stringify(numSizes) === JSON.stringify(numSizes2), `${vp.name}: flashing never changes the size of a number (nothing moves)`);
+  const crowd = await page.evaluate(() => {
+    const out = [];
+    const textBox = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect(); };
+    for (const n of document.querySelectorAll("[data-alarm]")) {
+      const a = n.getBoundingClientRect();
+      for (const o of n.closest(".tile").querySelectorAll(".tile-head, .tile-foot, .bp-tile, .tile-last, .tile-flag, .tile-note-head")) {
+        const b = textBox(o);                       // the words themselves, not the (wider) box they sit in
+        if (b.width > 0 && Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5) out.push(`${n.textContent} over ${o.className}`);
+      }
+      const cs = getComputedStyle(n); if (cs.borderTopLeftRadius !== "0px") out.push(`${n.textContent} has rounded corners`);
+    }
+    return out;
+  });
+  check(crowd.length === 0, `${vp.name}: highlighted numbers have square corners and overlap nothing (${crowd.slice(0, 3).join("; ")})`);
+  const bang = await page.evaluate(() => { const svg = document.querySelector(".priority-triangle"); if (!svg) return null; const t = svg.querySelector(".prio-body").getBoundingClientRect(); return [...svg.querySelectorAll(".prio-bang")].every((e) => { const r = e.getBoundingClientRect(); return r.left >= t.left && r.right <= t.right && r.top >= t.top && r.bottom <= t.bottom; }); });
+  check(bang === true, `${vp.name}: the exclamation mark is inside the red triangle`);
+  await T("tab-prediction-overlay").click(); await T("prediction-trends").waitFor();
+  check(await page.locator('[data-alarm]').count() > 0, `${vp.name}: the overlay's monitor half highlights alarming numbers too`);
+  await T("tab-prediction-overlay").click();
+  await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 0); await settle();
+  check(await page.locator('[data-alarm]').count() === 0, `${vp.name}: with nothing in alarm no number is highlighted`);
+
   // Nothing overlaps, nothing is cut off, everything has padding; and the words are capitalised
   const { audit } = require("./layout-audit.cjs");
   const { capsAudit } = require("./caps-audit.cjs");
-  for (const [d, sc, scen, min] of [["icu-monitor", "monitor", "scn-af", 20], ["icu-modules", "monitor", "scn-pneumonia", 180], ["icu-monitor", "abcde", "scn-copd", -20], ["icu-monitor", "predict", "scn-pneumonia", 120], ["icu-monitor", "monitor-predict", "scn-pneumonia", 360]]) {
+  for (const [d, sc, scen, min] of [["icu-monitor", "monitor", "scn-af", 20], ["icu-modules", "monitor", "scn-pneumonia", 180], ["icu-monitor", "abcde", "scn-copd", -20], ["icu-monitor", "predict", "scn-pneumonia", 120], ["icu-monitor", "monitor-predict", "scn-pneumonia", 360], ["icu-monitor", "monitor", "scn-pneumonia", 360], ["icu-monitor", "monitor", "scn-pneumonia", 480]]) {
     await goDesign(d, sc); await ex("setScenario", scen); await ex("setMinute", min); await settle();
     const r = await audit(page);
     check(r.problems.length === 0, `${vp.name}: ${d}/${sc} has no overlaps, cut-off text or missing padding ${r.problems.slice(0, 3).join(" | ")}`);

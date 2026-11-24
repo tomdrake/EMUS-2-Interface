@@ -1106,6 +1106,13 @@
           "title": "Placeholder",
           "type": "boolean"
         },
+        "predicted_obs_sets": {
+          "items": {
+            "$ref": "#/$defs/ObservationSet"
+          },
+          "title": "Predicted Obs Sets",
+          "type": "array"
+        },
         "quality": {
           "items": {
             "$ref": "#/$defs/SignalQuality"
@@ -1253,6 +1260,7 @@
         "temp_readings",
         "labs",
         "obs_sets",
+        "predicted_obs_sets",
         "findings",
         "finding_data",
         "forecast"
@@ -1795,6 +1803,13 @@
           "title": "At",
           "type": "string"
         },
+        "certainty": {
+          "items": {
+            "$ref": "#/$defs/CertaintyValue"
+          },
+          "title": "Certainty",
+          "type": "array"
+        },
         "horizon_min": {
           "title": "Horizon Min",
           "type": "integer"
@@ -1826,7 +1841,8 @@
         "horizon_min",
         "at",
         "value",
-        "intervals"
+        "intervals",
+        "certainty"
       ],
       "title": "ForecastPoint",
       "type": "object"
@@ -2851,7 +2867,8 @@
           "default": "charted",
           "enum": [
             "charted",
-            "continuous"
+            "continuous",
+            "predicted"
           ],
           "title": "Source",
           "type": "string"

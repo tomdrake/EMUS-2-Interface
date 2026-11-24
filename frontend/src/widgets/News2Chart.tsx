@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type { Axis, Band } from "@/app/api";
+import { pickCertainty } from "@/ai/certainty";
 import { useDesign, useTheme, useUi } from "@/app/store";
 import type { ExampleSnapshot } from "@/contracts/types.gen";
 import { fmtDate, fmtTime, useFormats } from "@/design/datetime";
@@ -116,7 +117,8 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
   const snapshot = useSnapshot();
   const theme = useTheme();
   const registry = useUi((s) => s.registry);
-  const horizons = useDesign()?.forecast.horizons_min ?? [60, 120, 240, 360];
+  const design = useDesign();
+  const horizons = design?.forecast.horizons_min ?? [60, 120, 240, 360];
   const [ref, { w, h }] = useSize<HTMLDivElement>();
   const formats = useFormats();
   const [shown, setShown] = useState<1 | 2 | null>(null);
@@ -152,9 +154,18 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
   const vw = realW / k;          // the width in drawing units
   // As many columns as fit at a readable width: the newest sets, then the predictions.
   const fit = Math.max(3, Math.floor((vw - left - 6) / MIN_COL));
-  const allSets = visibleSets(snapshot.obs_sets, snapshot.generated_at, widget.hours_visible);
-  const future = futureAll.slice(0, Math.max(0, Math.min(futureAll.length, fit - Math.min(allSets.length, 3))));
-  const sets = allSets.slice(-Math.max(1, fit - future.length));
+  // "predicted" columns: one for each forecast horizon the design chose, holding the observations the forecast predicts
+  const predicted = widget.columns === "predicted";
+  const nowMs = Date.parse(snapshot.generated_at);
+  const minutesOf = (s: ObsSet) => Math.round((Date.parse(s.at) - nowMs) / 60000);
+  const allSets = predicted ? (snapshot.predicted_obs_sets ?? []).filter((s) => horizons.includes(minutesOf(s) as never))
+    : visibleSets(snapshot.obs_sets, snapshot.generated_at, widget.hours_visible);
+  const future = predicted ? [] : futureAll.slice(0, Math.max(0, Math.min(futureAll.length, fit - Math.min(allSets.length, 3))));
+  const sets = predicted ? allSets.slice(0, Math.max(1, fit)) : allSets.slice(-Math.max(1, fit - future.length));
+  const confidenceOf = (s: ObsSet): string | null => {
+    const c = pickCertainty(news?.points.find((p) => p.horizon_min === minutesOf(s))?.certainty ?? [], design?.forecast.certainty.metric ?? "prediction_interval");
+    return c ? `${Math.round(Math.min(1, Math.max(0, c.score)) * 100)}%` : null;
+  };
   const cols = sets.length + future.length;
   const band = theme.news_bands as unknown as Record<string, string>;
   const fill = (score: number) => band[`score_${Math.min(3, score)}`] ?? "transparent";
@@ -192,11 +203,11 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
       </div>
       <svg className="news2-svg" width={svgW * k} height={height * k} viewBox={`0 0 ${svgW} ${height}`} data-scale={k.toFixed(3)} role="img" aria-label="NEWS2 observation chart">
         {/* the time each set was taken */}
-        <text x={left - 4} y={12} textAnchor="end" className="n2-label">Date</text>
-        <text x={left - 4} y={24} textAnchor="end" className="n2-label">Time</text>
+        <text x={left - 4} y={12} textAnchor="end" className="n2-label">{predicted ? "Predicted" : "Date"}</text>
+        <text x={left - 4} y={24} textAnchor="end" className="n2-label">{predicted ? "Clock" : "Time"}</text>
         {sets.map((s, i) => (
-          <g key={s.at} data-testid={`news-col-${i}`} className="n2-headtext">
-            <text x={cx(i)} y={12} textAnchor="middle" className="n2-date">{date(s.at)}</text>
+          <g key={s.at} data-testid={`news-col-${i}`} data-minutes={predicted ? minutesOf(s) : undefined} className="n2-headtext">
+            <text x={cx(i)} y={12} textAnchor="middle" className="n2-date">{predicted ? `+${minutesOf(s) / 60} h` : date(s.at)}</text>
             <text x={cx(i)} y={24} textAnchor="middle" className="n2-time">{time(s.at)}</text>
           </g>
         ))}
@@ -368,16 +379,23 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
 
         {/* vertical grid between sets */}
         {blocks.map(({ g, top }) => Array.from({ length: cols + 1 }, (_, i) => (
-          <line key={`${g.key}${i}`} x1={colX(i)} x2={colX(i)} y1={top} y2={top + blockHeight(g, rowH)} className={`n2-grid${i > sets.length ? " is-future" : ""}`} />)))}
+          <line key={`${g.key}${i}`} x1={colX(i)} x2={colX(i)} y1={top} y2={top + blockHeight(g, rowH)} className={`n2-grid${predicted || i > sets.length ? " is-future" : ""}`} />)))}
 
         {widget.show_total_row && (
           <g data-testid="news-totals">
             <rect x={0} y={totalTop} width={left} height={totalH} style={{ fill: band.header }} />
             <text x={6} y={totalTop + totalH / 2 + 4} className="n2-label" style={{ fill: band.header_text }}>NEWS Total</text>
             {sets.map((s, i) => (
-              <g key={s.at} data-testid={`news-total-${i}`} data-total={s.news2_total ?? ""} data-risk={s.news2_risk ?? ""}>
+              <g key={s.at} data-testid={`news-total-${i}`} data-total={s.news2_total ?? ""} data-risk={s.news2_risk ?? ""} data-confidence={predicted ? confidenceOf(s) ?? "" : undefined}>
                 <rect x={colX(i)} y={totalTop} width={colW} height={totalH} style={{ fill: fill(totalRisk(s)) }} className="n2-totalcell" />
-                <text x={cx(i)} y={totalTop + totalH / 2 + 5} textAnchor="middle" className="n2-totaltext" style={{ fill: readableOn(fill(totalRisk(s))) }}>{s.news2_total}</text>
+                {predicted ? (
+                  <>
+                    <text x={cx(i)} y={totalTop + 12} textAnchor="middle" className="n2-totaltext n2-small" style={{ fill: readableOn(fill(totalRisk(s))) }}>{s.news2_total}</text>
+                    {confidenceOf(s) && <text x={cx(i)} y={totalTop + 24} textAnchor="middle" className="n2-range" data-testid={`news-confidence-${i}`} style={{ fill: readableOn(fill(totalRisk(s))) }}>{confidenceOf(s)} Sure</text>}
+                  </>
+                ) : (
+                  <text x={cx(i)} y={totalTop + totalH / 2 + 5} textAnchor="middle" className="n2-totaltext" style={{ fill: readableOn(fill(totalRisk(s))) }}>{s.news2_total}</text>
+                )}
               </g>
             ))}
             {future.map((p, i) => {

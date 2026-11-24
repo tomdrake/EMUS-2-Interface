@@ -1,5 +1,5 @@
 import { SilenceButton } from "@/alarms/SilenceButton";
-import { PREDICTION_OVERLAY_SCREEN, useDesign, useUi } from "@/app/store";
+import { isOverlayScreen, useDesign, useUi } from "@/app/store";
 import { resolveAction } from "@/design/nav";
 import { label } from "@/design/text";
 import { useMeasure } from "@/examples/measure";
@@ -43,7 +43,7 @@ export function ActionButton({ button, where, showLabel }:
   const r = resolveAction(design, button.action);
   const active = (r.kind === "screen" && r.screenId === screenId)
     || (r.kind === "menu" && openMenu?.id === r.menu.id) || (r.kind === "overlay" && overlayOn)
-    || (r.kind === "prediction-overlay" && screenId === PREDICTION_OVERLAY_SCREEN);
+    || (r.kind === "prediction-overlay" && isOverlayScreen(screenId));
   const text = r.kind === "theme" ? (mode === "dark" ? "Light" : "Dark")
     : r.kind === "ai" ? (aiOn ? "AI On" : "AI Off") : button.label;
   return (

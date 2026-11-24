@@ -8,9 +8,9 @@ export function PriorityMark({ priority, mark, testId }: { priority: string; mar
     return (
       <span className="notif-mark mark-high" data-testid={testId} data-mark={mark} role="img" aria-label="High priority">
         <svg className="priority-triangle" width="18" height="16" viewBox="0 0 24 21" aria-hidden="true" focusable="false">
-          <path d="M12 1.6 22.6 19.4H1.4z" className="pt-body" />
-          <rect x="10.7" y="7.2" width="2.6" height="6.6" rx="1.2" className="pt-mark" />
-          <circle cx="12" cy="16.4" r="1.5" className="pt-mark" />
+          <path d="M12 1.6 22.6 19.4H1.4z" className="prio-body" />
+          <rect x="10.7" y="7.2" width="2.6" height="6.6" rx="1.2" className="prio-bang" />
+          <circle cx="12" cy="16.4" r="1.5" className="prio-bang" />
         </svg>
       </span>
     );

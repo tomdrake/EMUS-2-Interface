@@ -199,6 +199,8 @@ class ExampleSnapshot(_Model):
     labs: list[LabResult]
     #: Charted observation sets, oldest first, each scored for NEWS2.
     obs_sets: list[ObservationSet]
+    #: The observations NEWS2 would score at each forecast horizon (every 30 minutes to 8 hours), from the forecast; for the predicted NEWS2 chart.
+    predicted_obs_sets: list[ObservationSet] = Field(default_factory=list)
     findings: list[Finding]
     finding_data: dict[str, FindingData]
     forecast: ForecastBundle
