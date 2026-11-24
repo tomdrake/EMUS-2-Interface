@@ -240,10 +240,7 @@ class News2ChartWidget(_Widget):
     hours_visible: int = Field(24, ge=4, le=168)
     show_total_row: bool = True
     show_escalation_rows: bool = True
-    show_future: bool = Field(True, description="Append predicted columns (see forecast).")
-    columns: Literal["observed", "predicted"] = Field(
-        "observed", description="'observed' = the charted sets; 'predicted' = one column for each forecast horizon, "
-                                "with the observations the forecast predicts, scored like the live total.")
+    show_future: bool = Field(True, description="Append the predicted columns: every parameter as the forecast predicts it, scored, drawn darker and hatched.")
     column_source: Literal["charted", "continuous"] = Field(
         "charted", description="'charted' = recorded observation sets; "
                                "'continuous' = derived from the wearable every interval.")

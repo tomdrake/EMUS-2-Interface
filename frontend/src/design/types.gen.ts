@@ -992,10 +992,6 @@ export interface News2ChartWidget {
    * 'charted' = recorded observation sets; 'continuous' = derived from the wearable every interval.
    */
   column_source: "charted" | "continuous";
-  /**
-   * 'observed' = the charted sets; 'predicted' = one column for each forecast horizon, with the observations the forecast predicts, scored like the live total.
-   */
-  columns: "observed" | "predicted";
   continuous_interval_min: number;
   hours_visible: number;
   /**
@@ -1004,7 +1000,7 @@ export interface News2ChartWidget {
   id: string;
   show_escalation_rows: boolean;
   /**
-   * Append predicted columns (see forecast).
+   * Append the predicted columns: every parameter as the forecast predicts it, scored, drawn darker and hatched.
    */
   show_future: boolean;
   show_total_row: boolean;

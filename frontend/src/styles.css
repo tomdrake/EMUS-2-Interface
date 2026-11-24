@@ -1083,3 +1083,19 @@ button:disabled { opacity: 0.45; }
 .tf-bppast { fill: none; stroke: currentColor; stroke-width: 1.2; stroke-dasharray: 2 3; stroke-linejoin: round; }
 .tf-bpmark { fill: currentColor; stroke: var(--c-background); stroke-width: 0.6; }
 .tf-bpx line { stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+
+/* ---- the predicted part of a NEWS2 chart: darker, thinly hatched over the score colours, dashed trends, hollow markers ---- */
+.news2-chart { --n2-pred-veil: rgba(0, 0, 0, 0.36); --n2-hatch: rgba(255, 255, 255, 0.55); }
+.news2-chart[data-mode="light"] { --n2-pred-veil: rgba(20, 24, 31, 0.28); --n2-hatch: rgba(0, 0, 0, 0.5); }
+.news2-svg .n2-predveil { fill: var(--n2-pred-veil); }
+.news2-svg .n2-hatchline { stroke: var(--n2-hatch); stroke-width: 0.9; }
+.news2-svg .n2-predbanner { fill: var(--c-surface-alt); }
+.news2-svg .n2-predtext { font-size: 9.5px; font-weight: 700; fill: var(--c-text); letter-spacing: 0.02em; }
+.news2-svg .n2-now { stroke: var(--c-text); stroke-width: 2; }
+.news2-svg .n2-nowtext { font-size: 9px; font-weight: 800; fill: var(--c-text); }
+.news2-svg .n2-predline { stroke-dasharray: 4 3; }
+.news2-svg .n2-dot.is-predicted { fill: var(--c-background); stroke-width: 1.6; }
+.news2-svg .n2-arrow.is-predicted { fill: var(--c-background); stroke-width: 1.4; }
+.news2-svg .n2-foot.is-predicted { opacity: 0.8; font-style: italic; }
+.news2-svg .n2-totalhatch { opacity: 0.9; }
+.pt-box.is-future { background-image: repeating-linear-gradient(45deg, transparent 0 4px, color-mix(in srgb, currentColor 35%, transparent) 4px 5px); }

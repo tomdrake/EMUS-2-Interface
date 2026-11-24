@@ -1093,7 +1093,7 @@ for (const vp of VIEWPORTS) {
   const stat = await page.evaluate(() => Object.fromEntries([..."ABCDE"].map((l) => [l, document.querySelector(`.abcde-sec[data-letter="${l}"] .abcde-status`).textContent.replace(/[!✓]/g, "").trim()])));
   check(Object.values(stat).every((v) => ["OK", "Check", "Urgent", "Not Assessed"].includes(v)) && stat.A === "Not Assessed", `${vp.name}: each letter has a status word (${JSON.stringify(stat)})`);
   const obs = (await api("/api/examples/scn-pneumonia?minute=0")).obs_sets;
-  const chart = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-total-"]')].map((e) => +e.dataset.total));
+  const chart = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-total-"]:not([data-predicted])')].map((e) => +e.dataset.total));
   check(chart.length >= 3 && chart.join() === obs.slice(-chart.length).map((o) => o.news2_total).join(), `${vp.name}: the NEWS2 chart's totals are the API's (${chart.join(", ")})`);
   const rec = await page.evaluate(() => Object.fromEntries(["gas", "bloods", "glucose"].map((k) => [k, document.querySelector(`[data-testid="blood-${k}-recency"]`)?.textContent])));
   check(rec.gas === "Current" && rec.bloods === "Current" && rec.glucose === "Current", `${vp.name}: results taken within the hour read Current (${JSON.stringify(rec)})`);
@@ -1125,36 +1125,36 @@ for (const vp of VIEWPORTS) {
   const halfChart = await page.evaluate(() => { const c = document.querySelector('[data-testid="news2-chart"]'), r = c.getBoundingClientRect(), last = document.querySelector('[data-testid="news-risks"]').getBoundingClientRect(); return last.bottom <= r.bottom - 1 && c.scrollHeight <= c.clientHeight + 1; });
   check(halfChart, `${vp.name}: the ABCDE half shows the NEWS2 chart to its bottom row without scrolling`);
   await T("tab-news2").click();
-  check(await T("news2-chart").isVisible() && await page.locator('[data-testid^="news-cell-rr-"]').count() >= 3, `${vp.name}: the NEWS2 tab is the real chart`);
+  check(await T("news2-chart").isVisible() && await page.locator('[data-testid^="news-cell-rr-"]:not([data-predicted])').count() >= 3, `${vp.name}: the NEWS2 tab is the real chart`);
   await shot("news2");
   // The chart is the printed RCP chart: every band row, a dot in the row of each value, a key, and a scale toggle
   const comps = (await api("/api/examples/scn-pneumonia?minute=0")).obs_sets;
-  const cells = await page.evaluate(() => ["rr", "hr", "temp"].map((k) => [k, [...document.querySelectorAll(`[data-testid^="news-cell-${k}-"]`)].map((e) => +e.dataset.score)]));
+  const cells = await page.evaluate(() => ["rr", "hr", "temp"].map((k) => [k, [...document.querySelectorAll(`[data-testid^="news-cell-${k}-"]:not([data-predicted])`)].map((e) => +e.dataset.score)]));
   for (const [k, got] of cells) {
     check(got.length >= 3 && got.join() === comps.slice(-got.length).map((o) => o.news2_components[k]).join(), `${vp.name}: each ${k} dot sits in a row that scores what the API scored (${got.join(", ")})`);
   }
   check(await page.locator('[data-testid^="news-band-bp_sys-"]').count() === 14 && await page.locator('[data-testid^="news-band-hr-"]').count() === 12, `${vp.name}: the blood pressure and pulse blocks have every printed row`);
   check(await page.locator('[data-testid="news-key"] .news2-key-box').count() === 4, `${vp.name}: the NEWS key shows 0, 1, 2 and 3`);
-  const tails = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-tail-"]')].map((e) => +e.dataset.diaY - +e.dataset.sysY));
+  const tails = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-tail-"]:not([data-predicted])')].map((e) => +e.dataset.diaY - +e.dataset.sysY));
   check(tails.length >= 3 && tails.every((d) => d >= 0), `${vp.name}: each blood pressure on the chart has a tail from the systolic dot down to the diastolic number`);
   // continuous axes: an X at each MAP between the diastolic and systolic, half as many ticks, dots inside the band of their score
-  const maps = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-map-"]')].map((e) => { const t = e.parentElement; return { v: +e.dataset.value, y: +e.dataset.y, sys: +t.dataset.sysY, dia: +t.dataset.diaY }; }));
+  const maps = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-map-"]:not([data-predicted])')].map((e) => { const t = e.parentElement; return { v: +e.dataset.value, y: +e.dataset.y, sys: +t.dataset.sysY, dia: +t.dataset.diaY }; }));
   check(maps.length >= 3 && maps.every((m) => m.y >= m.sys && m.y <= m.dia), `${vp.name}: an X marks each MAP between its systolic and diastolic`);
   check(maps.map((m) => m.v).join() === comps.slice(-maps.length).map((o) => o.values.bp_mean).join(), `${vp.name}: the X marks are the API's MAPs (${maps.map((m) => m.v).join(", ")})`);
   const printed = { rr: 7, hr: 12, bp_sys: 14, temp: 6 };
   const tickCounts = await page.evaluate((keys) => Object.fromEntries(keys.map((k) => [k, document.querySelectorAll(`[data-testid^="news-tick-${k}-"]`).length])), Object.keys(printed));
   check(Object.entries(printed).every(([k, rows]) => tickCounts[k] >= 1 && tickCounts[k] <= Math.ceil(rows / 2)), `${vp.name}: the side scales have at most half as many ticks as printed rows (${JSON.stringify(tickCounts)})`);
-  const inBand = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-cell-hr-"]')].every((c) => {
+  const inBand = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-cell-hr-"]:not([data-predicted])')].every((c) => {
     const y = +c.dataset.y; const band = [...document.querySelectorAll('[data-testid^="news-band-hr-"]')].find((b) => +b.dataset.from - 0.6 <= y && y <= +b.dataset.to + 0.6);
     return band && +band.dataset.score === +c.dataset.score;
   }));
   check(inBand, `${vp.name}: each pulse dot sits at its true height, inside the band of its score`);
   // blood pressure: the trend follows the MAP, dashed lines link the systolic and diastolic, arrows mark them
-  const bpMarks = await page.evaluate(() => ({ sys: document.querySelectorAll('[data-testid^="news-sysmark-"]').length, dia: document.querySelectorAll('[data-testid^="news-diamark-"]').length,
+  const bpMarks = await page.evaluate(() => ({ sys: document.querySelectorAll('[data-testid^="news-sysmark-"]:not([data-predicted])').length, dia: document.querySelectorAll('[data-testid^="news-diamark-"]:not([data-predicted])').length,
     solid: !!document.querySelector('[data-testid="news-line-bp_sys"]') && !document.querySelector('[data-testid="news-line-bp_sys"]').classList.contains("n2-dashed"),
-    dashed: [...document.querySelectorAll('[data-testid^="news-line-bp_sys-"]')].every((e) => e.classList.contains("n2-dashed")) && document.querySelectorAll('[data-testid^="news-line-bp_sys-"]').length === 2,
-    sysDown: [...document.querySelectorAll('[data-testid^="news-sysmark-"]')].every((e) => { const p = e.getAttribute("points").split(" ").map((q) => q.split(",").map(Number)); return p[2][1] > p[0][1]; }),
-    diaUp: [...document.querySelectorAll('[data-testid^="news-diamark-"]')].every((e) => { const p = e.getAttribute("points").split(" ").map((q) => q.split(",").map(Number)); return p[2][1] < p[0][1]; }),
+    dashed: [...document.querySelectorAll('[data-testid^="news-line-bp_sys-"]:not([data-testid$="-predicted"])')].every((e) => e.classList.contains("n2-dashed")) && document.querySelectorAll('[data-testid^="news-line-bp_sys-"]:not([data-testid$="-predicted"])').length === 2,
+    sysDown: [...document.querySelectorAll('[data-testid^="news-sysmark-"]:not([data-predicted])')].every((e) => { const p = e.getAttribute("points").split(" ").map((q) => q.split(",").map(Number)); return p[2][1] > p[0][1]; }),
+    diaUp: [...document.querySelectorAll('[data-testid^="news-diamark-"]:not([data-predicted])')].every((e) => { const p = e.getAttribute("points").split(" ").map((q) => q.split(",").map(Number)); return p[2][1] < p[0][1]; }),
     mapLine: (document.querySelector('[data-testid="news-line-bp_sys"]')?.getAttribute("points") ?? "").split(" ").length }));
   check(bpMarks.sys >= 3 && bpMarks.sys === bpMarks.dia && bpMarks.sysDown && bpMarks.diaUp, `${vp.name}: systolic is a down-facing arrow and diastolic an up-facing arrow (${bpMarks.sys} of each)`);
   check(bpMarks.solid && bpMarks.dashed && bpMarks.mapLine === maps.length, `${vp.name}: a solid line follows the MAP and dashed lines link the systolic and diastolic trends`);
@@ -1375,22 +1375,24 @@ for (const vp of VIEWPORTS) {
   await settle();
   check(await T("tab-prediction-overlay").getAttribute("aria-pressed") === "false" && await page.locator('[data-testid="screen-monitor-predict"]').count() === 0, `${vp.name}: pressing the button again goes back to the screen it came from`);
 
-  // the NEWS2 screen's own overlay: the observed columns on the left, the predicted NEWS2 parameters on the right
-  await T("tab-news2").click(); await T("news2-chart").first().waitFor();
-  await T("tab-prediction-overlay").click(); await page.locator('[data-testid="screen-news2-predict"]').waitFor();
-  await page.waitForTimeout(800);
-  const charts = page.locator('[data-testid="news2-chart"]');
-  check(await charts.count() === 2, `${vp.name}: on the NEWS2 screen the overlay shows two NEWS2 charts, observed and predicted`);
-  const cols = await page.evaluate(() => [...document.querySelectorAll('[data-testid="news2-chart"]')[1].querySelectorAll("[data-minutes]")].map((e) => +e.dataset.minutes));
-  check(JSON.stringify(cols) === JSON.stringify(api360.predicted_obs_sets.filter((s) => [60, 120, 240, 360, 480].includes((Date.parse(s.at) - Date.parse(api360.generated_at)) / 60000)).map((s) => (Date.parse(s.at) - Date.parse(api360.generated_at)) / 60000)), `${vp.name}: the predicted chart has a column for each forecast horizon (${cols.join(", ")})`);
-  const predTotals = await page.evaluate(() => [...document.querySelectorAll('[data-testid="news2-chart"]')[1].querySelectorAll('[data-testid^="news-total-"]')].map((e) => [+e.dataset.total, e.dataset.confidence]));
-  const apiTotals = api360.predicted_obs_sets.filter((s) => [60, 120, 240, 360, 480].includes((Date.parse(s.at) - Date.parse(api360.generated_at)) / 60000)).map((s) => s.news2_total);
-  check(JSON.stringify(predTotals.map((x) => x[0])) === JSON.stringify(apiTotals) && predTotals.every(([, c]) => /^\d+%$/.test(c)), `${vp.name}: the predicted totals are the API's, each with a % confidence (${JSON.stringify(predTotals)})`);
-  const paramsPred = await page.evaluate(() => [...document.querySelectorAll('[data-testid="news2-chart"]')[1].querySelectorAll('[data-testid^="news-group-"]')].map((e) => e.dataset.testid.replace("news-group-", "")));
-  check(["rr", "spo2", "o2_flow", "bp_sys", "hr", "acvpu", "temp"].every((k) => paramsPred.includes(k)), `${vp.name}: every NEWS2 parameter is predicted (${paramsPred.join(", ")})`);
-  const n2Align = await page.evaluate(() => { const a = document.querySelectorAll('[data-testid="news2-chart"]'); return ["rr", "spo2", "bp_sys", "hr", "temp"].map((k) => { const l = a[0].querySelector(`[data-testid="news-group-${k}"] .n2-block`).getBoundingClientRect(), r = a[1].querySelector(`[data-testid="news-group-${k}"] .n2-block`).getBoundingClientRect(); return Math.round(Math.abs(l.top - r.top) + Math.abs(l.height - r.height)); }); });
-  check(n2Align.every((d) => d <= 2), `${vp.name}: each parameter row of the predicted chart is level with the observed one (${n2Align.join(",")})`);
-  check(await T("tab-prediction-overlay").getAttribute("aria-pressed") === "true", `${vp.name}: the overlay button shows it is on`);
+  // the NEWS2 chart: observed columns, then predicted ones in the same chart, darker and thinly hatched; the overlay button opens the full-width view
+  await T("tab-news2").click(); await T("news2-chart").first().waitFor(); await page.waitForTimeout(600);
+  const horizonsApi = [60, 120, 240, 360, 480];
+  const predApi = api360.predicted_obs_sets.filter((x) => horizonsApi.includes((Date.parse(x.at) - Date.parse(api360.generated_at)) / 60000));
+  const n2 = await page.evaluate(() => { const c = document.querySelector('[data-testid="news2-chart"]'); return {
+    charts: document.querySelectorAll('[data-testid="news2-chart"]').length,
+    predCols: [...c.querySelectorAll('[data-predicted][data-testid^="news-col-"]')].map((e) => +e.dataset.minutes),
+    obsCols: c.querySelectorAll('[data-testid^="news-col-"]:not([data-predicted])').length,
+    totals: [...c.querySelectorAll('[data-predicted][data-testid^="news-total-"]')].map((e) => [+e.dataset.total, e.dataset.confidence]),
+    regions: c.querySelectorAll('[data-testid="news-predicted-region"]').length, hatch: !!c.querySelector("pattern"), divider: !!c.querySelector('[data-testid="news-now-divider"]'),
+    banner: c.querySelector('[data-testid="news-predicted-banner"]')?.textContent ?? "", hollow: c.querySelectorAll(".n2-dot.is-predicted, .n2-arrow.is-predicted").length,
+    dashed: c.querySelectorAll(".n2-predline").length, groups: [...c.querySelectorAll('[data-testid^="news-group-"]')].length };
+  });
+  check(n2.charts === 1 && n2.obsCols >= 3 && n2.predCols.length >= 3, `${vp.name}: the NEWS2 screen is one chart with observed (${n2.obsCols}) and predicted (${n2.predCols.join(", ")}) columns`);
+  check(JSON.stringify(n2.totals.map((x) => x[0])) === JSON.stringify(predApi.slice(0, n2.predCols.length).map((x) => x.news2_total)) && n2.totals.every(([, c]) => /^\d+%$/.test(c)), `${vp.name}: the predicted totals are the API's, each with a % confidence (${JSON.stringify(n2.totals)})`);
+  check(n2.regions === n2.groups && n2.hatch && n2.divider && n2.banner.includes("Predicted") && n2.hollow > 0 && n2.dashed > 0, `${vp.name}: the predicted part is darker, hatched, dashed and hollow-marked, split at a Now line and labelled (${n2.regions} regions, ${n2.dashed} dashed trends)`);
+  await T("tab-prediction-overlay").click(); await page.locator('[data-testid="screen-news2-predict"]').waitFor(); await page.waitForTimeout(600);
+  check(await page.locator('[data-testid="news2-chart"]').count() === 1 && await page.locator('[data-predicted][data-testid^="news-col-"]').count() >= 3 && await T("tab-prediction-overlay").getAttribute("aria-pressed") === "true", `${vp.name}: on the NEWS2 screen the overlay button shows the same single chart with its prediction`);
   await T("tab-prediction-overlay").click(); await settle();
   check(await page.locator('[data-testid="screen-news2"]').count() === 1 && await T("tab-prediction-overlay").getAttribute("aria-pressed") === "false", `${vp.name}: pressing it again returns to the NEWS2 screen`);
   await T("tab-monitor").click();

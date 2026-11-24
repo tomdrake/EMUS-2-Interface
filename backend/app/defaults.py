@@ -200,10 +200,7 @@ def _screens(news_variant: str, monitor: dict | None = None) -> list[dict]:
     return [
         {"id": "monitor", "name": "Monitor", "layout": monitor or _monitor("monitor-rows")},
         {"id": "news2", "name": "NEWS2", "layout": _news("news2-full", news_variant)},
-        {"id": "news2-predict", "name": "NEWS2 With Predictions",
-         "layout": _split("horizontal", 0.5,
-                          _w({"id": "news2-now", "type": "news2-chart", "variant": news_variant, "show_future": False}),
-                          _w({"id": "news2-ahead", "type": "news2-chart", "variant": news_variant, "columns": "predicted"}))},
+        {"id": "news2-predict", "name": "NEWS2 With Predictions", "layout": _news("news2-both", news_variant)},
         {"id": "split-h", "name": "Split (Side by Side)",
          "layout": _split("horizontal", 0.5, _news("news2-left", news_variant),
                           _rows("rows-right", _COMPACT_ROW_IDS))},
