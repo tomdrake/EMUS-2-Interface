@@ -1,0 +1,898 @@
+/* All colour, size and spacing comes from CSS variables set by design/theme.ts.
+   Do not write literal colours below the :root fallback block. */
+:root {
+  --c-background: #000; --c-surface: #0e1116; --c-surface-alt: #1a1f27; --c-text: #f2f4f7;
+  --c-text-muted: #9aa4b2; --c-border: #2a313c; --c-accent: #4c8dff;
+  --c-alarm-high: #ff2d2d; --c-alarm-medium: #ffc400; --c-alarm-low: #35d0e6;
+  --c-silenced: #ffc400; --c-technical: #35d0e6; --c-inactive: #8a94a3;
+  --c-ai-highlight: #3b2f6b; --c-forecast: #b79cff;
+  --font-family: system-ui, sans-serif; --font-scale: 1; --numeric-scale: 1;
+  --trace-width: 2px; --touch: 56px; --radius: 8px; --gap: 8px;
+  /* Alignment. --edge is the one left inset for text everywhere: bars, rows, menus,
+     sheets. --inset gets a bordered panel inside the screen padding to the same line.
+     --line is the height of the first text line in a row and in a tile, so a row's
+     name and its tile's name sit on the same level. */
+  --edge: 16px;
+  --inset: calc(var(--edge) - var(--gap) - 1px);
+  --line: 20px;
+  --row-pad: 6px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--c-background); color: var(--c-text);
+  font-family: var(--font-family); font-size: calc(16px * var(--font-scale));
+  -webkit-font-smoothing: antialiased; overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent; user-select: none; touch-action: manipulation;
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+button:focus-visible { outline: 3px solid var(--c-accent); outline-offset: -3px; }
+h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
+
+.app { height: 100dvh; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+.boot { height: 100%; display: grid; place-items: center; color: var(--c-text-muted); padding: 24px; text-align: center; }
+.boot-error { color: var(--c-alarm-high); }
+
+/* ---- top bar ---- */
+.topbar { flex: none; display: flex; align-items: stretch; background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border); white-space: nowrap; }
+/* Every field sits on one baseline, whatever its text size; the line as a whole is
+   centred in the bar. Fields shrink rather than wrap, so the clock is never lost. */
+.tb-fields { flex: 1 1 0; min-width: 0; display: flex; align-items: center; overflow: hidden;
+  padding: 0 var(--edge) 0 max(var(--edge), env(safe-area-inset-left)); }
+.tb-line { flex: 1 1 0; min-width: 0; display: flex; align-items: baseline; column-gap: calc(var(--gap) * 2); }
+.tb-field { display: flex; align-items: baseline; gap: 6px; min-width: 0; color: var(--c-text-muted); flex: 0 1 auto; overflow: hidden; white-space: nowrap; }
+.tb-field > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* What must never be squeezed: who the patient is, the time, and alarm state. */
+.tb-field.tb-name { min-width: 11ch; flex-shrink: 0; }
+@media (max-width: 1100px) { .tb-field.tb-bed { display: none; } }
+.tb-field.tb-clock, .tb-field.tb-alarm-status { flex: none; }
+.tb-field.tb-devices { overflow: hidden; }
+.tb-name { color: var(--c-text); font-size: 1.2em; overflow: hidden; text-overflow: ellipsis; }
+.tb-clock { margin-left: auto; }
+.tb-clock time, .tb-clock { color: var(--c-text); font-size: 1.35em; font-variant-numeric: tabular-nums; font-weight: 600; }
+.tb-date { font-variant-numeric: tabular-nums; }
+.tb-field.tb-date { margin-left: auto; }
+.tb-field.tb-date + .tb-field.tb-clock { margin-left: 0; }
+@media (max-width: 1180px) {
+  .tb-field.tb-date { display: none; }
+  .tb-field.tb-clock, .tb-field.tb-date + .tb-field.tb-clock { margin-left: auto; }
+}
+.badge { flex: none; font-size: 0.7em; font-weight: 700; letter-spacing: 0.06em; padding: 3px 8px;
+  border-radius: 999px; border: 1px solid var(--c-border); color: var(--c-text-muted); line-height: 1.2; }
+@media (max-width: 1100px) { .badge-long { display: none; } }
+/* Example data is always labelled: loud in the top bar, quiet on each module. */
+.badge-example { white-space: nowrap; color: var(--c-background); background: var(--c-accent); border-color: var(--c-accent); }
+/* Buttons at the top right: new patient, discharge, dark / light, settings. */
+.topbtns { flex: none; display: flex; border-left: 1px solid var(--c-border); }
+.topbtn { min-width: max(var(--touch), 72px); min-height: var(--touch); padding: 0 8px; display: flex;
+  flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  color: var(--c-text-muted); border-right: 1px solid var(--c-border); }
+.topbtn:last-child { border-right: 0; }
+.topbtn .tab-label { font-size: 0.68em; }
+/* Icon boxes and label lines are fixed heights, so icons share one level and
+   labels another across a whole bar. */
+.tab .icon, .topbtn .icon { flex: none; display: block; }
+.tab-label { line-height: 1.2; }
+.topbtn.is-active { color: var(--c-text); background: var(--c-surface-alt); box-shadow: inset 0 -3px 0 var(--c-accent); }
+.topbtn:active { background: var(--c-surface-alt); }
+
+/* ---- screen and layout ---- */
+.screen { flex: 1 1 0; min-height: 0; display: flex; padding: var(--gap); }
+.split { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; gap: var(--gap); }
+.split-horizontal { flex-direction: row; }
+.split-vertical { flex-direction: column; }
+.pane { min-width: 0; min-height: 0; display: flex; }
+.widget { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column;
+  background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); overflow: hidden; }
+.widget-title { flex: none; padding: 8px var(--inset); color: var(--c-text-muted); border-bottom: 1px solid var(--c-border);
+  line-height: var(--line); }
+.widget-monitor-grid { background: var(--c-background); }
+
+/* ---- monitor rows ---- */
+/* The monitor grid: equal cells, as many rows as the modules need, filling the pane. */
+.rows { flex: 1 1 0; min-height: 0; min-width: 0; display: grid; }
+/* The line under a row is an inset shadow, not a border, so it never changes the size
+   of the row's content: every tile is exactly the same height. */
+.row { position: relative; min-height: 0; display: flex; align-items: stretch; text-align: left; width: 100%;
+  box-shadow: inset 0 -1px 0 var(--c-border); overflow: hidden; }
+/* The whole row is tappable (alarm limits) through a transparent button above its
+   content; the x scale control sits above that. */
+.row-hit { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
+
+/* ---- modules: a monitored item at the size the grid gives it ---- */
+.module { position: relative; min-width: 0; min-height: 0; overflow: hidden; container: mod / size; }
+.module:not(.row) { display: grid; box-shadow: inset -1px -1px 0 var(--c-border); }
+.module-tile-only { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.module-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.module-stack { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 44%) minmax(0, 1fr); }
+.module-tile, .module-trace { position: relative; display: flex; min-width: 0; min-height: 0; }
+.module-tile > .tile { flex: 1 1 auto; }
+/* The detail half of a card: head (large only), BP readings, the trace, and the AI block. */
+.module-detail { position: relative; display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0;
+  padding: var(--row-pad) var(--inset) var(--row-pad) 6px; border-left: 1px solid var(--c-border); }
+.module-stack > .module-detail { border-left: 0; border-top: 1px solid var(--c-border); padding-left: var(--inset); }
+.module-detail > .row-head { flex: none; flex-wrap: wrap; white-space: normal; gap: 0 8px; line-height: 1.2; align-items: baseline; }
+.module-detail > .row-head .row-label { flex: 0 1 auto; min-width: 0; }
+.module-trace { flex: 1 1 0; padding: 0; }
+.module-trace > .trace-area { margin: 0; }
+.module:not(.row) .tile { width: auto; height: 100%; border-left: 0; }
+.module-title { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 0 var(--inset);
+  line-height: var(--line); }
+/* The small form of a trace: baseline or gridlines only. */
+.trace-mini .trace-baseline { opacity: 0.5; }
+.row:last-child { box-shadow: none; }
+.rows-left .row { flex-direction: row-reverse; }
+.row-spacer { border-bottom: 1px dashed var(--c-border); }
+/* The trace column: the name line on top, the trace area below it. Text in the row
+   (the name, the tile, the marks on the trace) all take the row's colour. */
+.row-trace { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden;
+  padding: var(--row-pad) var(--inset) var(--row-pad); }
+.row-head { flex: none; display: flex; gap: 12px; align-items: baseline; line-height: var(--line);
+  white-space: nowrap; overflow: hidden; }
+.row-label { font-weight: 700; flex: none; }
+.row-method { font-weight: 500; opacity: 0.8; }
+
+/* ---- trace reference marks (no signal; M2 draws the signal inside) ---- */
+.trace-area { position: relative; flex: 1 1 0; min-height: 0; margin-top: 2px; }
+.trace-frame { position: absolute; inset: 0; display: block; overflow: visible; z-index: 2; pointer-events: none; }
+.trace-label { font-size: 10.5px; font-weight: 600; fill: currentColor; font-variant-numeric: tabular-nums; }
+.trace-unit { font-weight: 700; }
+/* The gain ("5 mm/mV"): thin and light, since it is reference, not reading. */
+.trace-gain { font-weight: 300; letter-spacing: 0.02em; }
+.trace-baseline { stroke: currentColor; stroke-width: 1; stroke-dasharray: 6 5; opacity: 0.7; }
+.trace-grid { stroke: currentColor; stroke-width: 1; stroke-dasharray: 2 5; opacity: 0.28; }
+.trace-tick { stroke: currentColor; stroke-width: 1; opacity: 0.7; }
+.trace-bar line { stroke: currentColor; stroke-width: 1.5; stroke-linecap: square; }
+
+/* The x scale as a number ("25 mm/s", "4 h"): thin and light like the gain, but with a
+   touch-sized hit area, and a dotted underline to say it can be tapped. */
+.xscale { position: absolute; right: 0; bottom: 0; z-index: 2; min-width: 56px; min-height: var(--touch);
+  display: flex; align-items: flex-end; justify-content: flex-end; padding: 0 6px 1px 10px; color: inherit; }
+.xscale-text { font-size: 10.5px; font-weight: 300; letter-spacing: 0.02em; font-variant-numeric: tabular-nums;
+  line-height: 1.2; text-decoration: underline dotted; text-underline-offset: 2px; }
+.xscale.is-changed .xscale-text { font-weight: 600; }
+.xscale-scrim { position: fixed; inset: 0; z-index: 59; }
+.xscale-menu { position: fixed; z-index: 60; min-width: 150px; padding: 4px; display: flex; flex-direction: column;
+  background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--c-background) 70%, transparent); }
+.xscale-option { min-height: 56px; padding: 0 18px; border-radius: calc(var(--radius) - 2px); text-align: left;
+  font-weight: 600; font-variant-numeric: tabular-nums; color: var(--c-text); }
+.xscale-option.is-current { background: var(--c-surface-alt); box-shadow: inset 3px 0 0 var(--c-accent); }
+.xscale-option:active { background: var(--c-surface-alt); }
+
+.row-tiles { flex: none; width: var(--tile); display: flex; }
+.rows-left .row-tiles { flex-direction: row-reverse; }
+
+/* =======================================================================
+   Tiles. One tile per row, holding every value in that row, or the word that
+   explains why there is none. A tile is always --tile wide and as tall as its
+   row. Nothing it shows can change that: content scales to the tile.
+   Text takes the colour of its row (inherited), never a status colour.
+   ======================================================================= */
+.tile { position: relative; flex: none; width: var(--tile); min-width: 0; display: grid;
+  /* Values on top, device state on the last line. The two bands are the same in
+     every tile, so values sit on one level across the screen. */
+  --tile-foot: 14px;
+  --tile-pad-b: 3px;
+  grid-template-rows: minmax(0, 1fr) var(--tile-foot);
+  padding: var(--row-pad) 8px var(--tile-pad-b); container: tile / size; overflow: hidden;
+  border-left: 1px solid var(--c-border);
+  /* Height left for a value: the tile's content box less the name line and the foot. */
+  --body-h: calc(100cqh - var(--line) - var(--tile-foot) - 6px); }
+.rows-left .tile { border-left: 0; border-right: 1px solid var(--c-border); }
+.tile-cells { display: flex; min-height: 0; min-width: 0; }
+/* The primary value is wider; further values share the rest. Each cell measures
+   its own width (cqw) so three digits always fit it. */
+.tile-cell { flex: 1 1 0; min-width: 0; display: grid; grid-template-rows: var(--line) minmax(0, 1fr);
+  container-type: inline-size; }
+.tile-multi .tile-primary { flex: 1.35 1 0; }
+.tile-cell + .tile-cell { padding-left: 8px; }
+.tile-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-width: 0;
+  font-size: 0.72rem; line-height: var(--line); white-space: nowrap; }
+.tile-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.tile-name small { font-weight: 500; opacity: 0.8; font-size: 1em; }
+.tile-body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0;
+  line-height: 1; text-align: center; }
+.tile-value { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
+  font-size: min(calc(2.1rem * var(--numeric-scale)), var(--body-h), 34cqw); }
+.tile-primary .tile-value { font-size: min(calc(2.8rem * var(--numeric-scale)), var(--body-h), 40cqw); }
+.tile-extra { font-size: 0.62em; }
+.tile-primary:has(.tile-extra) .tile-value { font-size: min(calc(2.2rem * var(--numeric-scale)), var(--body-h), 21cqw); }
+.tile-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0;
+  font-size: 0.66rem; line-height: var(--tile-foot); white-space: nowrap; overflow: hidden; }
+
+/* The position and falls tiles: a human outline in the patient's position, the word, and what it means. */
+.tile-value.tile-position, .module:not(.row) .tile-primary .tile-value.tile-position { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center;
+  column-gap: 6px; text-align: left; font-size: clamp(11px, calc(var(--body-h) * 0.24), 17px); line-height: 1.15; }
+.tile-position .position-figure { grid-row: 1 / span 2; }
+.position-figure { height: calc(var(--body-h) * 0.95); width: auto; aspect-ratio: 5 / 3; max-width: 36cqw; stroke: currentColor; fill: none;
+  stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+.position-figure .pf-outer { stroke: currentColor; }
+.position-figure .pf-inner { stroke: var(--c-background); }
+.position-figure .pf-headline { fill: var(--c-background); stroke: currentColor; stroke-width: 2.4; }
+.position-figure .pf-eye { fill: currentColor; stroke: none; }
+.position-figure .pf-bed { stroke: currentColor; stroke-width: 2; opacity: 0.55; fill: color-mix(in srgb, currentColor 14%, transparent); }
+.position-figure .pf-pillow { stroke: currentColor; stroke-width: 1.5; opacity: 0.6; fill: none; }
+.position-figure .pf-spine { stroke: currentColor; stroke-width: 1.6; stroke-dasharray: 2 3; }
+.position-figure .pf-hair, .position-figure .pf-fallpath, .position-figure .pf-impact { stroke: currentColor; stroke-width: 2; fill: none; }
+.position-figure .pf-fallpath { stroke-dasharray: 4 4; }
+.position-figure .pf-ghost { opacity: 0.4; }
+.position-word { font-weight: 800; letter-spacing: 0.02em; overflow-wrap: anywhere; align-self: end; }
+.position-meaning { font-weight: 500; font-size: 0.82em; opacity: 0.9; overflow-wrap: anywhere; align-self: start; }
+.pf-breathe { transform-origin: 50% 46px; animation: breathe var(--breath, 4s) ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.06); } }
+.pf-sway { transform-origin: 60px 68px; animation: sway 5s ease-in-out infinite; }
+@keyframes sway { 0%, 100% { transform: rotate(-1.4deg); } 50% { transform: rotate(1.4deg); } }
+.pf-arm { transform-origin: 60px 29px; } .pf-leg { transform-origin: 60px 48px; }
+.pf-a1 { animation: swing 1s ease-in-out infinite alternate; } .pf-a2 { animation: swing 1s ease-in-out infinite alternate-reverse; }
+.pf-l1 { animation: swing 1s ease-in-out infinite alternate-reverse; } .pf-l2 { animation: swing 1s ease-in-out infinite alternate; }
+@keyframes swing { from { transform: rotate(-24deg); } to { transform: rotate(24deg); } }
+@media (prefers-reduced-motion: reduce) { .pf-breathe, .pf-sway, .pf-arm, .pf-leg { animation: none; } }
+
+/* A short tile (a split screen, a small tablet) has no room for two bands: the
+   device state moves up beside the names and the unit is dropped, leaving the height
+   to the value. Still one size, still nothing moves. */
+@container tile (max-height: 62px) {
+  .tile-foot { position: absolute; top: var(--row-pad); right: 8px; height: var(--line); line-height: var(--line); }
+  /* Name on the left, value beside it, so the value gets the whole height; the device state sits top right
+     and the values keep clear of it. */
+  .tile-cells { padding-right: 84px; --body-h: calc(100cqh - 20px); }
+  .tile-value, .tile-primary .tile-value { font-size: min(var(--body-h), 40cqw); }
+  .tile-cell { grid-template-rows: minmax(0, 1fr); grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 6px; }
+  .tile-name small { display: none; }
+  .tile-state { --body-h: calc(100cqh - 12px); white-space: nowrap;
+    font-size: clamp(12px, min(calc(1rem * var(--numeric-scale)), var(--body-h) * 0.9, 9.2cqw), 2rem); }
+}
+
+/* ---- states. Word first; then frame and glyph. Never a status colour. ---- */
+/* The word wraps to two lines at most and is sized so two lines fit the value band. */
+.tile-state { display: block; max-width: 100%; font-weight: 800; letter-spacing: 0.03em; line-height: 1.1;
+  text-wrap: balance; font-size: clamp(12px, min(calc(1rem * var(--numeric-scale)), var(--body-h) / 2.3, 13.5cqw), 2rem); }
+/* Nothing is being measured: lighter weight, a thin solid frame. */
+.tile-standby .tile-state, .tile-acquiring .tile-state, .tile-no-data .tile-state { font-weight: 600; }
+.tile-standby::after, .tile-acquiring::after, .tile-no-data::after,
+.tile-sensor-off::after, .tile-connection-lost::after, .tile-invalid::after, .tile-poor-signal::after {
+  content: ""; position: absolute; inset: 2px; border: 1px solid currentColor; border-radius: 5px;
+  pointer-events: none; opacity: 0.45; }
+/* Something is wrong with the monitoring: a bold frame and a "!" glyph. */
+.tile-sensor-off::after, .tile-connection-lost::after, .tile-invalid::after { border-width: 2px; opacity: 1; }
+/* A number is shown but not to be trusted: a dashed frame and a "?" after it. */
+.tile-poor-signal::after { border-style: dashed; opacity: 0.9; }
+.tile-glyph { flex: none; display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%;
+  border: 1.5px solid currentColor; font-size: 10px; font-weight: 900; line-height: 1; }
+.tile-flag { margin-left: 2px; }
+.tile-last { font-size: 0.66rem; opacity: 0.85; text-decoration: line-through; margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tile-alarm-off { flex: none; color: var(--c-silenced); font-weight: 800; }
+
+/* Battery and link of the device behind the values, in the tile's foot. */
+.device-mark { flex: none; display: inline-flex; align-items: center; gap: 4px; }
+.device-word { font-weight: 800; letter-spacing: 0.02em; }
+.device-inactive { opacity: 0.7; }
+.battery, .link { flex: none; }
+
+.row-status { display: inline-flex; align-items: baseline; gap: 8px; font-size: 0.85em; min-width: 0; overflow: hidden; }
+.row-status strong { letter-spacing: 0.03em; flex: none; }
+.row-advice { opacity: 0.9; overflow: hidden; text-overflow: ellipsis; }
+
+/* Optional device summary in the top bar. */
+.devices { display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 40px; align-items: center; height: 1.6em; overflow: hidden; }
+.device { display: inline-flex; gap: 6px; align-items: center; font-size: 0.8em; height: 1.6em; white-space: nowrap; }
+.device-label { color: var(--c-text-muted); }
+.device-text { font-weight: 600; font-variant-numeric: tabular-nums; }
+.alarm-status { font-weight: 600; }
+.alarm-status.status-strong { color: var(--c-text); font-weight: 800; }
+.tone-silenced { color: var(--c-silenced); }
+
+/* When this screen is not receiving data, nothing on it may look live: colour goes,
+   and the traces dim. The word NO DATA stays at full strength so it can be read. */
+.app[data-link="stale"] .screen, .app[data-link="down"] .screen,
+.app[data-link="stale"] .devices, .app[data-link="down"] .devices { filter: grayscale(1); }
+.app[data-link="stale"] .row-trace, .app[data-link="down"] .row-trace { opacity: 0.55; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* =======================================================================
+   Notification ticker and feed. The box is a fixed size wherever it sits; the
+   feed is an overlay that opens only when the box is touched. Neither can move
+   or resize anything else. Text takes the colour of the row it is about.
+   ======================================================================= */
+.notif { display: flex; align-items: center; gap: 10px; padding: 0 12px 0 var(--edge); text-align: left; overflow: hidden;
+  color: var(--c-text); background: var(--c-surface); min-height: var(--touch); position: relative; }
+.notif-bar { flex: 0 0 clamp(290px, 27vw, 380px); border-right: 1px solid var(--c-border); }
+.notif-bar.notif-size-wide { flex-basis: clamp(300px, 36vw, 520px); }
+.topbar .notif-bar { align-self: stretch; border-left: 1px solid var(--c-border); }
+.notif-strip { flex: none; height: 44px; display: flex; border-bottom: 1px solid var(--c-border); }
+.notif-strip .notif { flex: 1 1 auto; min-height: 0; }
+.notif .icon { flex: none; color: var(--c-text-muted); }
+
+/* The ticker window: items roll up (vertical) or scroll sideways (horizontal). */
+.ticker { flex: 1 1 0; min-width: 0; align-self: stretch; display: flex; align-items: center; overflow: hidden; }
+.ticker-none { font-weight: 600; color: var(--c-text-muted); }
+.ticker-roll { flex: 1 1 0; min-width: 0; display: flex; align-items: center; }
+.ticker-item { display: flex; flex-direction: column; justify-content: center; gap: 1px; min-width: 0; line-height: 1.15; }
+.notif-meta { display: flex; align-items: center; gap: 6px; }
+.notif-text { font-size: 0.82em; font-weight: 600; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.notif-strip .ticker-item { flex-direction: row; align-items: center; gap: 8px; }
+.notif-strip .notif-text { -webkit-line-clamp: 1; }
+.notif-tag, .feed-tag { flex: none; font-size: 0.62em; font-weight: 800; letter-spacing: 0.08em;
+  padding: 1px 5px; border: 1px solid currentColor; border-radius: 4px; }
+/* Patient alarm priority in shape: !!! high, !! medium, ! low. Alarm colours live
+   here and on the frame, not on the text. */
+.notif-mark { flex: none; font-size: 0.7em; font-weight: 900; letter-spacing: 0.02em; padding: 0 5px;
+  border-radius: 4px; line-height: 1.5; border: 1px solid currentColor; }
+.mark-high { background: var(--c-alarm-high); color: var(--c-background); border-color: var(--c-alarm-high); }
+.mark-medium { background: var(--c-alarm-medium); color: var(--c-background); border-color: var(--c-alarm-medium); }
+.notif-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
+.notif-count { flex: none; font-weight: 800; font-size: 0.8em; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid var(--c-border); color: var(--c-text-muted); font-variant-numeric: tabular-nums; }
+
+/* Vertical: the next item rolls up into view. */
+.ticker-roll { animation: roll-in 250ms ease-out; }
+@keyframes roll-in { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+/* Horizontal: the items scroll past, only when they do not fit. */
+.ticker-viewport { flex: 1 1 0; min-width: 0; overflow: hidden; display: flex; align-items: center;
+  mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); }
+.ticker-track { display: inline-flex; align-items: center; gap: 36px; white-space: nowrap; will-change: transform; }
+.ticker-track .ticker-item { flex-direction: row; align-items: center; gap: 8px; }
+.ticker-track .notif-text { display: inline; -webkit-line-clamp: unset; overflow: visible; }
+.ticker-track.is-scrolling { animation: marquee var(--marquee-s, 12s) linear infinite; }
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.notif[aria-expanded="true"] .ticker-track.is-scrolling { animation-play-state: paused; }
+
+.notif-paused { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  align-self: stretch; margin: 6px 0; padding: 0 6px; border-radius: 6px; font-size: 0.6em; font-weight: 800;
+  letter-spacing: 0.05em; line-height: 1.15; background: var(--c-silenced); color: var(--c-background); }
+.notif-paused strong { font-size: 1.7em; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.notif-strip .notif-paused { flex-direction: row; gap: 6px; margin: 5px 0; }
+
+/* The frame says what kind of item is on show: a frame in the alarm colour for a
+   patient alarm (bold for high, thinner for medium), a dashed neutral frame for a
+   monitoring problem, none when there is nothing to report. */
+.notif-patient-high { box-shadow: inset 0 0 0 3px var(--c-alarm-high); }
+.notif-patient-medium { box-shadow: inset 0 0 0 2px var(--c-alarm-medium); }
+.notif-monitor::after { content: ""; position: absolute; inset: 2px; border: 1px dashed var(--c-text-muted);
+  border-radius: 4px; pointer-events: none; }
+.notif.is-paused.notif-empty { box-shadow: inset 0 0 0 2px var(--c-silenced); }
+
+/* The feed does not dim the monitor: values stay readable behind it. */
+.scrim.scrim-clear { background: transparent; }
+.feed { position: absolute; z-index: 45; width: min(560px, calc(100% - 16px)); max-height: 62%;
+  display: flex; flex-direction: column; background: var(--c-surface); border: 1px solid var(--c-border);
+  border-radius: var(--radius); box-shadow: 0 10px 30px color-mix(in srgb, var(--c-background) 70%, transparent); }
+.feed-above { bottom: calc(var(--tabbar-h, 72px) + 8px); }
+.feed-below { top: calc(var(--topbar-h, 64px) + 8px); }
+.feed-left { left: var(--gap); }
+.feed-right { right: var(--gap); }
+.feed-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 6px 6px 6px var(--inset);
+  border-bottom: 1px solid var(--c-border); }
+.feed-list { flex: 0 1 auto; min-height: 0; overflow: auto; list-style: none; margin: 0; padding: 0; }
+.feed-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px calc(var(--inset) - 6px); min-height: var(--touch);
+  border-bottom: 1px solid var(--c-border); border-left: 6px solid transparent; }
+.feed-item:last-child { border-bottom: 0; }
+.feed-text { flex: 1 1 0; }
+.feed-age { flex: none; color: var(--c-text-muted); font-size: 0.8em; font-variant-numeric: tabular-nums; }
+.feed-tag { align-self: center; }
+.feed-none { color: var(--c-text-muted); justify-content: center; }
+.feed-paused { border-left-color: var(--c-silenced); color: var(--c-silenced); }
+.feed-monitor-low, .feed-monitor-medium, .feed-monitor-high { border-left-color: var(--c-border); }
+.feed-patient-low { border-left-color: var(--c-text-muted); }
+.feed-patient-medium { border-left-color: var(--c-alarm-medium); }
+.feed-patient-high { border-left-color: var(--c-alarm-high); }
+
+/* Flash rates: fast for high priority, slow for medium, steady for low. The rates
+   sit inside the ranges IEC 60601-1-8 gives for alarm indicator lights as recalled
+   (high 1.4 to 2.8 Hz, medium 0.4 to 0.8 Hz); check against the standard. Only an
+   icon or a small mark flashes, never a size or a position. */
+@keyframes flash-high { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.35; } }
+@keyframes flash-medium { 0%, 59% { opacity: 1; } 60%, 100% { opacity: 0.45; } }
+.tab-silence.is-silenced .icon, .notif-paused strong { animation: flash-medium 1.6s steps(1) infinite; }
+.notif.can-flash.notif-patient-high .icon, .notif.can-flash.notif-patient-high .mark-high,
+.device-critical .battery, .device-lost .link { animation: flash-high 0.5s steps(1) infinite; }
+.notif.can-flash.notif-patient-medium .icon, .notif.can-flash.notif-patient-medium .mark-medium,
+.device-low .battery { animation: flash-medium 1.6s steps(1) infinite; }
+/* People who ask for less motion still get the state in words, marks and position:
+   items swap without sliding or scrolling, and nothing flashes. */
+@media (prefers-reduced-motion: reduce) {
+  .tab-silence *, .notif *, .device-mark * { animation: none !important; }
+  .ticker-track.is-scrolling { transform: none; }
+}
+
+/* ---- placeholders (scaffold only) ---- */
+.placeholder { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 16px; text-align: center; color: var(--c-text-muted);
+  background: repeating-linear-gradient(135deg, transparent 0 14px, var(--c-surface-alt) 14px 15px); }
+.placeholder-name { color: var(--c-text); font-weight: 600; }
+.placeholder-note, .placeholder-detail { font-size: 0.85em; }
+.text-widget { padding: 12px; margin: 0; white-space: pre-wrap; }
+
+/* ---- tab bar ---- */
+.tabbar { flex: none; display: flex; align-items: stretch; background: var(--c-surface);
+  border-top: 1px solid var(--c-border); padding-bottom: env(safe-area-inset-bottom); z-index: 30; }
+.tab { flex: 1 1 0; min-width: 0; min-height: var(--touch); display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start; padding-top: 9px; gap: 4px; color: var(--c-text-muted);
+  border-right: 1px solid var(--c-border); }
+.tab:last-child { border-right: 0; }
+.tab-label { max-width: calc(100% - 8px); font-size: 0.8em; font-weight: 600; text-align: center; line-height: 1.15; white-space: normal; text-wrap: balance; overflow-wrap: anywhere; }
+.tab { padding: 9px 2px 0; min-width: 0; }
+@media (max-width: 1100px) { .tab-label { font-size: 0.66em; } .notif-bar { flex-basis: clamp(210px, 21vw, 380px); } }
+.tab.is-active { color: var(--c-text); background: var(--c-surface-alt); box-shadow: inset 0 3px 0 var(--c-accent); }
+.tab:active { background: var(--c-surface-alt); }
+/* The silence button is found by colour and position without reading. */
+.tab-silence { color: var(--c-silenced); box-shadow: inset 0 0 0 2px var(--c-silenced); }
+.tab-silence.is-silenced { background: var(--c-silenced); color: var(--c-background); }
+.topbtn.tab-silence { box-shadow: inset 0 0 0 2px var(--c-silenced); }
+/* The label stays in the text colour so it is readable on a light theme too. */
+.tab-silence:not(.is-silenced) .tab-label { color: var(--c-text); }
+
+/* ---- menus and sheets ---- */
+.scrim { position: absolute; inset: 0; background: color-mix(in srgb, var(--c-background) 55%, transparent); z-index: 10; }
+.menu, .sheet { position: absolute; left: 0; right: 0; z-index: 20; background: var(--c-surface);
+  border-top: 1px solid var(--c-border); box-shadow: 0 -8px 24px color-mix(in srgb, var(--c-background) 60%, transparent); }
+.menu { bottom: 0; padding: 12px var(--edge) calc(var(--touch) + 40px); }
+.menu-title { color: var(--c-text-muted); margin-bottom: 10px; }
+.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--gap); }
+.menu-item { min-height: calc(var(--touch) * 1.25); display: flex; align-items: center; gap: 12px; padding: 0 16px;
+  background: var(--c-surface-alt); border: 1px solid var(--c-border); border-radius: var(--radius);
+  font-weight: 600; text-align: left; }
+.menu-item:active { border-color: var(--c-accent); }
+.sheet { top: 8%; bottom: 0; display: flex; flex-direction: column; border-radius: var(--radius) var(--radius) 0 0; }
+.sheet-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 8px var(--edge);
+  border-bottom: 1px solid var(--c-border); }
+.sheet-body { flex: 1 1 0; min-height: 0; overflow: auto; display: flex; flex-direction: column;
+  padding-bottom: calc(var(--touch) + 32px); }
+.about { padding: var(--edge); max-width: 60ch; line-height: 1.5; }
+.about p:first-child { margin-top: 0; }
+.btn { min-height: var(--touch); min-width: var(--touch); padding: 0 20px; border-radius: var(--radius);
+  background: var(--c-surface-alt); border: 1px solid var(--c-border); font-weight: 600; }
+
+.notice { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(var(--touch) + 40px); z-index: 40;
+  background: var(--c-surface-alt); border: 1px solid var(--c-border); border-radius: var(--radius);
+  padding: 12px 18px; max-width: 90%; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .menu, .sheet { animation: rise 140ms ease-out; }
+  @keyframes rise { from { transform: translateY(12px); opacity: 0; } }
+}
+
+
+/* =======================================================================
+   Example data, traces with a signal, and AI marks
+   ======================================================================= */
+.trace-signal { fill: none; stroke: currentColor; stroke-width: var(--trace-width); stroke-linejoin: round; stroke-linecap: round; }
+.trace-signal[data-quality="poor"], .trace-signal[data-quality="unusable"] { opacity: 0.75; }
+.trace-dot { fill: currentColor; }
+.trace-bracket { fill: none; stroke: var(--c-ai-highlight); stroke-width: 1.6; }
+.trace-mark.is-technical .trace-bracket { stroke: var(--c-technical); stroke-dasharray: 4 3; }
+.trace-mark-label { font-size: 10.5px; font-weight: 700; fill: currentColor; paint-order: stroke;
+  stroke: var(--c-background); stroke-width: 3px; stroke-linejoin: round; }
+.trace-mark-hit { pointer-events: all; cursor: pointer; }
+.example-mark { flex: none; align-self: center; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  line-height: 1.3; padding: 0 5px; border: 1px solid currentColor; border-radius: 3px; opacity: 0.7; }
+
+/* The AI chip: what the AI says about this module, with how sure it is. The visible pill is
+   small; the button around it is a full touch target. */
+.ai-chip { position: absolute; top: var(--row-pad); right: var(--inset); z-index: 3; max-width: 62%;
+  display: flex; align-items: flex-start; color: inherit; text-align: right; }
+button.ai-chip { min-height: var(--touch); min-width: var(--touch); justify-content: flex-end; }
+.ai-chip-pill { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; min-height: 24px; padding: 0 9px 0 4px;
+  border: 1.5px solid currentColor; border-radius: 12px; font-size: 12px; font-weight: 600; line-height: 1;
+  background: color-mix(in srgb, var(--c-background) 86%, transparent); white-space: nowrap; }
+.ai-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ai-mark { flex: none; font-size: 10px; font-weight: 800; letter-spacing: 0.04em; padding: 2px 5px; border-radius: 9px;
+  color: var(--c-background); background: currentColor; }
+.ai-mark { background: var(--c-ai-highlight); color: var(--c-background); }
+.ai-why { flex: none; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
+.ai-more { flex: none; opacity: 0.8; }
+.ai-warning .ai-chip-pill { border-width: 2px; }
+.ai-critical .ai-chip-pill { border-width: 3px; font-weight: 800; }
+.ai-technical { color: var(--c-technical); }
+.ai-technical .ai-chip-pill { border-style: dashed; }
+.ai-quiet { pointer-events: none; opacity: 0.7; }
+.ai-quiet .ai-chip-pill { border-width: 1px; font-weight: 500; }
+.ai-quiet .ai-mark { opacity: 0.7; }
+
+.certainty { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.certainty-text { font-weight: 700; }
+.certainty-name { font-weight: 400; opacity: 0.85; font-size: 0.92em; }
+.certainty-bars { display: inline-flex; gap: 1px; align-items: flex-end; }
+.certainty-bars i { display: block; width: 5px; height: 12px; border: 1px solid currentColor; }
+.certainty-bars i.on { background: currentColor; }
+.certainty-badge .certainty-text { border: 1.5px solid currentColor; border-radius: 4px; padding: 0 6px; }
+.certainty-badge.level-low .certainty-text { border-style: dashed; }
+.certainty-badge.level-high .certainty-text { background: currentColor; color: var(--c-background); }
+
+/* The name line leaves room for the chip, and its status text shortens rather than run under it. */
+.row-trace:has(> .ai-chip) > .row-head { padding-right: 46%; }
+.row-head .row-status { min-width: 0; overflow: hidden; }
+.row-advice { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ai-chip { max-width: 46%; }
+.module-ai .ai-chip { position: static; flex: 1 1 0; min-width: 8em; max-width: 100%; justify-content: flex-start; align-items: center; text-align: left; }
+.module-ai button.ai-chip { min-height: 48px; }
+.module-ai > .ai-certainty { margin-left: auto; }
+.module-ai, .ai-certainty { padding: 0; }
+.module-ai { display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 2px; min-width: 0; }
+.module-ai > .ai-explain { flex: 1 1 100%; }
+.module-ai > .ai-certainty { padding: 0; }
+.row-trace > .ai-certainty { padding: 2px 0 0; }
+.ai-explain { display: flex; gap: 8px; align-items: baseline; font-size: 12px; line-height: 1.3; min-width: 0; }
+.ai-explain-text { min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ai-explain-link { flex: none; position: relative; z-index: 3; min-height: var(--touch); padding: 0 10px; font-weight: 800; color: inherit;
+  text-decoration: underline; text-underline-offset: 2px; }
+.row-trace > .ai-explain { padding-top: 2px; }
+
+/* Demo controls (example data). */
+.demo { display: flex; flex-direction: column; gap: 10px; padding: 4px 20px 24px; }
+.demo-switch { display: flex; align-items: center; gap: 12px; min-height: var(--touch); font-weight: 700; }
+.demo-switch input { width: 28px; height: 28px; }
+.demo-note, .demo-status { margin: 0; color: var(--c-text-muted); }
+.demo-h { margin: 8px 0 0; font-size: 1rem; }
+.demo-list { display: flex; flex-direction: column; gap: 6px; }
+.demo-option { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: var(--touch); padding: 8px 14px; text-align: left;
+  border: 1px solid var(--c-border); border-radius: var(--radius); color: var(--c-text); background: var(--c-surface); }
+.demo-option span { color: var(--c-text-muted); font-size: 0.85em; }
+.demo-option.is-current { background: var(--c-surface-alt); box-shadow: inset 4px 0 0 var(--c-accent); }
+.demo-slider { width: 100%; min-height: var(--touch); }
+.demo-jumps { display: flex; flex-wrap: wrap; gap: 6px; }
+.demo-jump { min-height: var(--touch); padding: 4px 14px; border: 1px solid var(--c-border); border-radius: var(--radius); color: var(--c-text);
+  background: var(--c-surface); display: flex; flex-direction: column; align-items: flex-start; }
+.demo-jump small { color: var(--c-text-muted); }
+button:disabled { opacity: 0.45; }
+
+/* Why sheet, underlying data and the explanation gallery */
+.why, .ud, .gallery { display: flex; flex-direction: column; gap: 10px; padding: 4px 20px 28px; }
+.why h3 { margin: 0; font-size: 1.25rem; }
+.why h4, .ud h4 { margin: 12px 0 4px; font-size: 0.95rem; letter-spacing: 0.02em; }
+.why-sub, .why-note, .example-note { margin: 0; color: var(--c-text-muted); font-size: 0.88rem; }
+.why-empty { padding: 20px; color: var(--c-text-muted); }
+.example-note .example-mark, .why-sub .example-mark { display: inline-block; vertical-align: baseline; }
+.evidence { margin: 0 0 10px; padding: 8px 10px; border: 1px solid var(--c-border); border-radius: var(--radius); }
+.evidence figcaption { font-size: 0.85rem; color: var(--c-text-muted); margin-bottom: 2px; }
+.evidence-strip { position: relative; border: 1px solid var(--c-border); border-radius: var(--radius); color: var(--c-accent); background: var(--c-surface); }
+.evidence-strip svg { display: block; }
+.whatif-band { fill: currentColor; opacity: 0.15; stroke: none; }
+.whatif-line { stroke-dasharray: 7 5; }
+.reasons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.reasons li { display: grid; grid-template-columns: minmax(0, 2fr) minmax(60px, 1fr) 3.2em auto; gap: 10px; align-items: center; }
+.reason-bar { display: block; height: 12px; border: 1px solid var(--c-border); border-radius: 6px; overflow: hidden; }
+.reason-bar i { display: block; height: 100%; background: var(--c-accent); }
+.reason-weight { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.reason-dir { color: var(--c-text-muted); font-size: 0.8rem; }
+.why-measured { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 16px; margin: 6px 0; }
+.why-measured div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--c-border); padding: 2px 0; }
+.why-measured dt { color: var(--c-text-muted); } .why-measured dd { margin: 0; font-weight: 600; text-align: right; }
+.certainty-table, .ud-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.certainty-table th, .certainty-table td, .ud-table th, .ud-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--c-border); vertical-align: top; }
+.certainty-table tr.is-shown { background: var(--c-surface-alt); }
+.certainty-table small { color: var(--c-text-muted); font-weight: 400; }
+.why-ask { display: flex; gap: 8px; }
+.why-ask input { flex: 1; min-height: var(--touch); padding: 0 12px; border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--c-surface); color: var(--c-text); }
+.why-links, .ud-actions { display: flex; gap: 12px; align-items: center; }
+.ud-table-wrap { max-height: 260px; overflow: auto; border: 1px solid var(--c-border); border-radius: var(--radius); }
+.ud-finding { padding: 6px 0; border-bottom: 1px solid var(--c-border); }
+.style-card { border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--c-surface); }
+.style-head { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-height: var(--touch); padding: 8px 14px; text-align: left; color: var(--c-text); }
+.style-head span { color: var(--c-text-muted); font-size: 0.85rem; }
+.style-notes { display: flex; flex-wrap: wrap; gap: 4px 20px; padding: 0 14px 8px; font-size: 0.82rem; color: var(--c-text-muted); }
+.style-card.is-open { box-shadow: inset 4px 0 0 var(--c-accent); }
+.style-body { padding: 4px 14px 14px; }
+.ex-big { font-size: 1.6rem; font-weight: 700; margin: 0; }
+
+/* Edit Layout: the bar, the side panel and the selected module. */
+.stage { flex: 1 1 0; min-height: 0; display: flex; }
+.stage > .screen { flex: 1 1 0; min-width: 0; }
+.edit-bar { flex: none; background: var(--c-accent); color: var(--c-background); padding: 4px 12px; }
+.edit-bar-row { display: flex; align-items: center; gap: 14px; min-height: var(--touch); }
+.edit-bar-title { letter-spacing: 0.08em; }
+.edit-bar-note { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.edit-bar-actions { display: flex; gap: 8px; }
+.edit-bar .btn { color: var(--c-text); background: var(--c-surface); border: 1px solid var(--c-border); }
+.edit-bar .btn-primary { background: var(--c-text); color: var(--c-background); }
+.edit-save { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding: 6px 0 10px; }
+.edit-save label { display: flex; flex-direction: column; gap: 2px; font-size: 0.8rem; font-weight: 600; }
+.edit-save input { min-height: var(--touch); min-width: 170px; padding: 0 10px; border-radius: var(--radius); border: 1px solid var(--c-border); background: var(--c-surface); color: var(--c-text); }
+.edit-error { flex-basis: 100%; font-weight: 700; }
+.edit-panel { flex: none; width: 340px; overflow-y: auto; padding: 8px 14px 24px; border-left: 1px solid var(--c-border); background: var(--c-surface); }
+.edit-panel h3 { margin: 6px 0; font-size: 1.05rem; } .edit-panel h4 { margin: 14px 0 6px; font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-text-muted); }
+.edit-panel .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.panel-head small { font-weight: 400; color: var(--c-text-muted); }
+.size-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.size-opt { min-height: var(--touch); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px;
+  border: 1px solid var(--c-border); border-radius: var(--radius); color: var(--c-text); background: var(--c-background); font-size: 0.8rem; font-weight: 600; }
+.size-opt.is-current { border-color: var(--c-accent); box-shadow: inset 0 0 0 2px var(--c-accent); }
+.size-diagram .cell { fill: none; stroke: var(--c-border); } .size-diagram .fill { fill: var(--c-accent); opacity: 0.85; }
+.panel-buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.field { display: flex; flex-direction: column; gap: 3px; margin: 8px 0; font-size: 0.82rem; font-weight: 600; }
+.field input, .field select { min-height: var(--touch); padding: 0 10px; border-radius: var(--radius); border: 1px solid var(--c-border); background: var(--c-background); color: var(--c-text); font-size: 1rem; }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.swatch { width: var(--touch); height: var(--touch); border-radius: var(--radius); border: 2px solid var(--c-border); }
+.swatch-default { width: auto; padding: 0 12px; color: var(--c-text); background: var(--c-background); font-weight: 600; }
+.swatch.is-current { border-color: var(--c-text); box-shadow: 0 0 0 2px var(--c-accent); }
+.content-list { list-style: none; margin: 0; padding: 0; }
+.content-list li { display: flex; flex-direction: column; border-bottom: 1px solid var(--c-border); }
+.toggle { display: flex; align-items: center; gap: 12px; min-height: var(--touch); font-weight: 600; }
+.toggle input { width: 26px; height: 26px; }
+.no-room { color: var(--c-text-muted); padding: 0 0 6px 38px; }
+.module[data-selected] { outline: 3px solid var(--c-accent); outline-offset: -3px; z-index: 2; }
+.app.is-editing .ai-chip, .app.is-editing .xscale, .app.is-editing .trace-mark-hit, .app.is-editing .ai-explain-link { pointer-events: none; }
+
+/* A module short of room (edit mode shrinks the grid) drops the lower-priority AI lines rather than clip its title. */
+@container det (max-height: 279px) { .module-ai > .ai-explain { display: none; } }
+@container det (max-height: 184px) { .module-ai > .ai-certainty { display: none; } }
+
+/* Settings sheets */
+.settings { display: flex; flex-direction: column; gap: 6px; padding: 4px 20px 28px; max-width: 760px; }
+.settings h3 { margin: 4px 0; } .settings h3 small { font-weight: 400; color: var(--c-text-muted); font-size: 0.8rem; }
+.settings h4 { margin: 14px 0 2px; font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-text-muted); }
+.setting { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
+.setting-label { font-weight: 700; font-size: 0.9rem; }
+.choice { display: flex; flex-wrap: wrap; gap: 6px; }
+.choice-col { flex-direction: column; }
+.choice-opt { min-height: var(--touch); padding: 0 16px; border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--c-surface); color: var(--c-text); font-weight: 600; text-align: left; }
+.choice-opt.is-current { border-color: var(--c-accent); box-shadow: inset 0 0 0 2px var(--c-accent); }
+.stepper { display: flex; align-items: center; gap: 12px; } .stepper output { min-width: 5ch; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stepper .btn { min-width: var(--touch); font-size: 1.4rem; }
+.version-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.version-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--c-border); }
+.inline-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.inline-form input, .settings textarea { min-height: var(--touch); padding: 0 10px; border-radius: var(--radius); border: 1px solid var(--c-border); background: var(--c-surface); color: var(--c-text); flex: 1; min-width: 200px; }
+.settings textarea { padding: 8px 10px; font-family: monospace; }
+
+/* Cards: the number is the point. Big on the left half (or on top in a tall card), sized by the box
+   it has, with the name above it and the device below. */
+.module:not(.row) .tile { --tile-foot: 18px; }
+.module:not(.row) .tile-head { font-size: 0.82rem; }
+.module:not(.row) .tile-primary .tile-value { font-size: min(calc(100cqh - var(--line) - var(--tile-foot) - 8px), 46cqw); }
+.module:not(.row) .tile-multi .tile-primary .tile-value { font-size: min(calc(100cqh - var(--line) - var(--tile-foot) - 8px), 50cqw); }
+.module:not(.row) .tile-cell:not(.tile-primary) .tile-value { font-size: min(calc(100cqh - var(--line) - var(--tile-foot) - 8px), 38cqw); }
+/* Blood pressure in a card: "108/66" large, the mean under it. */
+.module:not(.row) .tile-primary:has(.tile-extra) .tile-value { display: flex; flex-direction: column; align-items: center;
+  font-size: min(calc((100cqh - var(--line) - var(--tile-foot)) * 0.5), 22cqw); line-height: 1; }
+.tile-main { white-space: nowrap; }
+.module:not(.row) .tile-extra-wrap { display: block; font-size: 0.5em; font-weight: 600; opacity: 0.9; margin-top: 0.12em; line-height: 1.1; }
+.module-tile-only .tile-primary .tile-value { font-size: min(calc(100cqh - var(--line) - var(--tile-foot) - 4px), 52cqw); }
+
+/* The last readings of an intermittent measurement, like a bedside monitor's NIBP list. */
+.bp-readings { flex: none; min-width: 0; container-type: inline-size; font-variant-numeric: tabular-nums; }
+.bp-head { font-size: clamp(10px, 4.2cqw, 12px); font-weight: 700; opacity: 0.85; line-height: 1.4; }
+.bp-readings table { border-collapse: collapse; width: 100%; font-size: clamp(10px, 5.2cqw, 14px); }
+.bp-readings td { padding: 1px 6px 1px 0; white-space: nowrap; }
+.bp-readings .bp-value { font-weight: 700; text-align: right; padding-right: 0; }
+.bp-readings .bp-map { font-weight: 500; opacity: 0.9; }
+.bp-readings tr.is-newest { font-size: 1.12em; font-weight: 700; }
+.bp-age { font-weight: 600; }
+.bp-none { font-weight: 700; }
+.bp-readings tr:nth-child(n+2) td { opacity: 0.9; }
+/* The detail half shows as many readings as it has room for, after its title and the AI chip. */
+.module-detail { container: det / size; }
+@container det (max-height: 199px) { .module-detail .bp-readings tr:nth-child(n+5) { display: none; } }
+@container det (max-height: 183px) { .module-detail .bp-readings tr:nth-child(n+4) { display: none; } }
+@container det (max-height: 167px) { .module-detail .bp-readings tr:nth-child(n+3) { display: none; } }
+@container det (max-height: 151px) { .module-detail .bp-readings tr:nth-child(n+2) { display: none; } }
+@container det (max-height: 120px) { .module-detail .bp-head { display: none; } }
+
+/* Sweeping traces: the strip is slid across the plot by a looping animation. It holds still with reduced
+   motion and while the layout is being edited. */
+.sweep.is-sweeping { animation-name: sweep; animation-timing-function: linear; animation-iteration-count: infinite; will-change: transform; }
+@keyframes sweep { from { transform: translateX(0); } to { transform: translateX(var(--travel)); } }
+@media (prefers-reduced-motion: reduce) { .sweep.is-sweeping { animation: none; } }
+.app.is-editing .sweep.is-sweeping { animation-play-state: paused; }
+/* The AI overview: boxes over what the AI used, with one or two words each. Subtle by design. */
+.trace-box rect { fill: var(--c-ai-highlight); fill-opacity: 0.14; stroke: var(--c-ai-highlight); stroke-opacity: 0.55; stroke-width: 1; stroke-dasharray: 3 2; }
+.trace-box-label[data-audit-ignore], .trace-box-label { font-size: 10px; font-weight: 700; fill: currentColor; paint-order: stroke; stroke: var(--c-background); stroke-width: 3px; stroke-linejoin: round; }
+/* SpO2 % trend over the pleth, on its own right-hand axis. */
+.overlay-trend { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-dasharray: 6 4; opacity: 0.9; }
+.has-axis .xscale { right: 52px; }
+/* Discrete measurements: dots, tails and a dashed line. */
+.discrete-dot { fill: currentColor; stroke: var(--c-background); stroke-width: 1; }
+.discrete-line { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-dasharray: 5 4; opacity: 0.9; }
+.discrete-tail { stroke: currentColor; stroke-width: 2; }
+.discrete-cap { stroke: currentColor; stroke-width: 2; }
+.temp-key .key-bg { fill: var(--c-background); fill-opacity: 0.85; stroke: var(--c-border); }
+.key-text { font-size: 10px; font-weight: 600; fill: currentColor; }
+.key-line { stroke-width: 1.5; }
+
+/* NEWS2 chart as printed: coloured band rows, the patient's values marked and joined. */
+.news2-chart { flex: 1 1 0; min-width: 0; min-height: 0; overflow: auto; padding: 6px; display: flex; flex-direction: column; gap: 6px; }
+.news2-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; flex: none; }
+.news2-title { margin: 0; font-size: 1.05rem; }
+.news2-key { display: flex; align-items: center; gap: 4px; }
+.news2-key { white-space: nowrap; flex-wrap: nowrap; }
+.news2-key-label { font-size: 0.8rem; font-weight: 600; margin-right: 4px; white-space: nowrap; }
+.news2-key-box { min-width: 26px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--c-text); font-weight: 700; font-size: 0.85rem; }
+.news2-toggle { min-height: var(--touch); padding: 0 14px; white-space: nowrap; }
+.news2-svg { display: block; flex: none; font-variant-numeric: tabular-nums; }
+.news2-svg text { font-size: 9px; fill: var(--c-text); }
+.news2-svg .n2-time, .news2-svg .n2-date { font-weight: 700; font-size: 9.5px; }
+.news2-svg .n2-label { font-weight: 600; }
+.news2-svg .n2-bandlabel { fill: var(--c-background); stroke: rgba(128, 128, 128, 0.5); stroke-width: 0.5; }
+.news2-svg .n2-bandcont { stroke: none; }
+.news2-svg .n2-tick { stroke: var(--c-text); stroke-width: 1; }
+.news2-svg .n2-tickline { stroke: rgba(128, 128, 128, 0.55); stroke-width: 0.6; stroke-dasharray: 2 3; }
+.news2-svg .n2-map { stroke-width: 1.8; stroke-linecap: round; fill: none; }
+.news2-key-map { margin-left: 8px; font-weight: 700; }
+.news2-svg .n2-bandrow { stroke: rgba(128, 128, 128, 0.55); stroke-width: 0.5; }
+.news2-svg .n2-futureveil { fill: var(--c-background); fill-opacity: 0.45; }
+.news2-svg .n2-block { fill: none; stroke: var(--c-text); stroke-width: 1.3; }
+.news2-svg .n2-grid { stroke: rgba(128, 128, 128, 0.55); stroke-width: 0.5; }
+.news2-svg .n2-grid.is-future { stroke-dasharray: 3 3; }
+.news2-svg .n2-letter { fill: #ffffff; fill-opacity: 0.32; font-weight: 800; }
+.news2-svg .n2-nametext { font-weight: 700; }
+.news2-svg .n2-nametext.n2-warn, .news2-svg .n2-warn { fill: #ff8a78; }
+.news2-svg .n2-line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.news2-svg .n2-dashed { stroke-dasharray: 4 3; stroke-width: 1.4; }
+.news2-svg .n2-arrow { stroke: var(--c-background); stroke-width: 0.6; }
+.news2-svg .n2-dot { stroke: var(--c-background); stroke-width: 0.8; }
+.news2-svg .n2-tail { stroke-width: 1.8; stroke-dasharray: 2 2; }
+.news2-svg .n2-value { font-weight: 700; font-size: 8.5px; paint-order: normal; }
+.news2-svg .n2-totalcell { stroke: var(--c-text); stroke-width: 0.8; }
+.news2-svg .n2-totaltext { font-size: 14px; font-weight: 800; }
+.news2-svg .n2-totaltext.n2-small { font-size: 11px; }
+.news2-svg .n2-futurecell { stroke: currentColor; stroke-dasharray: 3 2; stroke-width: 1; }
+.news2-svg .n2-range { font-size: 9.5px; font-weight: 500; }
+.news2-svg .n2-footlabel { fill: var(--c-surface-alt); stroke: var(--c-text); stroke-width: 0.8; }
+.news2-svg .n2-footcells { fill: none; stroke: var(--c-text); stroke-width: 0.8; }
+.news2-svg .n2-foot { font-weight: 700; font-size: 10px; }
+.n2-foot-note, .news2-empty { margin: 0; color: var(--c-text-muted); font-size: 0.8rem; padding: 6px; }
+
+/* ABCDE */
+.abcde { flex: 1 1 0; min-width: 0; min-height: 0; overflow-y: auto; padding: 6px 12px 24px; display: flex; flex-direction: column; gap: 8px; }
+.abcde-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.abcde-title { margin: 0; font-size: 1.1rem; }
+.abcde-sec { border: 1px solid var(--c-border); border-radius: var(--radius); padding: 6px 12px 10px; background: var(--c-surface); }
+.abcde-sec > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.abcde-sec h3 { margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+.abcde-letter { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--c-text); color: var(--c-background); font-weight: 800; }
+.abcde-status { font-weight: 800; letter-spacing: 0.04em; border: 2px solid currentColor; border-radius: 999px; padding: 1px 10px; font-size: 0.85rem; }
+.abcde-sec[data-status="Urgent"] .abcde-status { border-width: 3px; }
+.abcde-sec[data-status="Check"] .abcde-status { border-style: dashed; }
+.abcde-sec[data-status="Not Assessed"] .abcde-status { opacity: 0.75; border-style: dotted; }
+.abcde dl { margin: 4px 0; } .abcde-row { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--c-border); padding: 3px 0; }
+.abcde-row dt { color: var(--c-text-muted); } .abcde-row dd { margin: 0; font-weight: 700; text-align: right; }
+.abcde-prompt { margin: 4px 0; font-weight: 700; }
+.abcde-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.abcde .bp-readings { margin: 6px 0; } .abcde .bp-readings table { font-size: 0.95rem; }
+.blood-set { padding: 6px 0; border-top: 1px solid var(--c-border); }
+.blood-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.blood-recency { font-weight: 800; border: 2px solid currentColor; border-radius: 999px; padding: 0 10px; font-size: 0.82rem; }
+.blood-set[data-recency="none"] .blood-recency { border-style: dashed; }
+.blood-when { color: var(--c-text-muted); font-variant-numeric: tabular-nums; }
+.blood-results { list-style: none; margin: 4px 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 2px 16px; }
+.blood-results li { display: flex; justify-content: space-between; gap: 6px; border-bottom: 1px solid var(--c-border); padding: 2px 0; }
+.blood-results small { font-weight: 400; color: var(--c-text-muted); } .blood-flag { font-style: normal; font-weight: 800; }
+.gcs-total { font-size: 1.4rem; font-weight: 800; margin: 6px 0; }
+
+.tile-position, .tile-value.tile-position { white-space: normal; }
+.module-ai .certainty { flex-wrap: wrap; }
+.module-ai { flex: none; }
+.module-detail .row-status { flex-wrap: wrap; white-space: normal; }
+.tile-main { padding-bottom: 2px; }
+.ai-chip-pill { overflow: hidden; }
+
+.module-detail .row-status strong { flex: 0 1 auto; white-space: normal; }
+
+/* The numbers above and below a blood pressure tail: a halo keeps them legible over the dashed line and grid. */
+.discrete-num { font-size: 10px; font-weight: 700; fill: currentColor; font-variant-numeric: tabular-nums;
+  paint-order: stroke; stroke: var(--c-background); stroke-width: 3px; stroke-linejoin: round; }
+.xscale-spark { min-width: 56px; padding-left: 4px; }
+.trace-mini .xscale { min-height: min(var(--touch), 100%); }
+
+/* Height choices in Edit Layout: one row of touch-sized buttons. */
+.height-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.height-opt { min-height: var(--touch); flex: 1 1 auto; }
+.height-opt.is-current { box-shadow: inset 0 0 0 2px var(--c-accent); background: var(--c-surface-alt); }
+
+/* Measure BP and Measure Temp sheets */
+.measure { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+.measure-go { min-height: 64px; font-size: 1.1rem; }
+.measure-run, .measure-result { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--c-border); border-radius: var(--radius); }
+.measure-bar { height: 14px; border-radius: 7px; background: var(--c-surface-alt); overflow: hidden; }
+.measure-bar span { display: block; height: 100%; background: var(--c-accent); transition: width 0.9s linear; }
+.measure-value { font-size: 2.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.measure-value small { font-size: 1rem; font-weight: 600; }
+.measure-kind, .measure-time, .measure-added, .measure-left, .measure-last { color: var(--c-text-muted); font-size: 0.9rem; margin: 0; }
+@media (prefers-reduced-motion: reduce) { .measure-bar span { transition: none; } }
+
+/* Blood pressure markers: arrows and an X in the row's colour. */
+.discrete-arrow { fill: currentColor; stroke: var(--c-background); stroke-width: 0.6; }
+.discrete-x line { stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.bp-layer .discrete-line { stroke-dasharray: 5 4; stroke-width: 1.3; }
+
+/* Notes (the rhythm in words, regular or irregular, the day's extremes) share the name line, so they cost the number no height. */
+.tile-note-head { flex: 1 1 auto; min-width: 0; text-align: right; font-size: 0.7rem; font-weight: 600; opacity: 0.95; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 6px; }
+/* The diastolic is the same size as the systolic; the MAP stays smaller in brackets. */
+[data-testid="num-bp_sys"] .tile-extra:not(.tile-extra-wrap) { font-size: 1em; }
+.tile-primary:has(.tile-extra-wrap) .tile-value { font-size: min(calc(2.2rem * var(--numeric-scale)), var(--body-h), 19cqw); }
+
+/* Falls, activity and NEWS2 summaries in the detail half of a small module */
+.detail-falls, .detail-activity, .detail-news { min-height: 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: center; }
+.detail-falls { align-items: flex-start; gap: 2px; }
+.detail-big { font-size: min(3rem, 42cqh); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.detail-caption { font-size: 0.78rem; font-weight: 600; opacity: 0.95; }
+.detail-activity { gap: 3px; }
+.detail-bar { display: flex; flex-direction: column; gap: 1px; font-size: 0.72rem; line-height: 1.1; }
+.detail-bar-line { display: flex; justify-content: space-between; gap: 6px; white-space: nowrap; }
+.detail-oxygen { display: flex; flex-direction: column; justify-content: center; gap: 2px; height: 100%; }
+.detail-device { font-size: 1rem; font-weight: 700; }
+.detail-bar-label { font-weight: 700; }
+.detail-bar-track { height: 5px; border-radius: 4px; background: color-mix(in srgb, currentColor 18%, transparent); overflow: hidden; }
+.detail-bar-track span { display: block; height: 100%; background: currentColor; }
+.detail-bar-value { font-variant-numeric: tabular-nums; font-weight: 600; }
+.detail-news { gap: 2px; justify-content: flex-end; }
+.news-trend-plot { display: block; flex: 1 1 0; min-height: 0; overflow: visible; }
+.news-trend-line { fill: none; stroke: currentColor; stroke-width: 1.4; opacity: 0.85; }
+.news-trend-dot { stroke: var(--c-background); stroke-width: 0.8; }
+.news-strip { display: flex; flex: none; }
+.news-strip-cell { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1;
+  border-left: 1px solid color-mix(in srgb, currentColor 25%, transparent); font-variant-numeric: tabular-nums; }
+.news-strip-cell:first-child { border-left: 0; }
+.news-strip-time { font-size: 0.66rem; font-weight: 700; }
+.news-strip-date { font-size: 0.6rem; opacity: 0.85; }
+.news-strip-total { font-size: 0.95rem; font-weight: 800; }
+
+/* Text always sits inside its box with padding: the tile number is its own block so its box is its text,
+   and the summaries keep clear of the edges of their half. */
+.detail-falls, .detail-activity, .detail-oxygen, .detail-news { padding: 4px 8px 4px 6px; box-sizing: border-box; overflow: hidden; }
+.detail-bar-line { min-width: 0; }
+.detail-bar-label, .detail-bar-value { overflow: hidden; text-overflow: ellipsis; }
+.detail-device { font-size: 0.9rem; font-weight: 700; line-height: 1.1; white-space: normal; overflow-wrap: anywhere; }
+.news-strip-cell { padding: 0 3px; overflow: hidden; }
+.news-strip-time, .news-strip-date { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+
+.news-strip-cell > * { display: block; }
+.news-strip-time { font-size: 0.62rem; line-height: 1.25; }
+.news-strip-date { font-size: 0.56rem; line-height: 1.25; }
+.news-strip-total { font-size: 0.9rem; line-height: 1.3; }
+.detail-bar-label, .detail-bar-value { line-height: 1.3; }
+.detail-caption { display: block; line-height: 1.3; }
+
+/* Activity labels shorten when the half is narrow; the falls number keeps clear of its caption. */
+.detail-activity { container-type: inline-size; }
+.lbl-short { display: none; }
+@container (max-width: 150px) { .lbl-full { display: none; } .lbl-short { display: inline; } }
+.detail-big { line-height: 1; margin-bottom: 6px; }
+.detail-falls .detail-caption { margin-top: 2px; }
+
+.detail-falls, .detail-activity, .detail-oxygen, .detail-news { width: 100%; }
+.detail-device { font-size: 0.82rem; }
+.news-strip-cell { overflow: visible; }
+
+/* Tighter lines in the summaries so three bars and a caption fit a short box */
+.detail-caption { font-size: 0.7rem; line-height: 1.2; }
+.detail-bar { font-size: 0.68rem; line-height: 1.2; gap: 0; }
+.detail-bar-label, .detail-bar-value { line-height: 1.2; }
+.detail-bar-track { height: 4px; }
+.detail-activity { gap: 2px; }
+.module:not(.row) .tile-value.tile-position { font-size: clamp(10px, calc(var(--body-h) * 0.2), 15px); }
+
+/* Their width is the box's, never the content's: a measured width cannot feed back into the count of cells. */
+.detail-news, .detail-falls, .detail-oxygen { contain: inline-size; }
+.module-trace, .module-detail { min-width: 0; }
+
+/* Short tiles: the number's text box (about 1.25 times its size) must fit under the name line. */
+.tile-primary:has(.tile-extra) .tile-value { font-size: min(calc(2.2rem * var(--numeric-scale)), calc(var(--body-h) / 1.25), 21cqw); }
+.tile-primary:has(.tile-extra-wrap) .tile-value { font-size: min(calc(2.2rem * var(--numeric-scale)), calc(var(--body-h) / 1.25), 19cqw); }
+.detail-falls, .detail-activity, .detail-oxygen, .detail-news { padding: 4px 6px 4px 4px; }
+.module:not(.row) .tile-value.tile-position { font-size: clamp(10px, calc(var(--body-h) * 0.18), 15px); }
+.module:not(.row) .position-figure { height: calc(var(--body-h) * 0.82); }
+
+@container tile (max-height: 62px) {
+  /* Name beside a value that is two numbers (blood pressure): the number leaves room for the name. */
+  .tile-primary:has(.tile-extra) .tile-value, .tile-primary:has(.tile-extra-wrap) .tile-value { font-size: min(calc(var(--body-h) / 1.25), 14cqw); }
+}
+.module:not(.row) .position-meaning { font-size: 0.9em; line-height: 1.1; }
+.module:not(.row) .tile-value.tile-position { line-height: 1.08; }
+
+.module:not(.row) .position-figure { max-width: 24cqw; }
+
+@container tile (max-height: 62px) { .tile-note-head { display: none; } }
+
+@container (max-width: 175px) { .tile-note-head { display: none; } }
+
+/* Top-bar buttons keep one-line labels, centred; only the tab bar wraps two-line labels from the top. */
+.topbtn { justify-content: center; padding-top: 0; }
+.topbtn .tab-label { white-space: nowrap; max-width: none; text-wrap: nowrap; }

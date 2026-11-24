@@ -1,0 +1,135 @@
+import type { ExampleScenarioInfo, ExampleSnapshot, MeasuredReading } from "@/contracts/types.gen";
+import type { Design, StoredDesign } from "@/design/types";
+
+/** Thrown for any non-2xx response. `milestone` is set for scaffolded (501) routes. */
+export class ApiError extends Error {
+  constructor(public status: number, message: string, public detail?: unknown,
+              public milestone?: string) {
+    super(message);
+  }
+  get notBuilt(): boolean {
+    return this.status === 501;
+  }
+}
+
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method,
+    headers: body === undefined ? undefined : { "content-type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let detail: any;
+    try { detail = (await res.json()).detail; } catch { /* not JSON */ }
+    const milestone = typeof detail === "object" ? detail?.milestone : undefined;
+    const errors: string[] = Array.isArray(detail?.errors) ? detail.errors : [];
+    const message = milestone ? `Not built yet (${milestone})`
+      : errors.length ? errors.join("; ")
+        : typeof detail === "string" ? detail : `${method} ${path} failed (${res.status})`;
+    throw new ApiError(res.status, message, detail, milestone);
+  }
+  return res.json() as Promise<T>;
+}
+
+export const get = <T>(path: string) => request<T>("GET", path);
+export const post = <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {});
+export const put = <T>(path: string, body?: unknown) => request<T>("PUT", path, body ?? {});
+export const del = <T>(path: string) => request<T>("DELETE", path);
+
+/** A module size in the monitor grid (backend/app/registry.py MODULE_SIZES). */
+export interface ModuleSizeSpec {
+  label: string; cols: number; rows: number; full: boolean;
+  flow: "tile-only" | "split" | "stack" | "row"; fits: string[];
+}
+
+/** One row of the printed NEWS2 chart (backend/app/news2.py NEWS2_BANDS). */
+/** The y axis of a numeric NEWS2 block: its range, value resolution and the side-scale ticks. */
+export interface Axis { min: number; max: number; step: number; ticks: number[] }
+
+export interface Band { label: string; score: number; low: number | null; high: number | null; oxygen?: boolean; level?: string }
+
+/** Read-only clinical vocabulary (backend/app/registry.py). */
+export interface Registry {
+  alarm_silence_seconds: number;
+  safety: {
+    connection_lost_after_s: number; display_stale_after_s: number; value_stale_after_s: number;
+    battery_low_pct: number; battery_critical_pct: number;
+    sqi_poor_below: number; sqi_unusable_below: number;
+  };
+  signal_states: Record<string, { text: string; shows_value: boolean; tone: string; meaning: string }>;
+  signal_issues: Record<string, { label: string; advice: string }>;
+  technical_alarms: Record<string, { label: string; priority: "high" | "medium" | "low"; message: string }>;
+  device_kinds: Record<string, string>;
+  demo_faults: Record<string, string>;
+  parameters: Record<string, {
+    id: string; label: string; short: string; unit: string; decimals: number;
+    kind: string; default_low: number | null; default_high: number | null;
+    min_value: number | null; max_value: number | null; waveforms: string[]; note: string;
+    method: string; trend_range: [number, number] | null;
+  }>;
+  waveforms: Record<string, {
+    label: string; hz: number; unit: string; parameter: string; overlay_parameter?: string;
+    scale: {
+      unit: string; calibrated: boolean; gains_mm_per_unit: number[]; default_gain: number | null;
+      tick: number; baseline: "isoelectric" | "mean"; range: [number, number];
+    };
+  }>;
+  alarm_priority_marks: Record<"high" | "medium" | "low", string>;
+  module_sizes: Record<string, ModuleSizeSpec>;
+  module_content: string[];
+  o2_devices: Record<string, string>;
+  acvpu_levels: string[];
+  lab_groups: Record<string, string>;
+  lab_tests: Record<string, { id: string; label: string; group: string; unit: string;
+    low: number | null; high: number | null; decimals: number }>;
+  event_types: Record<string, { label: string; parameter: string | null }>;
+  rhythm_labels: Record<string, string>;
+  news2_bands: Record<string, Band[]>;
+  news2_axes: Record<string, Axis>;
+  certainty_metrics: Record<string, { id: string; group: string; label: string;
+    tells_you: string; applies_to: string[]; note: string }>;
+}
+
+export interface PatchPreview {
+  ok: boolean; errors: string[]; touched: string[]; document: Design | null;
+  max_touch_depth?: number;
+}
+
+export interface VersionInfo {
+  version: number; source: string; author: string; note: string; created_at: string;
+  patch: unknown[] | null; touched: string[];
+}
+
+export const api = {
+  registry: () => get<Registry>("/api/registry"),
+  activeDesign: () => get<StoredDesign>("/api/active-design"),
+  design: (id: string, version?: number) =>
+    get<StoredDesign>(`/api/designs/${id}${version ? `?version=${version}` : ""}`),
+  designs: () => get<StoredDesign["meta"][]>("/api/designs"),
+  themePresets: () => get<Record<string, Design["theme"]>>("/api/theme-presets"),
+  previewPatch: (id: string, ops: unknown[]) =>
+    post<PatchPreview>(`/api/designs/${id}/preview-patch`, { ops }),
+  examples: () => get<ExampleScenarioInfo[]>("/api/examples"),
+  measure: (scenario: string, kind: "bp" | "temp", minute: number) =>
+    get<MeasuredReading>(`/api/examples/${scenario}/measure?kind=${kind}&minute=${minute}`),
+  example: (scenario: string, minute: number) =>
+    get<ExampleSnapshot>(`/api/examples/${scenario}?minute=${minute}`),
+  validateDesign: (document: unknown) =>
+    post<{ ok: boolean; errors: string[]; document: Design | null }>("/api/validate-design", document),
+  saveVersion: (id: string, body: { document: Design; author: string; note: string }) =>
+    post<StoredDesign>(`/api/designs/${id}/versions`, { ...body, source: "manual" }),
+  versions: (id: string) => get<VersionInfo[]>(`/api/designs/${id}/versions`),
+  revert: (id: string, version: number, author: string) =>
+    post<StoredDesign>(`/api/designs/${id}/revert`, { version, author }),
+  duplicate: (id: string, name: string, author: string) =>
+    post<StoredDesign>(`/api/designs/${id}/duplicate`, { name, author }),
+  setActive: (designId: string, author = "") => put<StoredDesign>("/api/active-design", { design_id: designId, author }),
+  deleteDesign: (id: string) => del<{ deleted: string }>(`/api/designs/${id}`),
+  exportDesign: (id: string) => get<Record<string, unknown>>(`/api/designs/${id}/export`),
+  importDesign: (payload: unknown) => post<StoredDesign>("/api/designs/import", payload),
+  // Later milestones add their calls here (patients, stream, alarms, chat, ...).
+  silence: (patientId: string, by = "") =>
+    post<{ silenced_until: string | null }>(`/api/patients/${patientId}/alarms/silence`, { by }),
+  unsilence: (patientId: string) =>
+    del<{ silenced_until: string | null }>(`/api/patients/${patientId}/alarms/silence`),
+};
