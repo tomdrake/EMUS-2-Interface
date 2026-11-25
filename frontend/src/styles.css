@@ -1099,3 +1099,53 @@ button:disabled { opacity: 0.45; }
 .news2-svg .n2-foot.is-predicted { opacity: 0.8; font-style: italic; }
 .news2-svg .n2-totalhatch { opacity: 0.9; }
 .pt-box.is-future { background-image: repeating-linear-gradient(45deg, transparent 0 4px, color-mix(in srgb, currentColor 35%, transparent) 4px 5px); }
+
+/* ---- ABCDE: A, B and C in the left column, D, E and the results in the right, so nothing is off screen ---- */
+.abcde { overflow-y: auto; padding: 4px 8px 8px; gap: 4px; }
+.abcde-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; align-items: start; }
+.abcde-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.abcde > * { flex: none; }
+.abcde-sec { padding: 4px 8px 6px; }
+.abcde-sec h3 { font-size: 0.95rem; }
+.abcde-letter { width: 24px; height: 24px; }
+.abcde-status { padding: 0 8px; font-size: 0.78rem; }
+.abcde-row { padding: 1px 0; font-size: 0.85rem; gap: 6px; }
+.abcde dl { margin: 2px 0; }
+.abcde-prompt { margin: 2px 0; font-size: 0.82rem; }
+.abcde-inline { margin-top: 2px; gap: 6px; font-size: 0.85rem; }
+.abcde .choice-opt { font-size: 0.8rem; }
+.abcde .btn { min-height: var(--touch); }
+.abcde-checks { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.abcde-found { margin: 0; display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 0.8rem; font-weight: 700; }
+.abcde .bp-readings { margin: 2px 0; } .abcde .bp-readings table { font-size: 0.8rem; }
+.abcde-bloods .blood-set { padding: 2px 0; border-top: 1px solid var(--c-border); }
+.abcde-bloods .blood-head { display: flex; flex-wrap: wrap; gap: 0 8px; align-items: baseline; font-size: 0.82rem; }
+.abcde-bloods .blood-results { display: flex; flex-wrap: wrap; gap: 1px 10px; list-style: none; margin: 2px 0 0; padding: 0; font-size: 0.8rem; }
+.abcde-bloods .blood-results li { display: inline-flex; gap: 4px; align-items: baseline; }
+.abcde-bloods .why-note, .abcde-bloods .btn { font-size: 0.8rem; margin: 2px 0; }
+@container (max-width: 520px) { .abcde-grid { grid-template-columns: minmax(0, 1fr); } }
+.widget-abcde { container-type: inline-size; }
+.abcde .choice { flex-wrap: nowrap; gap: 4px; }
+.abcde .choice-opt { flex: 1 1 0; min-width: 0; padding: 0 4px; text-align: center; line-height: 1.1; }
+.abcde-bloods .blood-results { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.abcde-bloods .blood-results li { display: flex; justify-content: space-between; gap: 4px; border: 0; padding: 0; }
+.abcde-bloods .blood-recency { border-width: 1px; padding: 0 6px; font-size: 0.72rem; }
+.abcde-bloods .blood-head strong { font-size: 0.85rem; }
+.abcde-title { font-size: 1rem; }
+.abcde-checks { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; }
+.abcde-checks > .btn { flex: 0 0 auto; padding: 0 12px; }
+.abcde-checks > .abcde-prompt, .abcde-checks > .abcde-found { flex: 1 1 140px; min-width: 0; }
+.abcde-sec > .btn, .abcde-sec > .panel-buttons { margin-top: 2px; }
+.blood-flag, .blood-results b { white-space: nowrap; }
+.abcde-bloods .blood-results li { flex-wrap: wrap; }
+.news2-svg .n2-range { font-size: 8.5px; }
+.abcde-trendsbtn { margin-left: auto; margin-right: 8px; padding: 0 12px; }
+.abcde-sec > header { gap: 6px; }
+.abcde-bloods .blood-results { font-size: 0.76rem; }
+.abcde-bloods .blood-results li { flex-wrap: nowrap; }
+.abcde-bloods .blood-results li > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.news2-chart .news2-toggle { min-width: 0; padding: 0 10px; font-size: 0.8rem; line-height: 1.1; }
+.abcde-bloods .blood-results li { flex-wrap: wrap; row-gap: 0; }
+.abcde-bloods .blood-results li > span { overflow: visible; text-overflow: clip; white-space: normal; }
+.abcde-bloods .blood-flag { margin-left: auto; }
+.abcde-bloods .blood-set { padding: 3px 6px; }

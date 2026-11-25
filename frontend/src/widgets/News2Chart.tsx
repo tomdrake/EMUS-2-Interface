@@ -196,7 +196,7 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
         <div className="news2-key" data-testid="news-key" aria-label="NEWS key: score of each colour">
           {wide && <span className="news2-key-label">NEWS Key</span>}
           {[0, 1, 2, 3].map((k) => <span key={k} className="news2-key-box" data-score={k} style={{ background: fill(k), color: readableOn(fill(k)) }}>{k}</span>)}
-                  <span className="news2-key-label news2-key-map" data-testid="news-key-map">▼ Sys  ▲ Dia  X MAP</span>
+                  {(wide || w >= 400) && <span className="news2-key-label news2-key-map" data-testid="news-key-map">▼ Sys  ▲ Dia  X MAP</span>}
         </div>
         <button type="button" className="btn news2-toggle" data-testid="news-toggle-scale" aria-pressed={scale === 2}
                 onClick={() => setShown(scale === 1 ? 2 : 1)}>Toggle SpO2 Scale</button>
@@ -403,7 +403,7 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
                 {isPred(s) ? (
                   <>
                     <text x={cx(i)} y={totalTop + 12} textAnchor="middle" className="n2-totaltext n2-small" style={{ fill: readableOn(fill(totalRisk(s))) }}>{s.news2_total}</text>
-                    {confidenceOf(s) && <text x={cx(i)} y={totalTop + 24} textAnchor="middle" className="n2-range" data-testid={`news-confidence-${i}`} style={{ fill: readableOn(fill(totalRisk(s))) }}>{confidenceOf(s)} Sure</text>}
+                    {confidenceOf(s) && <text x={cx(i)} y={totalTop + 24} textAnchor="middle" className="n2-range" data-testid={`news-confidence-${i}`} style={{ fill: readableOn(fill(totalRisk(s))) }}>{confidenceOf(s)}{colW >= 64 ? " Sure" : ""}</text>}
                   </>
                 ) : (
                   <text x={cx(i)} y={totalTop + totalH / 2 + 5} textAnchor="middle" className="n2-totaltext" style={{ fill: readableOn(fill(totalRisk(s))) }}>{s.news2_total}</text>

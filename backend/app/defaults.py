@@ -208,7 +208,7 @@ def _screens(news_variant: str, monitor: dict | None = None) -> list[dict]:
          "layout": _split("vertical", 0.55, _rows("rows-top", _COMPACT_ROW_IDS),
                           _news("news2-bottom", news_variant))},
         {"id": "abcde", "name": "ABCDE",
-         "layout": _split("horizontal", 0.5,
+         "layout": _split("horizontal", 0.68,
                           _w({"id": "abcde-panel", "type": "abcde"}),
                           _w({"id": "news2-abcde", "type": "news2-chart", "variant": news_variant, "hours_visible": 12}))},
         {"id": "epr", "name": "Results",

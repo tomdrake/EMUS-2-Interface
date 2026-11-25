@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { useUi } from "@/app/store";
 import { gcsTotal, useAbcde, type Gcs } from "@/abcde/store";
+import { CHECKS } from "@/abcde/checks";
 
 const AVPU = [
   { v: "A", label: "Alert" }, { v: "C", label: "Confusion" }, { v: "V", label: "Responds To Voice" },
@@ -35,6 +36,26 @@ export function AbcdeAssess() {
   const [gcs, setGcs] = useState<Gcs>(m.gcs?.value ?? { e: 4, v: 5, m: 6 });
   const [done, setDone] = useState<string[]>(m.exposure?.value ?? []);
 
+  if (what === "breathing" || what === "circulation") {
+    const letter = what === "breathing" ? "B" : "C";
+    return (
+      <div className="settings" data-testid={`assess-${what}`}>
+        <p className="demo-note" data-prose>{letter === "B" ? "Look, listen and feel. Each touch is recorded with the time." : "Look and feel. Each touch is recorded with the time."}</p>
+        {CHECKS.filter((c) => c.letter === letter).map((c) => (
+          <div className="setting" key={c.key} data-testid={`check-${c.key}`}>
+            <span className="setting-label">{c.how}: {c.label}</span>
+            <div className="choice" role="radiogroup" aria-label={c.label}>
+              {c.options.map((x) => (
+                <button key={x.v} type="button" role="radio" aria-checked={m.checks[c.key]?.value === x.v} data-value={x.v}
+                        className={`choice-opt${m.checks[c.key]?.value === x.v ? " is-current" : ""}`} onClick={() => m.setCheck(c.key, x.v)}>{x.label}</button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <button type="button" className="btn btn-primary" data-testid="check-done" onClick={close}>Done</button>
+      </div>
+    );
+  }
   if (what === "avpu") {
     return (
       <div className="settings" data-testid="assess-avpu">

@@ -6,6 +6,7 @@ import { fmtTime, useFormats } from "@/design/datetime";
 import type { WidgetOf } from "@/design/types";
 import { useSnapshot } from "@/examples/store";
 import { gcsTotal, isOverdue, useAbcde, type Airway } from "@/abcde/store";
+import { CHECKS, assess, labelOf, type CheckKey } from "@/abcde/checks";
 import { flagWord, inWindow, latestSets, recency, takenAt, type BloodSet } from "@/abcde/recency";
 
 import { BpReadings } from "./BpReadings";
@@ -20,11 +21,12 @@ export function statusFrom(components: Record<string, number>, keys: string[]): 
 }
 const worse = (a: Status, b: Status): Status => (a === "Urgent" || b === "Urgent" ? "Urgent" : a === "Check" || b === "Check" ? "Check" : "OK");
 
-function Section({ letter, title, status, children, testId }: { letter: string; title: string; status: Status | "Not Assessed"; children: React.ReactNode; testId: string }) {
+function Section({ letter, title, status, children, testId, extra }: { letter: string; title: string; status: Status | "Not Assessed"; children: React.ReactNode; testId: string; extra?: React.ReactNode }) {
   return (
     <section className="abcde-sec" data-testid={testId} data-letter={letter} data-status={status}>
       <header>
         <h3><span className="abcde-letter" aria-hidden="true">{letter}</span> {title}</h3>
+        {extra}
         <span className="abcde-status" data-testid={`${testId}-status`}>
           {status !== "Not Assessed" && <b aria-hidden="true">{GLYPH[status]}</b>} {status}
         </span>
@@ -124,23 +126,31 @@ export function Abcde({ widget }: { widget: WidgetOf<"abcde"> }) {
   const bpLatest = snapshot.bp_readings[0];
 
   const airway: Status | "Not Assessed" = !m.airway || m.airway.value === "not-assessed" ? "Not Assessed" : m.airway.value === "patent" ? "OK" : "Urgent";
-  const b = worse(statusFrom(comps, ["rr", "spo2", "o2_flow"]), q("pleth")?.grade === "unusable" ? "Check" : "OK");
-  const c = worse(statusFrom(comps, ["bp_sys", "hr"]), m.refill?.value === "over-2" ? "Check" : snapshot.bp_readings.length ? "OK" : "Check");
+  const bCheck = assess("B", m.checks), cCheck = assess("C", m.checks, m.refill?.value);
+  const b = worse(worse(statusFrom(comps, ["rr", "spo2", "o2_flow"]), q("pleth")?.grade === "unusable" ? "Check" : "OK"), bCheck.level);
+  const c = worse(worse(statusFrom(comps, ["bp_sys", "hr"]), m.refill?.value === "over-2" ? "Check" : snapshot.bp_readings.length ? "OK" : "Check"), cCheck.level);
   const manualA = m.avpu?.value;
   const d: Status = worse(statusFrom(comps, ["acvpu"]), manualA && manualA !== "A" ? "Urgent" : isOverdue(m.avpu) && isOverdue(m.gcs) ? "Check" : "OK");
   const e: Status = worse(statusFrom(comps, ["temp"]), isOverdue(m.exposure) ? "Check" : "OK");
+  const summary = (letter: "B" | "C") => CHECKS.filter((x) => x.letter === letter && m.checks[x.key]).map((x) => [x.key, `${x.label} ${labelOf(x.key, m.checks[x.key]!.value)}`] as [CheckKey, string]);
+  const lastCheck = (letter: "B" | "C") => CHECKS.filter((x) => x.letter === letter).map((x) => m.checks[x.key]).filter(Boolean).sort((p, r) => Date.parse(r!.at) - Date.parse(p!.at))[0] ?? null;
+  const checkBlock = (letter: "B" | "C", sheet: string, prompts: string[], title: string) => (
+    <div className="abcde-checks" data-testid={`checks-${sheet}`}>
+      {summary(letter).length > 0 && (
+        <p className="abcde-found" data-testid={`${sheet}-found`}>{summary(letter).map(([k, t]) => <span key={k} data-testid={`found-${k}`} data-value={m.checks[k]!.value}>{t}</span>)}</p>
+      )}
+      {prompts.map((t, i) => <p key={i} className="abcde-prompt" data-prose data-testid={`${sheet}-prompt-${i}`}>{t}</p>)}
+      {isOverdue(lastCheck(letter)) && <p className="abcde-prompt" data-prose data-testid={`${sheet}-overdue`}>{letter === "B" ? "Look, listen and feel: " : "Look and feel: "}{letter === "B" ? "Nothing recorded in the last hour." : "Nothing recorded in the last hour."}</p>}
+      <button type="button" className="btn" data-testid={`${sheet}-btn`} onClick={() => open(sheet)}>{title}</button>
+    </div>
+  );
   const open = (ctx: string) => useUi.getState().showSheet("abcde-assess", ctx);
 
   return (
     <div className="abcde" data-testid="abcde">
-      <div className="abcde-top">
-        <h2 className="abcde-title">ABCDE Assessment</h2>
-        {widget.show_trends_button && (
-          <button type="button" className="btn" data-testid="abcde-trends" onClick={() => useUi.getState().showSheet("trends")}>Trends</button>
-        )}
-      </div>
-      <p className="why-note" data-testid="abcde-note">Airway, capillary refill, AVPU, GCS and exposure are recorded on this screen only and do not change the NEWS2 score.</p>
 
+      <div className="abcde-grid">
+      <div className="abcde-col">
       <Section letter="A" title="Airway" status={airway} testId="abcde-a">
         <Choices<Airway> testId="airway-choice" value={m.airway?.value}
                          options={[{ v: "patent", label: "Patent" }, { v: "not-patent", label: "Not Patent" }, { v: "not-assessed", label: "Not Assessed" }]}
@@ -154,23 +164,27 @@ export function Abcde({ widget }: { widget: WidgetOf<"abcde"> }) {
           <Row k="Respiratory Rate" v={`${n.rr ?? "-"} /min`} testId="b-rr" />
           <Row k="SpO2" v={`${n.spo2 ?? "-"} %`} testId="b-spo2" />
           <Row k="Oxygen" v={snapshot.oxygen.flow_l_min > 0 ? `${snapshot.oxygen.flow_l_min} L/min, ${device}` : "Air"} testId="b-oxygen" />
-          <Row k="Pleth" v={quality("pleth")} testId="b-pleth" />
-          <Row k="Impedance (Chest Sensor)" v={quality("resp")} testId="b-impedance" />
+          <Row k="Signal: Pleth / Chest" v={<><span data-testid="b-pleth">{quality("pleth")}</span> / <span data-testid="b-impedance">{quality("resp")}</span></>} />
         </dl>
+        {checkBlock("B", "breathing", bCheck.prompts, "Look, Listen, Feel")}
       </Section>
 
-      <Section letter="C" title="Circulation" status={c} testId="abcde-c">
+      <Section letter="C" title="Circulation" status={c} testId="abcde-c"
+               extra={widget.show_trends_button ? <button type="button" className="btn abcde-trendsbtn" data-testid="abcde-trends" onClick={() => useUi.getState().showSheet("trends")}>Trends</button> : null}>
         <dl>
           <Row k="Heart Rate" v={`${n.hr ?? "-"} /min${snapshot.findings.find((f) => f.parameter === "hr" && f.status === "active" && f.domain === "rhythm") ? `, ${snapshot.findings.find((f) => f.parameter === "hr" && f.status === "active" && f.domain === "rhythm")!.label}` : ""}`} testId="c-hr" />
           <Row k="Skin Temperature" v={`${n.temp ?? "-"} °C`} testId="c-temp" />
           <Row k="Perfusion" v={q("pleth")?.issue === "low-perfusion" ? "Reduced" : q("pleth") ? (q("pleth")!.grade === "good" ? "Good" : "Poor Signal") : "No Signal"} testId="c-perfusion" />
         </dl>
-        <BpReadings readings={snapshot.bp_readings} nowIso={snapshot.generated_at} />
+        <BpReadings readings={snapshot.bp_readings} nowIso={snapshot.generated_at} limit={2} />
         {bpLatest == null && sig("bp_sys")?.state === "standby" && <p className="why-note">The cuff is not connected.</p>}
         <div className="abcde-inline"><span>Capillary Refill</span>
           <Choices testId="refill-choice" value={m.refill?.value} options={[{ v: "under-2", label: "Under 2 s" }, { v: "over-2", label: "Over 2 s" }]} onPick={(v) => m.setRefill(v)} />
         </div>
+        {checkBlock("C", "circulation", cCheck.prompts, "Look And Feel")}
       </Section>
+      </div>
+      <div className="abcde-col">
 
       <Section letter="D" title="Disability" status={d} testId="abcde-d">
         <dl>
@@ -178,7 +192,7 @@ export function Abcde({ widget }: { widget: WidgetOf<"abcde"> }) {
           {m.gcs && <Row k="GCS" v={`${gcsTotal(m.gcs.value)} (E${m.gcs.value.e} V${m.gcs.value.v} M${m.gcs.value.m}), recorded ${at(m.gcs.at)}`} testId="d-gcs" />}
           <Row k="Glucose" v={(() => { const g = snapshot.labs.find((l) => l.test === "glucose"); return g ? `${g.value} mmol/L, ${takenAt(g.collected_at, formats)}` : "No Recent Result"; })()} testId="d-glucose" />
         </dl>
-        {isOverdue(m.avpu) && isOverdue(m.gcs) && <p className="abcde-prompt" data-testid="d-prompt">Assess consciousness: nothing recorded in the last hour.</p>}
+        {isOverdue(m.avpu) && isOverdue(m.gcs) && <p className="abcde-prompt" data-testid="d-prompt">Assess consciousness: none recorded in the last hour.</p>}
         <div className="panel-buttons">
           <button type="button" className="btn" data-testid="d-avpu-btn" onClick={() => open("avpu")}>AVPU</button>
           <button type="button" className="btn" data-testid="d-gcs-btn" onClick={() => open("gcs")}>GCS Calculator</button>
@@ -190,11 +204,15 @@ export function Abcde({ widget }: { widget: WidgetOf<"abcde"> }) {
           <Row k="Temperature" v={`${snapshot.temp_readings[0]?.value ?? n.temp ?? "-"} °C${snapshot.temp_readings[0] ? ` (measured ${at(snapshot.temp_readings[0].at)})` : ""}`} testId="e-temp" />
           <Row k="Exposure Check" v={m.exposure ? `${m.exposure.value.length ? `Checked: ${m.exposure.value.join(", ")}` : "Nothing Ticked"}, recorded ${at(m.exposure.at)}` : "Not recorded"} testId="e-exposure" />
         </dl>
-        {isOverdue(m.exposure) && <p className="abcde-prompt" data-testid="e-prompt">Expose and examine the patient: skin, wounds, lines and drains.</p>}
-        <button type="button" className="btn" data-testid="e-btn" onClick={() => open("exposure")}>Exposure Check</button>
+        <div className="abcde-checks">
+          {isOverdue(m.exposure) && <p className="abcde-prompt" data-testid="e-prompt">Expose and examine: skin, wounds, lines and drains.</p>}
+          <button type="button" className="btn" data-testid="e-btn" onClick={() => open("exposure")}>Exposure Check</button>
+        </div>
       </Section>
 
       {widget.show_bloods && <Bloods snapshot={snapshot} />}
+      </div>
+      </div>
     </div>
   );
 }

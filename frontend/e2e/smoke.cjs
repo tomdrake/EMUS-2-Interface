@@ -1088,7 +1088,7 @@ for (const vp of VIEWPORTS) {
   await T("abcde").waitFor();
   check(await T("screen-abcde").isVisible() && await T("news2-chart").isVisible(), `${vp.name}: the ABCDE tab is one touch and shows the NEWS2 chart on its other half`);
   const halves = await page.evaluate(() => { const a = document.querySelector('[data-testid="abcde"]').getBoundingClientRect(), n = document.querySelector('[data-testid="news2-chart"]').getBoundingClientRect(), s = document.querySelector(".screen").getBoundingClientRect(); return { a: a.width / s.width, n: n.width / s.width }; });
-  check(halves.a > 0.4 && halves.a < 0.6 && halves.n > 0.4 && halves.n < 0.6, `${vp.name}: ABCDE takes half the screen and the chart the other half`);
+  check(halves.a > 0.6 && halves.a < 0.75 && halves.n > 0.25 && halves.n < 0.4, `${vp.name}: ABCDE takes about two thirds of the screen and the chart the rest`);
   check((await page.locator('.abcde-sec[data-letter]').evaluateAll((e) => e.map((x) => x.dataset.letter).join(""))) === "ABCDE", `${vp.name}: A, B, C, D and E are each checked`);
   const stat = await page.evaluate(() => Object.fromEntries([..."ABCDE"].map((l) => [l, document.querySelector(`.abcde-sec[data-letter="${l}"] .abcde-status`).textContent.replace(/[!✓]/g, "").trim()])));
   check(Object.values(stat).every((v) => ["OK", "Check", "Urgent", "Not Assessed"].includes(v)) && stat.A === "Not Assessed", `${vp.name}: each letter has a status word (${JSON.stringify(stat)})`);
@@ -1374,6 +1374,33 @@ for (const vp of VIEWPORTS) {
   await T("tab-prediction-overlay").click();
   await settle();
   check(await T("tab-prediction-overlay").getAttribute("aria-pressed") === "false" && await page.locator('[data-testid="screen-monitor-predict"]').count() === 0, `${vp.name}: pressing the button again goes back to the screen it came from`);
+
+  // ---- Round 14: ABCDE with look, listen and feel; D, E, the gas and the glucose in view
+  await goDesign("icu-monitor", "abcde"); await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 360); await settle();
+  await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+  await page.waitForTimeout(500);
+  const inView = await page.evaluate(() => { const p = document.querySelector('[data-testid="abcde"]').getBoundingClientRect(); return ["abcde-d", "abcde-e", "blood-gas", "blood-glucose", "d-glucose"].map((id) => { const r = document.querySelector(`[data-testid="${id}"]`)?.getBoundingClientRect(); return [id, !!r && r.bottom <= p.bottom + 1 && r.top >= p.top - 1]; }); });
+  check(inView.every(([, ok]) => ok), `${vp.name}: D, E, the blood gas and the glucose are inside the visible ABCDE panel (${JSON.stringify(inView)})`);
+  const glucoseApi = api360.labs.filter((l) => l.test === "glucose").sort((a, b) => b.collected_at.localeCompare(a.collected_at))[0];
+  check(!glucoseApi || (await T("d-glucose").innerText()).includes(String(glucoseApi.value)), `${vp.name}: the glucose shown is the latest the API has (${glucoseApi?.value})`);
+  check(await page.locator('[data-testid="abcde-note"]').count() === 0, `${vp.name}: the paragraph above A is gone`);
+  await T("breathing-btn").click(); await T("assess-breathing").waitFor();
+  await page.locator('[data-testid="check-expansion"] [data-value="left-less"]').click();
+  await page.locator('[data-testid="check-percussion"] [data-value="hyper"]').click();
+  await page.locator('[data-testid="check-entry"] [data-value="reduced-left"]').click();
+  await T("check-done").click();
+  check((await T("breathing-prompt-0").innerText()).includes("pneumothorax") && (await T("abcde-b-status").innerText()).includes("Urgent"), `${vp.name}: unequal expansion with hyper-resonance prompts pneumothorax and makes B Urgent`);
+  check(await T("found-entry").getAttribute("data-value") === "reduced-left" && await T("found-percussion").count() === 1, `${vp.name}: what was looked at, listened to and felt is shown with B`);
+  await T("circulation-btn").click(); await T("assess-circulation").waitFor();
+  await page.locator('[data-testid="check-oedema"] [data-value="peripheral"]').click();
+  await page.locator('[data-testid="check-jvp"] [data-value="raised"]').click();
+  await T("check-done").click();
+  check((await T("circulation-prompt-0").innerText()).includes("heart failure"), `${vp.name}: oedema with raised neck veins prompts heart failure or overload`);
+  const abcdeKept = await page.evaluate(() => JSON.parse(localStorage.getItem("emus.abcde")).checks);
+  check(abcdeKept.entry?.value === "reduced-left" && abcdeKept.oedema?.value === "peripheral" && !!abcdeKept.entry.at, `${vp.name}: the checks are kept with their time`);
+  await page.evaluate(() => { const s = window.__emus; try { localStorage.removeItem("emus.abcde"); } catch {} });
+  await page.reload({ waitUntil: "networkidle" });
+  await goDesign("icu-monitor", "abcde"); await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 360); await settle();
 
   // the NEWS2 chart: observed columns, then predicted ones in the same chart, darker and thinly hatched; the overlay button opens the full-width view
   await T("tab-news2").click(); await T("news2-chart").first().waitFor(); await page.waitForTimeout(600);
