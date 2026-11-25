@@ -147,7 +147,7 @@ The monitor is five full-width traces (ECG, SpO2, respiration, blood pressure, t
 - **Prediction view** (the Predict tab): future NEWS for each horizon with its 80 % range and a chart running into the prediction, and a table of predicted heart rate, respiration, SpO2, systolic BP and temperature, each with certainty. Three switches (Future NEWS, Observation Predictions, Certainty) turn each part on or off; the choice is kept on the screen. The predictions are from example data until the causal model (M7) is connected.
 - **Last five BP readings** sit under the BP number in the main view; the number takes the room the list leaves and the oldest lines drop out where the row is short.
 - **Measure BP / Measure Temp** are one-touch: the first touch starts a simulated measurement and the box for it pulses until the reading is in; the next touch cancels it. No sheet or menu opens.
-- **Red emergency alerts** are a red triangle with an exclamation mark, not "!!!".
+- **Red emergency alerts** are a red triangle with an exclamation mark, not repeated exclamation marks: priority is shown by shape and word (red triangle, amber triangle, circled "!"), and Urgent and Critical use the red triangle.
 
 ## Prediction overlay, the full Prediction tab and the NEWS2 check (round 9)
 

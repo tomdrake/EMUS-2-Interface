@@ -1383,6 +1383,12 @@ for (const vp of VIEWPORTS) {
   check(inView.every(([, ok]) => ok), `${vp.name}: D, E, the blood gas and the glucose are inside the visible ABCDE panel (${JSON.stringify(inView)})`);
   const glucoseApi = api360.labs.filter((l) => l.test === "glucose").sort((a, b) => b.collected_at.localeCompare(a.collected_at))[0];
   check(!glucoseApi || (await T("d-glucose").innerText()).includes(String(glucoseApi.value)), `${vp.name}: the glucose shown is the latest the API has (${glucoseApi?.value})`);
+  const abcdeCards = await page.evaluate(() => Object.fromEntries(["abcde-a", "abcde-b", "abcde-c", "abcde-d", "abcde-e", "abcde-bloods"].map((id) => { const r = document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect(); return [id, [Math.round(r.left), Math.round(r.top)]]; })));
+  check(abcdeCards["abcde-a"][0] < abcdeCards["abcde-b"][0] && Math.abs(abcdeCards["abcde-a"][1] - abcdeCards["abcde-b"][1]) < 4 && abcdeCards["abcde-c"][0] < abcdeCards["abcde-d"][0] && Math.abs(abcdeCards["abcde-c"][1] - abcdeCards["abcde-d"][1]) < 4
+    && abcdeCards["abcde-c"][1] > abcdeCards["abcde-a"][1] + 40 && abcdeCards["abcde-e"][1] > abcdeCards["abcde-c"][1] + 40 && abcdeCards["abcde-e"][0] <= abcdeCards["abcde-a"][0] + 2 && abcdeCards["abcde-bloods"][0] > abcdeCards["abcde-e"][0], `${vp.name}: the cards run A B, then C D, then E with the results (${JSON.stringify(abcdeCards)})`);
+  const bangs = await page.evaluate(() => document.body.innerText.match(/!!+/g)?.length ?? 0);
+  check(bangs === 0, `${vp.name}: no !! or !!! anywhere on the ABCDE screen`);
+  check(await page.locator('[data-testid="abcde-b"] .abcde-status .priority-triangle').count() === 1, `${vp.name}: Urgent is a red triangle with its word`);
   check(await page.locator('[data-testid="abcde-note"]').count() === 0, `${vp.name}: the paragraph above A is gone`);
   await T("breathing-btn").click(); await T("assess-breathing").waitFor();
   await page.locator('[data-testid="check-expansion"] [data-value="left-less"]').click();

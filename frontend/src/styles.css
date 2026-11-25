@@ -319,7 +319,7 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .notif-strip .notif-text { -webkit-line-clamp: 1; }
 .notif-tag, .feed-tag { flex: none; font-size: 0.62em; font-weight: 800; letter-spacing: 0.08em;
   padding: 1px 5px; border: 1px solid currentColor; border-radius: 4px; }
-/* Patient alarm priority in shape: !!! high, !! medium, ! low. Alarm colours live
+/* Patient alarm priority in shape: red triangle high, amber triangle medium, circled mark low. Alarm colours live
    here and on the frame, not on the text. */
 .notif-mark { flex: none; font-size: 0.7em; font-weight: 900; letter-spacing: 0.02em; padding: 0 5px;
   border-radius: 4px; line-height: 1.5; border: 1px solid currentColor; }
@@ -328,7 +328,14 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .priority-triangle { display: block; }
 .priority-triangle .prio-body { fill: var(--c-alarm-high); stroke: var(--c-alarm-high); stroke-width: 1.6; stroke-linejoin: round; }
 .priority-triangle .prio-bang { fill: #ffffff; }
-.mark-medium { background: var(--c-alarm-medium); color: var(--c-background); border-color: var(--c-alarm-medium); }
+.mark-medium, .mark-low { background: none; border: 0; padding: 0; display: inline-flex; align-items: center; line-height: 1; }
+.mark-medium { color: var(--c-alarm-medium); }
+.mark-low { color: var(--c-alarm-low); }
+.priority-triangle.is-medium .prio-body { fill: none; stroke: var(--c-alarm-medium); stroke-width: 2.2; }
+.priority-triangle.is-medium .prio-bang { fill: var(--c-alarm-medium); }
+.alert-circle { display: block; }
+.alert-circle .prio-ring { fill: none; stroke: currentColor; stroke-width: 2; }
+.alert-circle .prio-bang { fill: currentColor; }
 .notif-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
 .notif-count { flex: none; font-weight: 800; font-size: 0.8em; padding: 2px 7px; border-radius: 999px;
   border: 1px solid var(--c-border); color: var(--c-text-muted); font-variant-numeric: tabular-nums; }
@@ -1149,3 +1156,19 @@ button:disabled { opacity: 0.45; }
 .abcde-bloods .blood-results li > span { overflow: visible; text-overflow: clip; white-space: normal; }
 .abcde-bloods .blood-flag { margin-left: auto; }
 .abcde-bloods .blood-set { padding: 3px 6px; }
+
+/* ABCDE as cards in reading order: A B / C D / E and the results */
+.abcde-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-rows: auto; align-items: stretch; }
+.abcde-grid > .abcde-sec { grid-column: span 3; }
+.abcde-grid > [data-letter="E"] { grid-column: span 2; }
+.abcde-grid > .abcde-bloods { grid-column: span 4; }
+.abcde-sec { display: flex; flex-direction: column; }
+.abcde-mark { display: inline-flex; vertical-align: middle; margin-right: 2px; }
+.abcde-bloods .blood-results { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@container (max-width: 520px) { .abcde-grid > .abcde-sec, .abcde-grid > [data-letter="E"], .abcde-grid > .abcde-bloods { grid-column: span 6; } }
+.abcde-bloods .blood-results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.abcde-grid { gap: 4px; }
+.abcde-bloods .blood-results { font-size: 0.72rem; line-height: 1.15; }
+.abcde-bloods .blood-results small, .abcde-bloods .blood-flag { font-size: 0.66rem; }
+.abcde-bloods .blood-results li { column-gap: 3px; }
+.abcde-bloods > header h3 { font-size: 0.9rem; }

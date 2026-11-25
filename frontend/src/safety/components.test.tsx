@@ -32,7 +32,7 @@ const registry = {
   },
   signal_issues: { "low-perfusion": { label: "Low perfusion", advice: "Check sensor site; try another site" } },
   technical_alarms: { "display-disconnected": { message: "This screen is not updating." } },
-  alarm_priority_marks: { high: "!!!", medium: "!!", low: "!" },
+  alarm_priority_marks: { high: "High", medium: "Medium", low: "Low" },
 };
 const ok = (parameter: string, extra = {}) => ({ parameter, state: "ok", since: "", advice: "", ...extra }) as any;
 const limb = (over = {}) => ({ id: "limb", label: "Limb sensor", kind: "anne-limb", connection: "connected",

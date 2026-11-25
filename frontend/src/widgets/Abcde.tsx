@@ -9,10 +9,11 @@ import { gcsTotal, isOverdue, useAbcde, type Airway } from "@/abcde/store";
 import { CHECKS, assess, labelOf, type CheckKey } from "@/abcde/checks";
 import { flagWord, inWindow, latestSets, recency, takenAt, type BloodSet } from "@/abcde/recency";
 
-import { BpReadings } from "./BpReadings";
+import { AlertGlyph } from "@/safety/PriorityMark";
+
 
 export type Status = "OK" | "Check" | "Urgent";
-const GLYPH: Record<Status, string> = { OK: "✓", Check: "!", Urgent: "!!" };
+const StatusMark = ({ status }: { status: Status }) => (status === "OK" ? <b aria-hidden="true">✓</b> : <span className="abcde-mark" aria-hidden="true"><AlertGlyph level={status === "Urgent" ? "high" : "low"} size={16} /></span>);
 
 /** The worst NEWS2 component among some keys, as a status: 3 is Urgent, 1 or 2 is Check, 0 is OK. */
 export function statusFrom(components: Record<string, number>, keys: string[]): Status {
@@ -28,7 +29,7 @@ function Section({ letter, title, status, children, testId, extra }: { letter: s
         <h3><span className="abcde-letter" aria-hidden="true">{letter}</span> {title}</h3>
         {extra}
         <span className="abcde-status" data-testid={`${testId}-status`}>
-          {status !== "Not Assessed" && <b aria-hidden="true">{GLYPH[status]}</b>} {status}
+          {status !== "Not Assessed" && <StatusMark status={status} />} {status}
         </span>
       </header>
       {children}
@@ -87,7 +88,7 @@ function BloodSetView({ set, nowIso, shown, onReveal }: { set: BloodSet; nowIso:
               <li key={l.test} data-testid={`blood-${set.key}-${l.test}`} data-flag={l.flag}>
                 <span>{t?.label ?? l.test}</span>
                 <b>{l.value}<small> {l.unit}</small></b>
-                {flag && <em className="blood-flag"><span aria-hidden="true">{l.flag.startsWith("critical") ? "!!" : "!"}</span> {flag}</em>}
+                {flag && <em className="blood-flag"><span className="abcde-mark" aria-hidden="true"><AlertGlyph level={l.flag.startsWith("critical") ? "high" : "low"} size={14} /></span> {flag}</em>}
               </li>
             );
           })}
@@ -122,7 +123,6 @@ export function Abcde({ widget }: { widget: WidgetOf<"abcde"> }) {
   const q = (wave: string) => snapshot.quality.find((x) => x.waveform === wave);
   const sig = (p: string) => snapshot.signals[p as keyof typeof snapshot.signals];
   const device = registry.o2_devices[snapshot.oxygen.device] ?? snapshot.oxygen.device;
-  const quality = (wave: string) => { const x = q(wave); return x ? (x.grade === "good" ? "Good" : x.label || "Poor") : "No Signal"; };
   const bpLatest = snapshot.bp_readings[0];
 
   const airway: Status | "Not Assessed" = !m.airway || m.airway.value === "not-assessed" ? "Not Assessed" : m.airway.value === "patent" ? "OK" : "Urgent";
@@ -140,7 +140,7 @@ export function Abcde({ widget }: { widget: WidgetOf<"abcde"> }) {
         <p className="abcde-found" data-testid={`${sheet}-found`}>{summary(letter).map(([k, t]) => <span key={k} data-testid={`found-${k}`} data-value={m.checks[k]!.value}>{t}</span>)}</p>
       )}
       {prompts.map((t, i) => <p key={i} className="abcde-prompt" data-prose data-testid={`${sheet}-prompt-${i}`}>{t}</p>)}
-      {isOverdue(lastCheck(letter)) && <p className="abcde-prompt" data-prose data-testid={`${sheet}-overdue`}>{letter === "B" ? "Look, listen and feel: " : "Look and feel: "}{letter === "B" ? "Nothing recorded in the last hour." : "Nothing recorded in the last hour."}</p>}
+      {isOverdue(lastCheck(letter)) && <p className="abcde-prompt" data-prose data-testid={`${sheet}-overdue`}>{letter === "B" ? "None recorded in the last hour." : "None recorded in the last hour."}</p>}
       <button type="button" className="btn" data-testid={`${sheet}-btn`} onClick={() => open(sheet)}>{title}</button>
     </div>
   );
@@ -150,8 +150,8 @@ export function Abcde({ widget }: { widget: WidgetOf<"abcde"> }) {
     <div className="abcde" data-testid="abcde">
 
       <div className="abcde-grid">
-      <div className="abcde-col">
-      <Section letter="A" title="Airway" status={airway} testId="abcde-a">
+      <Section letter="A" title="Airway" status={airway} testId="abcde-a"
+               extra={widget.show_trends_button ? <button type="button" className="btn abcde-trendsbtn" data-testid="abcde-trends" onClick={() => useUi.getState().showSheet("trends")}>Trends</button> : null}>
         <Choices<Airway> testId="airway-choice" value={m.airway?.value}
                          options={[{ v: "patent", label: "Patent" }, { v: "not-patent", label: "Not Patent" }, { v: "not-assessed", label: "Not Assessed" }]}
                          onPick={(v) => m.setAirway(v)} />
@@ -164,27 +164,22 @@ export function Abcde({ widget }: { widget: WidgetOf<"abcde"> }) {
           <Row k="Respiratory Rate" v={`${n.rr ?? "-"} /min`} testId="b-rr" />
           <Row k="SpO2" v={`${n.spo2 ?? "-"} %`} testId="b-spo2" />
           <Row k="Oxygen" v={snapshot.oxygen.flow_l_min > 0 ? `${snapshot.oxygen.flow_l_min} L/min, ${device}` : "Air"} testId="b-oxygen" />
-          <Row k="Signal: Pleth / Chest" v={<><span data-testid="b-pleth">{quality("pleth")}</span> / <span data-testid="b-impedance">{quality("resp")}</span></>} />
         </dl>
         {checkBlock("B", "breathing", bCheck.prompts, "Look, Listen, Feel")}
       </Section>
 
-      <Section letter="C" title="Circulation" status={c} testId="abcde-c"
-               extra={widget.show_trends_button ? <button type="button" className="btn abcde-trendsbtn" data-testid="abcde-trends" onClick={() => useUi.getState().showSheet("trends")}>Trends</button> : null}>
+      <Section letter="C" title="Circulation" status={c} testId="abcde-c">
         <dl>
           <Row k="Heart Rate" v={`${n.hr ?? "-"} /min${snapshot.findings.find((f) => f.parameter === "hr" && f.status === "active" && f.domain === "rhythm") ? `, ${snapshot.findings.find((f) => f.parameter === "hr" && f.status === "active" && f.domain === "rhythm")!.label}` : ""}`} testId="c-hr" />
-          <Row k="Skin Temperature" v={`${n.temp ?? "-"} °C`} testId="c-temp" />
+          <Row k="Blood Pressure" v={bpLatest ? `${bpLatest.sys}/${bpLatest.dia} (${bpLatest.map}), ${at(bpLatest.at)}` : "No Reading"} testId="c-bp" />
           <Row k="Perfusion" v={q("pleth")?.issue === "low-perfusion" ? "Reduced" : q("pleth") ? (q("pleth")!.grade === "good" ? "Good" : "Poor Signal") : "No Signal"} testId="c-perfusion" />
         </dl>
-        <BpReadings readings={snapshot.bp_readings} nowIso={snapshot.generated_at} limit={2} />
         {bpLatest == null && sig("bp_sys")?.state === "standby" && <p className="why-note">The cuff is not connected.</p>}
         <div className="abcde-inline"><span>Capillary Refill</span>
           <Choices testId="refill-choice" value={m.refill?.value} options={[{ v: "under-2", label: "Under 2 s" }, { v: "over-2", label: "Over 2 s" }]} onPick={(v) => m.setRefill(v)} />
         </div>
         {checkBlock("C", "circulation", cCheck.prompts, "Look And Feel")}
       </Section>
-      </div>
-      <div className="abcde-col">
 
       <Section letter="D" title="Disability" status={d} testId="abcde-d">
         <dl>
@@ -201,7 +196,7 @@ export function Abcde({ widget }: { widget: WidgetOf<"abcde"> }) {
 
       <Section letter="E" title="Exposure" status={e} testId="abcde-e">
         <dl>
-          <Row k="Temperature" v={`${snapshot.temp_readings[0]?.value ?? n.temp ?? "-"} °C${snapshot.temp_readings[0] ? ` (measured ${at(snapshot.temp_readings[0].at)})` : ""}`} testId="e-temp" />
+          <Row k="Temperature" v={`${snapshot.temp_readings[0]?.value ?? n.temp ?? "-"} °C${snapshot.temp_readings[0] ? `, ${at(snapshot.temp_readings[0].at)}` : ""}`} testId="e-temp" />
           <Row k="Exposure Check" v={m.exposure ? `${m.exposure.value.length ? `Checked: ${m.exposure.value.join(", ")}` : "Nothing Ticked"}, recorded ${at(m.exposure.at)}` : "Not recorded"} testId="e-exposure" />
         </dl>
         <div className="abcde-checks">
@@ -211,7 +206,6 @@ export function Abcde({ widget }: { widget: WidgetOf<"abcde"> }) {
       </Section>
 
       {widget.show_bloods && <Bloods snapshot={snapshot} />}
-      </div>
       </div>
     </div>
   );

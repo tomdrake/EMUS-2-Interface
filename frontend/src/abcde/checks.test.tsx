@@ -74,3 +74,15 @@ describe("the look, listen and feel sheets", () => {
     expect(dom.queryByTestId("check-entry")).toBeNull();
   });
 });
+
+describe("no repeated exclamation marks", () => {
+  it("shows Urgent and Critical as shapes with words, never !! or !!!", async () => {
+    const { PriorityMark } = await import("@/safety/PriorityMark");
+    const { container } = render(<><PriorityMark priority="high" mark="High" /><PriorityMark priority="medium" mark="Medium" /><PriorityMark priority="low" mark="Low" /></>);
+    expect(container.textContent).not.toMatch(/!!/);
+    expect(container.querySelectorAll("svg")).toHaveLength(3);
+    expect([...container.querySelectorAll("[role=img]")].map((e) => e.getAttribute("aria-label"))).toEqual(["High priority", "Medium priority", "Low priority"]);
+    expect(container.querySelector(".priority-triangle.is-medium")).not.toBeNull();
+    expect(container.querySelector(".alert-circle")).not.toBeNull();
+  });
+});

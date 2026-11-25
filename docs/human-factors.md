@@ -95,8 +95,8 @@ bar, or a fixed strip (a design choice; removing it is not).
 - **It never opens by itself.** Touching it opens the full list as an overlay that
   does not dim or move the monitor, with how long ago each item started. The ticker
   waits while the list is open.
-- Patient alarms carry their priority as marks, **!!!** high, **!!** medium, **!**
-  low (IEC 60601-1-8 as recalled; check the standard). A patient alarm also frames
+- Patient alarms carry their priority as shapes with words: a red triangle with "!" for high, an amber triangle for medium, a circled "!" for
+  low, never repeated exclamation marks (IEC 60601-1-8 as recalled; check the standard). A patient alarm also frames
   the box in the alarm colour. Monitoring items have no mark and a dashed frame.
 - An item takes the colour of the row it is about. An item about several rows (a
   sensor that feeds more than one) is neutral with a small dot in each row's colour.

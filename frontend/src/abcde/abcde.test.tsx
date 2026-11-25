@@ -90,10 +90,9 @@ describe("ABCDE screen", () => {
     expect(dom.getByTestId("abcde-b-status").textContent).toContain("Urgent");
     expect(dom.getByTestId("b-rr").textContent).toBe("27 /min");
     expect(dom.getByTestId("b-oxygen").textContent).toBe("4 L/min, Nasal cannula");
-    expect(dom.getByTestId("b-impedance").textContent).toBe("Movement");
     expect(dom.getByTestId("abcde-c-status").textContent).toContain("Check");
     expect(dom.getByTestId("abcde-a").dataset.status).toBe("Not Assessed");
-    expect(dom.getByTestId("bp-reading-0").textContent).toContain("118/68");
+    expect(dom.getByTestId("c-bp").textContent).toContain("118/68");
   });
   it("records airway and capillary refill with a time, and calls for help when the airway is not patent", () => {
     render(<Abcde widget={widget} />);

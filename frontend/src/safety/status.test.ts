@@ -100,7 +100,7 @@ describe("notifications", () => {
     link: "live" as const, sound: "ready" as const, alarms: state([]),
     order: "severity-then-recent" as const,
     registry: { parameters: { spo2: { short: "SpO2" }, pulse: { short: "PR" } },
-                alarm_priority_marks: { high: "!!!", medium: "!!", low: "!" },
+                alarm_priority_marks: { high: "High", medium: "Medium", low: "Low" },
                 technical_alarms: { "display-disconnected": { message: "Screen not updating." },
                                     "sound-unavailable": { message: "Sound is off." } } } as any,
   };
@@ -126,7 +126,7 @@ describe("notifications", () => {
     const list = buildNotices({ ...base, alarms: state([
       alarm("hr", "high", 1, { parameter: "hr" }), alarm("rr", "medium", 1), alarm("lo", "low", 1),
       alarm("batt", "low", 1, { kind: "technical", technical: "battery-low" })]) });
-    expect(Object.fromEntries(list.map((n) => [n.id, n.mark]))).toEqual({ hr: "!!!", rr: "!!", lo: "!", batt: null });
+    expect(Object.fromEntries(list.map((n) => [n.id, n.mark]))).toEqual({ hr: "High", rr: "Medium", lo: "Low", batt: null });
     expect(list.find((n) => n.id === "hr")!.parameters).toEqual(["hr"]);
   });
 
