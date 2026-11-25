@@ -1106,6 +1106,13 @@
           "title": "Placeholder",
           "type": "boolean"
         },
+        "predicted_obs_sets": {
+          "items": {
+            "$ref": "#/$defs/ObservationSet"
+          },
+          "title": "Predicted Obs Sets",
+          "type": "array"
+        },
         "quality": {
           "items": {
             "$ref": "#/$defs/SignalQuality"
@@ -1253,6 +1260,7 @@
         "temp_readings",
         "labs",
         "obs_sets",
+        "predicted_obs_sets",
         "findings",
         "finding_data",
         "forecast"
@@ -1795,6 +1803,13 @@
           "title": "At",
           "type": "string"
         },
+        "certainty": {
+          "items": {
+            "$ref": "#/$defs/CertaintyValue"
+          },
+          "title": "Certainty",
+          "type": "array"
+        },
         "horizon_min": {
           "title": "Horizon Min",
           "type": "integer"
@@ -1826,7 +1841,8 @@
         "horizon_min",
         "at",
         "value",
-        "intervals"
+        "intervals",
+        "certainty"
       ],
       "title": "ForecastPoint",
       "type": "object"
@@ -2447,6 +2463,38 @@
           "title": "Components",
           "type": "object"
         },
+        "inputs": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Inputs",
+          "type": "object"
+        },
+        "monitoring_hours": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Monitoring Hours"
+        },
         "response": {
           "default": "",
           "title": "Response",
@@ -2480,7 +2528,9 @@
         "risk",
         "complete",
         "components",
-        "response"
+        "response",
+        "inputs",
+        "monitoring_hours"
       ],
       "title": "News2Now",
       "type": "object"
@@ -2817,7 +2867,8 @@
           "default": "charted",
           "enum": [
             "charted",
-            "continuous"
+            "continuous",
+            "predicted"
           ],
           "title": "Source",
           "type": "string"

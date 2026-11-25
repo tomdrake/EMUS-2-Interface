@@ -5,8 +5,8 @@ import { AbcdeAssess } from "./AbcdeAssess";
 import { AiSettingsSheet } from "./AiSettingsSheet";
 import { AppearanceSheet } from "./AppearanceSheet";
 import { DemoControls } from "./DemoControls";
-import { MeasureSheet } from "./MeasureSheet";
 import { NavigationSheet } from "./NavigationSheet";
+import { News2Breakdown } from "./News2Breakdown";
 import { TrendsSheet } from "./TrendsSheet";
 import { VersionsSheet } from "./VersionsSheet";
 import { ExplanationExamples } from "./ExplanationExamples";
@@ -31,8 +31,7 @@ export const SHEETS: Record<SheetId, { title: string; Component: () => JSX.Eleme
   "explanation-examples": { title: "Explanation Examples", Component: ExplanationExamples },
   trends: { title: "Trends", Component: TrendsSheet },
   "abcde-assess": { title: "Assess", Component: AbcdeAssess },
-  "measure-bp": { title: "Measure BP", Component: () => <MeasureSheet kind="bp" /> },
-  "measure-temp": { title: "Measure Temp", Component: () => <MeasureSheet kind="temp" /> },
+  "news2-breakdown": { title: "NEWS2 Breakdown", Component: News2Breakdown },
   "demo-controls": { title: "Demo Controls", Component: DemoControls },
   "news2-variant": { title: "NEWS2 Chart Style", Component: stub("Light bands / dark bands / dark trend", "M3") },
   "home-screen": { title: "Home Screen", Component: stub("Choose the home screen", "M3") },

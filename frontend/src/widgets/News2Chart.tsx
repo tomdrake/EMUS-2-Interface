@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import type { Axis, Band } from "@/app/api";
-import { useTheme, useUi } from "@/app/store";
+import { pickCertainty } from "@/ai/certainty";
+import { useDesign, useTheme, useUi } from "@/app/store";
 import type { ExampleSnapshot } from "@/contracts/types.gen";
+import { fmtDate, fmtTime, useFormats } from "@/design/datetime";
 import { useSnapshot } from "@/examples/store";
 import type { WidgetOf } from "@/design/types";
 import { useSize } from "@/traces/useSize";
@@ -115,7 +117,10 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
   const snapshot = useSnapshot();
   const theme = useTheme();
   const registry = useUi((s) => s.registry);
+  const design = useDesign();
+  const horizons = design?.forecast.horizons_min ?? [60, 120, 240, 360];
   const [ref, { w, h }] = useSize<HTMLDivElement>();
+  const formats = useFormats();
   const [shown, setShown] = useState<1 | 2 | null>(null);
   if (!snapshot || !theme || !registry) {
     return <div className="news2-empty" data-testid="news2-empty">No observations to chart. Turn on example data in Demo Controls.</div>;
@@ -129,12 +134,17 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
   const left = NAME_W + LABEL_W;
 
   const news = snapshot.forecast.forecasts.find((f) => f.parameter === "news2" && f.scenario === "baseline");
-  const futureAll = widget.show_future && news ? news.points : [];
+  // The predicted columns: the observations the forecast predicts at each horizon the design chose (the forecast has a point every 30 minutes).
+  const nowMs = Date.parse(snapshot.generated_at);
+  const minutesOf = (s: ObsSet) => Math.round((Date.parse(s.at) - nowMs) / 60000);
+  const predAll = widget.show_future ? (snapshot.predicted_obs_sets ?? []).filter((s) => horizons.includes(minutesOf(s) as never)) : [];
+  const hasPred = predAll.length > 0;
+  const hatchId = `n2hatch-${useId().replace(/:/g, "")}`;
   const groups = chartGroups(registry.news2_bands, scale);
   const axesOf = registry.news2_axes ?? {};
   // Geometry. Rows share the height. If even the smallest readable rows do not fit, the whole drawing is scaled
   // down (to at most 70 %) so the bottom of the chart is always on screen, never scrolled off.
-  const headH = 28, footRows = widget.show_escalation_rows ? 2 : 0, totalH = 28, footH = 17, gap = 3, toolH = 58;
+  const headH = hasPred ? 40 : 28, hy = headH - 28, footRows = widget.show_escalation_rows ? 2 : 0, totalH = 28, footH = 17, gap = 3, toolH = 58;
   // A labelled row (oxygen, consciousness) is never shorter than a line of text, and a continuous axis never shorter
   // than room for its ticks, so a short box shrinks the drawing rather than crowding its labels.
   const blockHeight = (g: ChartGroup, rh: number) => (axesOf[g.bandKey] ? Math.max(g.bands.length * rh, MIN_AXIS_H) : g.bands.length * Math.max(rh, MIN_LABEL_ROW));
@@ -148,10 +158,17 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
   const vw = realW / k;          // the width in drawing units
   // As many columns as fit at a readable width: the newest sets, then the predictions.
   const fit = Math.max(3, Math.floor((vw - left - 6) / MIN_COL));
-  const allSets = visibleSets(snapshot.obs_sets, snapshot.generated_at, widget.hours_visible);
-  const future = futureAll.slice(0, Math.max(0, Math.min(futureAll.length, fit - Math.min(allSets.length, 3))));
-  const sets = allSets.slice(-Math.max(1, fit - future.length));
-  const cols = sets.length + future.length;
+  // observed columns on the left, predicted on the right, roughly half and half; the newest observed sets and the nearest horizons
+  const observedAll = visibleSets(snapshot.obs_sets, snapshot.generated_at, widget.hours_visible);
+  const plan = planColumns(fit, observedAll.length, predAll.length);
+  const sets = [...observedAll.slice(observedAll.length - plan.observed), ...predAll.slice(0, plan.predicted)];
+  const obsCount = plan.observed;                         // the index of the first predicted column
+  const isPred = (s: ObsSet) => s.source === "predicted";
+  const confidenceOf = (s: ObsSet): string | null => {
+    const c = pickCertainty(news?.points.find((p) => p.horizon_min === minutesOf(s))?.certainty ?? [], design?.forecast.certainty.metric ?? "prediction_interval");
+    return c ? `${Math.round(Math.min(1, Math.max(0, c.score)) * 100)}%` : null;
+  };
+  const cols = sets.length;
   const band = theme.news_bands as unknown as Record<string, string>;
   const fill = (score: number) => band[`score_${Math.min(3, score)}`] ?? "transparent";
 
@@ -162,46 +179,47 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
   const blocks = groups.map((g) => { const top = y; y += blockHeight(g, rowH) + gap; return { g, top }; });
   const totalTop = y;
   const height = y + (widget.show_total_row ? totalH : 0) + footRows * footH + 4;
-  const time = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  const date = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
-  const range80 = (p: (typeof future)[number]) => p.intervals["80"] as unknown as [number, number];
+  const time = (iso: string) => fmtTime(iso, formats);
+  const date = (iso: string) => fmtDate(iso, formats, { short: true });
   const colX = (i: number) => left + i * colW;
   const cx = (i: number) => colX(i) + colW / 2;
   const totalRisk = (s: ObsSet) => RISK_SCORE[s.news2_risk ?? "low"] ?? 0;
   const val = (s: ObsSet, k: string) => (s.values as Record<string, unknown>)[k];
   const onO2 = (s: ObsSet) => Number(s.values.o2_flow) > 0;
   const axes = registry.news2_axes ?? {};
-  const lastOn = sets.length ? onO2(sets[sets.length - 1]!) : false;
   const svgW = Math.max(width, vw);
 
   return (
-    <div className={`news2-chart news2-${widget.variant}`} data-testid="news2-chart" data-variant={widget.variant} data-spo2-scale={scale} ref={ref}>
+    <div className={`news2-chart news2-${widget.variant}`} data-testid="news2-chart" data-variant={widget.variant} data-mode={dark ? "dark" : "light"} data-spo2-scale={scale} ref={ref}>
       <div className="news2-toolbar">
         {wide && <h3 className="news2-title">NEWS2 Chart</h3>}
         <div className="news2-key" data-testid="news-key" aria-label="NEWS key: score of each colour">
           {wide && <span className="news2-key-label">NEWS Key</span>}
           {[0, 1, 2, 3].map((k) => <span key={k} className="news2-key-box" data-score={k} style={{ background: fill(k), color: readableOn(fill(k)) }}>{k}</span>)}
-                  <span className="news2-key-label news2-key-map" data-testid="news-key-map">▼ Sys  ▲ Dia  X MAP</span>
+                  {(wide || w >= 400) && <span className="news2-key-label news2-key-map" data-testid="news-key-map">▼ Sys  ▲ Dia  X MAP</span>}
         </div>
         <button type="button" className="btn news2-toggle" data-testid="news-toggle-scale" aria-pressed={scale === 2}
                 onClick={() => setShown(scale === 1 ? 2 : 1)}>Toggle SpO2 Scale</button>
       </div>
       <svg className="news2-svg" width={svgW * k} height={height * k} viewBox={`0 0 ${svgW} ${height}`} data-scale={k.toFixed(3)} role="img" aria-label="NEWS2 observation chart">
         {/* the time each set was taken */}
-        <text x={left - 4} y={12} textAnchor="end" className="n2-label">Date</text>
-        <text x={left - 4} y={24} textAnchor="end" className="n2-label">Time</text>
+        <text x={left - 4} y={12 + hy} textAnchor="end" className="n2-label">Date</text>
+        <text x={left - 4} y={24 + hy} textAnchor="end" className="n2-label">Time</text>
         {sets.map((s, i) => (
-          <g key={s.at} data-testid={`news-col-${i}`} className="n2-headtext">
-            <text x={cx(i)} y={12} textAnchor="middle" className="n2-date">{date(s.at)}</text>
-            <text x={cx(i)} y={24} textAnchor="middle" className="n2-time">{time(s.at)}</text>
+          <g key={s.at} data-testid={`news-col-${i}`} data-minutes={isPred(s) ? minutesOf(s) : undefined} data-predicted={isPred(s) || undefined} className="n2-headtext">
+            <text x={cx(i)} y={12 + hy} textAnchor="middle" className="n2-date">{isPred(s) ? `+${minutesOf(s) / 60} h` : date(s.at)}</text>
+            <text x={cx(i)} y={24 + hy} textAnchor="middle" className="n2-time">{time(s.at)}</text>
           </g>
         ))}
-        {future.map((p, i) => (
-          <g key={p.horizon_min} className="n2-headtext">
-            <text x={cx(sets.length + i)} y={12} textAnchor="middle" className="n2-date">Predicted</text>
-            <text x={cx(sets.length + i)} y={24} textAnchor="middle" className="n2-time">+{p.horizon_min / 60} h</text>
+        {hasPred && (
+          <g data-testid="news-predicted-banner">
+            <defs>
+              <pattern id={hatchId} patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" className="n2-hatchline" /></pattern>
+            </defs>
+            <rect x={colX(obsCount)} y={0} width={(cols - obsCount) * colW} height={13} className="n2-predbanner" />
+            <text x={colX(obsCount) + (cols - obsCount) * colW / 2} y={10} textAnchor="middle" className="n2-predtext">Predicted From Example Data</text>
           </g>
-        ))}
+        )}
 
         {blocks.map(({ g, top }) => {
           const bh = blockHeight(g, rowH);
@@ -272,12 +290,10 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
                         {g.bandKey === "spo2_2" ? (
                           <>
                             {sets.map((s, i) => applies(onO2(s)) && <rect key={s.at} x={colX(i)} y={y0} width={colW} height={y1 - y0} style={{ fill: fill(b.score) }} className="n2-bandcont" />)}
-                            {future.length > 0 && applies(lastOn) && <rect x={colX(sets.length)} y={y0} width={future.length * colW} height={y1 - y0} style={{ fill: fill(b.score) }} className="n2-bandcont" />}
                           </>
                         ) : (
                           <rect x={left} y={y0} width={cols * colW} height={y1 - y0} style={{ fill: fill(b.score) }} className="n2-bandcont" />
                         )}
-                        {future.length > 0 && <rect x={colX(sets.length)} y={y0} width={future.length * colW} height={y1 - y0} className="n2-futureveil" />}
                       </g>
                     );
                   })}
@@ -289,10 +305,10 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
                     <rect x={NAME_W} y={top + r * rh} width={LABEL_W} height={rh} className="n2-bandlabel" />
                     <text x={NAME_W + LABEL_W - 4} y={top + r * rh + rh / 2 + 3.2} textAnchor="end" className="n2-label">{b.label}</text>
                     <rect x={left} y={top + r * rh} width={cols * colW} height={rh} style={{ fill: fill(b.score) }} className="n2-bandrow" />
-                    {future.length > 0 && <rect x={colX(sets.length)} y={top + r * rh} width={future.length * colW} height={rh} className="n2-futureveil" />}
                   </g>
                 ))
               )}
+              {hasPred && <PredictedRegion x={colX(obsCount)} y={top} w={(cols - obsCount) * colW} h={bh} hatchId={hatchId} />}
               <rect x={NAME_W} y={top} width={LABEL_W + cols * colW} height={bh} className="n2-block" />
 
               {/* blood pressure: a dotted tail from the systolic dot to the diastolic number, and an X at the MAP */}
@@ -301,14 +317,14 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
                 if (!Number.isFinite(sys) || !Number.isFinite(dia)) return null;
                 const y0 = yOf(sys), y1 = yOf(dia), ym = Number.isFinite(map) ? yOf(map) : null;
                 return (
-                  <g key={s.at} data-testid={`news-tail-${i}`} data-sys-y={y0.toFixed(1)} data-dia-y={y1.toFixed(1)}>
+                  <g key={s.at} data-testid={`news-tail-${i}`} data-predicted={isPred(s) || undefined} data-sys-y={y0.toFixed(1)} data-dia-y={y1.toFixed(1)}>
                     <line x1={cx(i)} x2={cx(i)} y1={y0} y2={Math.max(y0, y1)} className="n2-tail" style={{ stroke: colour }} />
-                    <polygon className="n2-arrow" data-testid={`news-diamark-${i}`} style={{ fill: colour }}
+                    <polygon className={`n2-arrow${isPred(s) ? " is-predicted" : ""}`} data-testid={`news-diamark-${i}`} data-predicted={isPred(s) || undefined} style={isPred(s) ? { stroke: colour } : { fill: colour }}
                              points={`${cx(i) - 4.5},${y1 + 4} ${cx(i) + 4.5},${y1 + 4} ${cx(i)},${y1 - 3.5}`} />
                     <text x={cx(i)} y={Math.min(top + bh - 1.5, y1 + 13)} textAnchor="middle" className="n2-value n2-dia" data-testid={`news-dia-${i}`}
                           style={{ fill: readableOn(fill(scoreAt(g, axis, dia, s))) }}>{String(val(s, "bp_dia"))}</text>
                     {ym != null && (
-                      <g data-testid={`news-map-${i}`} data-y={ym.toFixed(1)} data-value={map} className="n2-map" style={{ stroke: colour }}>
+                      <g data-testid={`news-map-${i}`} data-predicted={isPred(s) || undefined} data-y={ym.toFixed(1)} data-value={map} className="n2-map" style={{ stroke: colour }}>
                         <line x1={cx(i) - 3.6} x2={cx(i) + 3.6} y1={ym - 3.6} y2={ym + 3.6} />
                         <line x1={cx(i) - 3.6} x2={cx(i) + 3.6} y1={ym + 3.6} y2={ym - 3.6} />
                       </g>
@@ -319,19 +335,30 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
 
               {g.key === "bp_sys" ? (() => {
                 /* the trend follows the MAP; dashed lines link the systolic and the diastolic trends */
-                const pts = (pick: (s: ObsSet) => number) => sets.map((s, i) => (Number.isFinite(pick(s)) ? `${cx(i)},${yOf(pick(s))}` : null)).filter(Boolean);
-                const map = pts((s) => Number(val(s, "bp_mean"))), sys = pts((s) => Number(val(s, "bp_sys"))), dia = pts((s) => Number(val(s, "bp_dia")));
+                const series = (pick: (s: ObsSet) => number) => trendSegments(sets.map((s, i) => ({ i, v: pick(s), pred: isPred(s) })).filter((q) => Number.isFinite(q.v)));
+                const str = (l: { i: number; v: number }[]) => l.map((q) => `${cx(q.i)},${yOf(q.v)}`).join(" ");
+                const map = series((s) => Number(val(s, "bp_mean"))), sys = series((s) => Number(val(s, "bp_sys"))), dia = series((s) => Number(val(s, "bp_dia")));
+                const lines: [string, ReturnType<typeof series>, boolean][] = [["bp_sys-sys", sys, true], ["bp_sys-dia", dia, true], ["bp_sys", map, false]];
                 return (
                   <>
-                    {sys.length > 1 && <polyline className="n2-line n2-dashed" data-testid="news-line-bp_sys-sys" style={{ stroke: colour }} points={sys.join(" ")} />}
-                    {dia.length > 1 && <polyline className="n2-line n2-dashed" data-testid="news-line-bp_sys-dia" style={{ stroke: colour }} points={dia.join(" ")} />}
-                    {map.length > 1 && <polyline className="n2-line" data-testid="news-line-bp_sys" style={{ stroke: colour }} points={map.join(" ")} />}
+                    {lines.map(([id, sg, dashed]) => (
+                      <g key={id}>
+                        {sg.solid.length > 1 && <polyline className={`n2-line${dashed ? " n2-dashed" : ""}`} data-testid={`news-line-${id}`} style={{ stroke: colour }} points={str(sg.solid)} />}
+                        {sg.dashed.length > 1 && <polyline className="n2-line n2-predline" data-testid={`news-line-${id}-predicted`} style={{ stroke: colour }} points={str(sg.dashed)} />}
+                      </g>
+                    ))}
                   </>
                 );
-              })() : dots.length > 1 && (
-                <polyline className="n2-line" data-testid={`news-line-${g.key}`} style={{ stroke: colour }}
-                          points={dots.map((d) => `${cx(d.i)},${d.y}`).join(" ")} />
-              )}
+              })() : dots.length > 1 && (() => {
+                const seg = trendSegments(dots.map((d) => ({ ...d, pred: isPred(d.s) })));
+                const pts = (l: typeof seg.solid) => l.map((d) => `${cx(d.i)},${d.y}`).join(" ");
+                return (
+                  <>
+                    {seg.solid.length > 1 && <polyline className="n2-line" data-testid={`news-line-${g.key}`} style={{ stroke: colour }} points={pts(seg.solid)} />}
+                    {seg.dashed.length > 1 && <polyline className="n2-line n2-predline" data-testid={`news-line-${g.key}-predicted`} style={{ stroke: colour }} points={pts(seg.dashed)} />}
+                  </>
+                );
+              })()}
               {g.key === "o2_flow" && sets.map((s, i) => {
                 const flow = Number(val(s, "o2_flow")) > 0;
                 const t = (r: number, text: string | number | undefined) => (text === undefined || text === "" ? null : (
@@ -348,11 +375,11 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
                 const v = val(s, g.key);
                 const ly = above ? y - (g.key === "bp_sys" ? 7 : 5.5) : y + (g.key === "bp_sys" ? 13 : 12);
                 return (
-                  <g key={s.at} data-testid={`news-cell-${g.key}-${i}`} data-score={score} data-row={r} data-y={y.toFixed(1)}>
+                  <g key={s.at} data-testid={`news-cell-${g.key}-${i}`} data-predicted={isPred(s) || undefined} data-score={score} data-row={r} data-y={y.toFixed(1)}>
                     {g.key === "bp_sys"
-                      ? <polygon className="n2-arrow" data-testid={`news-sysmark-${i}`} style={{ fill: colour }}
+                      ? <polygon className={`n2-arrow${isPred(s) ? " is-predicted" : ""}`} data-testid={`news-sysmark-${i}`} data-predicted={isPred(s) || undefined} style={isPred(s) ? { stroke: colour } : { fill: colour }}
                                  points={`${cx(i) - 4.5},${y - 4} ${cx(i) + 4.5},${y - 4} ${cx(i)},${y + 3.5}`} />
-                      : <circle cx={cx(i)} cy={y} r={3.3} className="n2-dot" style={{ fill: colour }} />}
+                      : <circle cx={cx(i)} cy={y} r={3.3} className={`n2-dot${isPred(s) ? " is-predicted" : ""}`} style={isPred(s) ? { stroke: colour } : { fill: colour }} />}
                     <text x={cx(i)} y={ly} textAnchor="middle" className="n2-value"
                           style={{ fill: readableOn(fill(axis ? scoreAt(g, axis, Number(v), s, ly, top, bh) : g.bands[r]!.score)) }}>{String(v)}</text>
                   </g>
@@ -364,29 +391,26 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
 
         {/* vertical grid between sets */}
         {blocks.map(({ g, top }) => Array.from({ length: cols + 1 }, (_, i) => (
-          <line key={`${g.key}${i}`} x1={colX(i)} x2={colX(i)} y1={top} y2={top + blockHeight(g, rowH)} className={`n2-grid${i > sets.length ? " is-future" : ""}`} />)))}
+          <line key={`${g.key}${i}`} x1={colX(i)} x2={colX(i)} y1={top} y2={top + blockHeight(g, rowH)} className={`n2-grid${i > obsCount && hasPred ? " is-future" : ""}`} />)))}
 
         {widget.show_total_row && (
           <g data-testid="news-totals">
             <rect x={0} y={totalTop} width={left} height={totalH} style={{ fill: band.header }} />
             <text x={6} y={totalTop + totalH / 2 + 4} className="n2-label" style={{ fill: band.header_text }}>NEWS Total</text>
             {sets.map((s, i) => (
-              <g key={s.at} data-testid={`news-total-${i}`} data-total={s.news2_total ?? ""} data-risk={s.news2_risk ?? ""}>
+              <g key={s.at} data-testid={`news-total-${i}`} data-total={s.news2_total ?? ""} data-risk={s.news2_risk ?? ""} data-confidence={isPred(s) ? confidenceOf(s) ?? "" : undefined} data-predicted={isPred(s) || undefined}>
                 <rect x={colX(i)} y={totalTop} width={colW} height={totalH} style={{ fill: fill(totalRisk(s)) }} className="n2-totalcell" />
-                <text x={cx(i)} y={totalTop + totalH / 2 + 5} textAnchor="middle" className="n2-totaltext" style={{ fill: readableOn(fill(totalRisk(s))) }}>{s.news2_total}</text>
+                {isPred(s) ? (
+                  <>
+                    <text x={cx(i)} y={totalTop + 12} textAnchor="middle" className="n2-totaltext n2-small" style={{ fill: readableOn(fill(totalRisk(s))) }}>{s.news2_total}</text>
+                    {confidenceOf(s) && <text x={cx(i)} y={totalTop + 24} textAnchor="middle" className="n2-range" data-testid={`news-confidence-${i}`} style={{ fill: readableOn(fill(totalRisk(s))) }}>{confidenceOf(s)}{colW >= 64 ? " Sure" : ""}</text>}
+                  </>
+                ) : (
+                  <text x={cx(i)} y={totalTop + totalH / 2 + 5} textAnchor="middle" className="n2-totaltext" style={{ fill: readableOn(fill(totalRisk(s))) }}>{s.news2_total}</text>
+                )}
               </g>
             ))}
-            {future.map((p, i) => {
-              const [lo, hi] = range80(p);
-              const sc = p.value >= 7 ? 3 : p.value >= 5 ? 2 : 0;
-              return (
-                <g key={p.horizon_min} data-testid={`news-future-${p.horizon_min}`} data-value={p.value}>
-                  <rect x={colX(sets.length + i) + 1} y={totalTop} width={colW - 2} height={totalH} rx={3} className="n2-futurecell" style={{ fill: fill(sc) }} />
-                  <text x={cx(sets.length + i)} y={totalTop + 12} textAnchor="middle" className="n2-totaltext n2-small" style={{ fill: readableOn(fill(sc)) }}>{Math.round(p.value)}</text>
-                  <text x={cx(sets.length + i)} y={totalTop + 24} textAnchor="middle" className="n2-range" style={{ fill: readableOn(fill(sc)) }}>{Math.round(lo)}-{Math.round(hi)}</text>
-                </g>
-              );
-            })}
+            {hasPred && <rect x={colX(obsCount)} y={totalTop} width={(cols - obsCount) * colW} height={totalH} fill={`url(#${hatchId})`} className="n2-totalhatch" pointerEvents="none" />}
           </g>
         )}
         {widget.show_escalation_rows && [[wide ? "Monitoring Frequency" : "Monitoring", (s: ObsSet) => frequencyText(s.monitoring_hours)], [wide ? "Clinical Risk" : "Risk", (s: ObsSet) => (s.news2_risk ? RISK_SHORT[s.news2_risk] ?? "" : "")]].map(([label, text], r) => {
@@ -396,11 +420,44 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
               <rect x={0} y={top} width={left} height={footH} className="n2-footlabel" />
               <text x={left - 4} y={top + footH / 2 + 3.2} textAnchor="end" className="n2-label">{label as string}</text>
               <rect x={left} y={top} width={cols * colW} height={footH} className="n2-footcells" />
-              {sets.map((s, i) => <text key={s.at} x={cx(i)} y={top + footH / 2 + 3.5} textAnchor="middle" className="n2-foot" data-testid={r === 1 ? `news-risk-${i}` : undefined}>{(text as (s: ObsSet) => string)(s)}</text>)}
+              {sets.map((s, i) => <text key={s.at} x={cx(i)} y={top + footH / 2 + 3.5} textAnchor="middle" className={`n2-foot${isPred(s) ? " is-predicted" : ""}`} data-testid={r === 1 ? `news-risk-${i}` : undefined}>{(text as (s: ObsSet) => string)(s)}</text>)}
             </g>
           );
         })}
+        {hasPred && (
+          <g data-testid="news-now-divider">
+            <line x1={colX(obsCount)} x2={colX(obsCount)} y1={13} y2={height - 4} className="n2-now" />
+            <text x={colX(obsCount) - 3} y={10} textAnchor="end" className="n2-nowtext">Now</text>
+          </g>
+        )}
       </svg>
     </div>
   );
+}
+
+/** A predicted region of a block: a darker veil, then thin diagonal hatching over the coloured score bands. */
+function PredictedRegion({ x, y, w, h, hatchId }: { x: number; y: number; w: number; h: number; hatchId: string }) {
+  return (
+    <g data-testid="news-predicted-region" pointerEvents="none">
+      <rect x={x} y={y} width={w} height={h} className="n2-predveil" />
+      <rect x={x} y={y} width={w} height={h} fill={`url(#${hatchId})`} className="n2-predhatch" />
+    </g>
+  );
+}
+
+/**
+ * How many observed and predicted columns a chart of this width shows: the predictions take about half (at least three, or all
+ * there are if fewer), the newest observed sets the rest, never more than eight; a short chart drops observed sets first.
+ */
+export function planColumns(fit: number, observed: number, predicted: number): { observed: number; predicted: number } {
+  const p = predicted ? Math.min(predicted, Math.max(Math.min(3, predicted), Math.ceil(fit / 2))) : 0;
+  const o = Math.max(observed ? 1 : 0, Math.min(observed, 8, fit - p));
+  return { observed: Math.min(observed, o), predicted: p };
+}
+
+/** Split a trend into what was observed (solid) and the bridge from the last observed point through the predicted ones (dashed). */
+export function trendSegments<T extends { pred: boolean }>(points: T[]): { solid: T[]; dashed: T[] } {
+  const firstPred = points.findIndex((q) => q.pred);
+  if (firstPred < 0) return { solid: points, dashed: [] };
+  return { solid: points.slice(0, firstPred), dashed: points.slice(Math.max(0, firstPred - 1)) };
 }

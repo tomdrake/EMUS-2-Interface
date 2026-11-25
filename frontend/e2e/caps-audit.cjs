@@ -39,7 +39,7 @@ module.exports = { capsAudit, CAPS };
 if (require.main === module) {
   const { chromium } = require("playwright");
   const BASE = process.argv[2] ?? "http://127.0.0.1:8123";
-  const SCREENS = [["icu-monitor", "monitor"], ["icu-modules", "monitor"], ["icu-monitor", "abcde"], ["icu-monitor", "news2"], ["icu-monitor", "split-h"], ["icu-monitor", "epr"], ["icu-monitor", "predict"], ["icu-monitor", "alarms"]];
+  const SCREENS = [["icu-monitor", "monitor"], ["icu-modules", "monitor"], ["icu-monitor", "abcde"], ["icu-monitor", "news2"], ["icu-monitor", "split-h"], ["icu-monitor", "epr"], ["icu-monitor", "predict"], ["icu-monitor", "monitor-predict"], ["icu-monitor", "alarms"]];
   const SHEETS = [["finding-explain", "FIRST"], ["trends", null], ["underlying-data", null], ["underlying-data", "hr"], ["explanation-examples", null], ["demo-controls", null], ["studio-appearance", null], ["studio-navigation", null],
     ["studio-forecast", null], ["versions", null], ["abcde-assess", "gcs"], ["abcde-assess", "avpu"], ["abcde-assess", "exposure"], ["about", null], ["alarm-limits", "ecg"]];
   (async () => {

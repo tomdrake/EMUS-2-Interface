@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { useDesign, useUi } from "@/app/store";
+import { fmtDate, fmtTime, useFormats } from "@/design/datetime";
 import { useSnapshot } from "@/examples/store";
 import { NotificationBox } from "@/safety/NotificationBox";
 
@@ -51,11 +52,9 @@ export function TopBar() {
   const snapshot = useSnapshot();
   const registry = useUi((s) => s.registry);
 
-  const clock = now.toLocaleTimeString("en-GB", {
-    hour: "2-digit", minute: "2-digit", second: bar.show_seconds ? "2-digit" : undefined,
-    hour12: bar.clock_format === "12h",
-  });
-  const date = now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const formats = useFormats();
+  const clock = fmtTime(now, formats, { seconds: bar.show_seconds });
+  const date = fmtDate(now, formats);
 
   const PLACEHOLDER: Partial<Record<Field, string>> = {
     name: "No Patient Feed", dob: "", age: "", sex: "", nhs_number: "", bed: "", ward: "",
@@ -67,7 +66,7 @@ export function TopBar() {
   const ageYears = p?.birth_date ? Math.floor((Date.now() - new Date(p.birth_date).getTime()) / 31_557_600_000) : null;
   const fromPatient: Partial<Record<Field, string>> = p ? {
     name: `${p.family_name}, ${p.given_name}`,
-    dob: p.birth_date ? `DOB ${new Date(p.birth_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}` : "",
+    dob: p.birth_date ? `DOB ${fmtDate(p.birth_date, formats)}` : "",
     age: ageYears != null ? `${ageYears} y` : "", sex: p.sex === "unknown" ? "" : p.sex === "male" ? "M" : p.sex === "female" ? "F" : "Other",
     nhs_number: p.nhs_number ? `NHS ${p.nhs_number}` : "", bed: p.bed ?? "", ward: p.ward ?? "",
     consultant: p.consultant ?? "", allergies: p.allergies.length ? `Allergy: ${p.allergies.join(", ")}` : "",

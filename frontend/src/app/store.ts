@@ -30,6 +30,10 @@ interface UiState {
   aiOverride: boolean | null;
   /** The AI overview overlay (boxes on traces saying what the AI used): on or off for this screen. */
   aiOverlay: boolean;
+  /** What the Prediction view shows on this screen: each block switched on or off; undefined = as the design says. Local. */
+  predictShow: Partial<Record<PredictBlock, boolean>>;
+  /** The screen the prediction overlay was switched on from, to go back to; null when it is off. */
+  overlayFrom: string | null;
   /** CSS pixels per millimetre used for trace gain and sweep speed. Nominal unless
    *  this screen has been calibrated (the calibration sheet is milestone M4). */
   pxPerMm: number;
@@ -45,10 +49,28 @@ interface UiState {
   toggleMode(): void;
   toggleAi(): void;
   toggleAiOverlay(): void;
+  setPredictShow(block: PredictBlock, on: boolean): void;
+  /** Switch between the main screen and the prediction overlay (monitor left, predicted trends right). */
+  togglePredictionOverlay(): void;
   /** Set (or with null, clear) one trace's x scale on this screen. */
   setXScale(rowId: string, value: number | null): void;
   setNotice(text: string | null): void;
   fail(message: string): void;
+}
+
+export type PredictBlock = "news" | "obs" | "certainty";
+/** The screen the Prediction Overlay button shows from the main screen (and takes you back from). */
+export const PREDICTION_OVERLAY_SCREEN = "monitor-predict";
+/** The overlay of each screen that has one of its own: NEWS2 has its observations on the left and the predicted ones on the right. */
+export const OVERLAY_OF: Readonly<Record<string, string>> = { news2: "news2-predict" };
+/** Whether a screen is a prediction overlay. */
+export const isOverlayScreen = (id: string | null | undefined): boolean => id === PREDICTION_OVERLAY_SCREEN || Object.values(OVERLAY_OF).includes(id ?? "");
+const PREDICT_KEY = "emus.predict-show";
+function readPredict(): Partial<Record<PredictBlock, boolean>> {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(PREDICT_KEY) ?? "{}");
+    return Object.fromEntries((["news", "obs", "certainty"] as const).filter((k) => typeof v?.[k] === "boolean").map((k) => [k, v[k]]));
+  } catch { return {}; }
 }
 
 export const DEFAULT_PATIENT = "scn-pneumonia";
@@ -99,7 +121,7 @@ function writeMode(mode: ThemeMode): void {
 export const useUi = create<UiState>((set) => ({
   stored: null, draft: null, registry: null, error: null,
   screenId: null, openMenu: null, openSheet: null, sheetContext: null,
-  editMode: false, mode: readMode(), aiOverride: readAi(), aiOverlay: readOverlay(), xScale: readXScale(), pxPerMm: NOMINAL_PX_PER_MM, patientId: DEFAULT_PATIENT, notice: null,
+  editMode: false, mode: readMode(), aiOverride: readAi(), aiOverlay: readOverlay(), predictShow: readPredict(), overlayFrom: null, xScale: readXScale(), pxPerMm: NOMINAL_PX_PER_MM, patientId: DEFAULT_PATIENT, notice: null,
 
   load: (stored, registry) =>
     set((s) => ({ stored, registry, error: null,
@@ -127,6 +149,20 @@ export const useUi = create<UiState>((set) => ({
     const next = !(s.aiOverride ?? design?.ai.enabled ?? true);
     writeAi(next);
     return { aiOverride: next };
+  }),
+  togglePredictionOverlay: () => set((s) => {
+    const home = s.stored?.document.home_screen ?? "monitor";
+    if (isOverlayScreen(s.screenId)) return { screenId: s.overlayFrom ?? home, overlayFrom: null, openMenu: null, openSheet: null };
+    // each screen shows its own overlay (NEWS2 shows predicted NEWS2 parameters); any other shows the monitor with predicted trends
+    const exists = (id: string) => s.stored?.document.screens?.some((x) => x.id === id) ?? true;
+    const own = OVERLAY_OF[s.screenId ?? home];
+    const target = own && exists(own) ? own : PREDICTION_OVERLAY_SCREEN;
+    return { overlayFrom: s.screenId ?? home, screenId: target, openMenu: null, openSheet: null };
+  }),
+  setPredictShow: (block, on) => set((s) => {
+    const predictShow = { ...s.predictShow, [block]: on };
+    try { window.localStorage.setItem(PREDICT_KEY, JSON.stringify(predictShow)); } catch { /* not persisted */ }
+    return { predictShow };
   }),
   toggleAiOverlay: () => set((s) => {
     writeOverlay(!s.aiOverlay);

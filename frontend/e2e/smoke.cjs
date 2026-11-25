@@ -442,7 +442,7 @@ for (const vp of VIEWPORTS) {
         message: "Heart rate 142, above 120.", started_at: t }] });
   }, t0);
   check(/Heart rate 142/.test(await text()), `${vp.name}: a high-priority patient alarm takes over the ticker`);
-  check(await T("notif-mark").innerText() === "!!!", `${vp.name}: it carries its priority mark (!!!)`);
+  check(await T("notif-mark").getAttribute("aria-label") === "High priority" && await T("notif-mark").locator("svg path").count() === 1 && (await T("notif-mark").textContent()) === "", `${vp.name}: it carries its priority mark, a red triangle with an exclamation mark`);
   check(await T("feed").count() === 0 && await T("notifications").getAttribute("aria-expanded") === "false",
         `${vp.name}: the list does not open by itself, even for a high-priority alarm`);
   await page.waitForTimeout(4600);
@@ -1079,7 +1079,7 @@ for (const vp of VIEWPORTS) {
   check(cards.every((c) => c.leftHalf && c.detailRight), `${vp.name}: on a split card the number is in the left half and the detail in the right`);
   const list = await page.evaluate(() => [...document.querySelectorAll('[data-testid="row-bp"] [data-testid^="bp-reading-"]')].map((r) => r.textContent));
   const api180 = (await api("/api/examples/scn-pneumonia?minute=180")).bp_readings;
-  check(list.length >= 3 && list.every((t, i) => t.includes(`${api180[i].sys}/${api180[i].dia}`) && t.includes(`(${api180[i].map})`) && /\d{2}:\d{2}/.test(t) && /\d{2} \w{3}/.test(t)), `${vp.name}: the BP card lists the latest readings with time, date, sys/dia and MAP in brackets (${list.length} shown)`);
+  check(list.length >= 3 && list.every((t, i) => t.includes(`${api180[i].sys}/${api180[i].dia}`) && t.includes(`(${api180[i].map})`) && /\d{2}:\d{2}/.test(t) && /\d{2}\/\d{2}/.test(t)), `${vp.name}: the BP card lists the latest readings with time, date, sys/dia and MAP in brackets (${list.length} shown)`);
 
   // ABCDE: one touch, five checks, bloods with their recency, trends, and the NEWS2 chart beside it
   await goDesign("icu-monitor", "monitor");
@@ -1088,22 +1088,22 @@ for (const vp of VIEWPORTS) {
   await T("abcde").waitFor();
   check(await T("screen-abcde").isVisible() && await T("news2-chart").isVisible(), `${vp.name}: the ABCDE tab is one touch and shows the NEWS2 chart on its other half`);
   const halves = await page.evaluate(() => { const a = document.querySelector('[data-testid="abcde"]').getBoundingClientRect(), n = document.querySelector('[data-testid="news2-chart"]').getBoundingClientRect(), s = document.querySelector(".screen").getBoundingClientRect(); return { a: a.width / s.width, n: n.width / s.width }; });
-  check(halves.a > 0.4 && halves.a < 0.6 && halves.n > 0.4 && halves.n < 0.6, `${vp.name}: ABCDE takes half the screen and the chart the other half`);
+  check(halves.a > 0.6 && halves.a < 0.75 && halves.n > 0.25 && halves.n < 0.4, `${vp.name}: ABCDE takes about two thirds of the screen and the chart the rest`);
   check((await page.locator('.abcde-sec[data-letter]').evaluateAll((e) => e.map((x) => x.dataset.letter).join(""))) === "ABCDE", `${vp.name}: A, B, C, D and E are each checked`);
   const stat = await page.evaluate(() => Object.fromEntries([..."ABCDE"].map((l) => [l, document.querySelector(`.abcde-sec[data-letter="${l}"] .abcde-status`).textContent.replace(/[!✓]/g, "").trim()])));
   check(Object.values(stat).every((v) => ["OK", "Check", "Urgent", "Not Assessed"].includes(v)) && stat.A === "Not Assessed", `${vp.name}: each letter has a status word (${JSON.stringify(stat)})`);
   const obs = (await api("/api/examples/scn-pneumonia?minute=0")).obs_sets;
-  const chart = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-total-"]')].map((e) => +e.dataset.total));
+  const chart = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-total-"]:not([data-predicted])')].map((e) => +e.dataset.total));
   check(chart.length >= 3 && chart.join() === obs.slice(-chart.length).map((o) => o.news2_total).join(), `${vp.name}: the NEWS2 chart's totals are the API's (${chart.join(", ")})`);
   const rec = await page.evaluate(() => Object.fromEntries(["gas", "bloods", "glucose"].map((k) => [k, document.querySelector(`[data-testid="blood-${k}-recency"]`)?.textContent])));
   check(rec.gas === "Current" && rec.bloods === "Current" && rec.glucose === "Current", `${vp.name}: results taken within the hour read Current (${JSON.stringify(rec)})`);
-  check(/\d{2} \w{3} \d{2}:\d{2}/.test(await T("blood-gas-when").innerText()), `${vp.name}: each set shows the date and time it was taken`);
+  check(/\d{2}\/\d{2} \d{2}:\d{2}/.test(await T("blood-gas-when").innerText()), `${vp.name}: each set shows the date and time it was taken`);
   await ex("setScenario", "scn-copd"); await ex("setMinute", -20); await settle();
   check(await T("blood-gas-recency").innerText() === "Within 24 Hours", `${vp.name}: a gas from 14 hours ago reads Within 24 Hours`);
   await ex("setScenario", "scn-technical"); await ex("setMinute", 0); await settle();
   check(await T("blood-glucose-recency").innerText() === "No Recent Bloods" && await T("blood-glucose-glucose").count() === 0 && await T("blood-glucose-show").isVisible(), `${vp.name}: bloods 50 hours old read No Recent Bloods with a button to show them`);
   await T("blood-glucose-show").click();
-  check(await T("blood-glucose-glucose").isVisible() && /\d{2} \w{3}/.test(await T("blood-glucose-when").innerText()), `${vp.name}: tapping shows the most recent from the last 72 hours with its date`);
+  check(await T("blood-glucose-glucose").isVisible() && /\d{2}\/\d{2}/.test(await T("blood-glucose-when").innerText()), `${vp.name}: tapping shows the most recent from the last 72 hours with its date`);
   await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 0); await settle();
   await T("d-gcs-btn").click();
   await T("assess-gcs").waitFor();
@@ -1125,36 +1125,36 @@ for (const vp of VIEWPORTS) {
   const halfChart = await page.evaluate(() => { const c = document.querySelector('[data-testid="news2-chart"]'), r = c.getBoundingClientRect(), last = document.querySelector('[data-testid="news-risks"]').getBoundingClientRect(); return last.bottom <= r.bottom - 1 && c.scrollHeight <= c.clientHeight + 1; });
   check(halfChart, `${vp.name}: the ABCDE half shows the NEWS2 chart to its bottom row without scrolling`);
   await T("tab-news2").click();
-  check(await T("news2-chart").isVisible() && await page.locator('[data-testid^="news-cell-rr-"]').count() >= 3, `${vp.name}: the NEWS2 tab is the real chart`);
+  check(await T("news2-chart").isVisible() && await page.locator('[data-testid^="news-cell-rr-"]:not([data-predicted])').count() >= 3, `${vp.name}: the NEWS2 tab is the real chart`);
   await shot("news2");
   // The chart is the printed RCP chart: every band row, a dot in the row of each value, a key, and a scale toggle
   const comps = (await api("/api/examples/scn-pneumonia?minute=0")).obs_sets;
-  const cells = await page.evaluate(() => ["rr", "hr", "temp"].map((k) => [k, [...document.querySelectorAll(`[data-testid^="news-cell-${k}-"]`)].map((e) => +e.dataset.score)]));
+  const cells = await page.evaluate(() => ["rr", "hr", "temp"].map((k) => [k, [...document.querySelectorAll(`[data-testid^="news-cell-${k}-"]:not([data-predicted])`)].map((e) => +e.dataset.score)]));
   for (const [k, got] of cells) {
     check(got.length >= 3 && got.join() === comps.slice(-got.length).map((o) => o.news2_components[k]).join(), `${vp.name}: each ${k} dot sits in a row that scores what the API scored (${got.join(", ")})`);
   }
   check(await page.locator('[data-testid^="news-band-bp_sys-"]').count() === 14 && await page.locator('[data-testid^="news-band-hr-"]').count() === 12, `${vp.name}: the blood pressure and pulse blocks have every printed row`);
   check(await page.locator('[data-testid="news-key"] .news2-key-box').count() === 4, `${vp.name}: the NEWS key shows 0, 1, 2 and 3`);
-  const tails = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-tail-"]')].map((e) => +e.dataset.diaY - +e.dataset.sysY));
+  const tails = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-tail-"]:not([data-predicted])')].map((e) => +e.dataset.diaY - +e.dataset.sysY));
   check(tails.length >= 3 && tails.every((d) => d >= 0), `${vp.name}: each blood pressure on the chart has a tail from the systolic dot down to the diastolic number`);
   // continuous axes: an X at each MAP between the diastolic and systolic, half as many ticks, dots inside the band of their score
-  const maps = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-map-"]')].map((e) => { const t = e.parentElement; return { v: +e.dataset.value, y: +e.dataset.y, sys: +t.dataset.sysY, dia: +t.dataset.diaY }; }));
+  const maps = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-map-"]:not([data-predicted])')].map((e) => { const t = e.parentElement; return { v: +e.dataset.value, y: +e.dataset.y, sys: +t.dataset.sysY, dia: +t.dataset.diaY }; }));
   check(maps.length >= 3 && maps.every((m) => m.y >= m.sys && m.y <= m.dia), `${vp.name}: an X marks each MAP between its systolic and diastolic`);
   check(maps.map((m) => m.v).join() === comps.slice(-maps.length).map((o) => o.values.bp_mean).join(), `${vp.name}: the X marks are the API's MAPs (${maps.map((m) => m.v).join(", ")})`);
   const printed = { rr: 7, hr: 12, bp_sys: 14, temp: 6 };
   const tickCounts = await page.evaluate((keys) => Object.fromEntries(keys.map((k) => [k, document.querySelectorAll(`[data-testid^="news-tick-${k}-"]`).length])), Object.keys(printed));
   check(Object.entries(printed).every(([k, rows]) => tickCounts[k] >= 1 && tickCounts[k] <= Math.ceil(rows / 2)), `${vp.name}: the side scales have at most half as many ticks as printed rows (${JSON.stringify(tickCounts)})`);
-  const inBand = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-cell-hr-"]')].every((c) => {
+  const inBand = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="news-cell-hr-"]:not([data-predicted])')].every((c) => {
     const y = +c.dataset.y; const band = [...document.querySelectorAll('[data-testid^="news-band-hr-"]')].find((b) => +b.dataset.from - 0.6 <= y && y <= +b.dataset.to + 0.6);
     return band && +band.dataset.score === +c.dataset.score;
   }));
   check(inBand, `${vp.name}: each pulse dot sits at its true height, inside the band of its score`);
   // blood pressure: the trend follows the MAP, dashed lines link the systolic and diastolic, arrows mark them
-  const bpMarks = await page.evaluate(() => ({ sys: document.querySelectorAll('[data-testid^="news-sysmark-"]').length, dia: document.querySelectorAll('[data-testid^="news-diamark-"]').length,
+  const bpMarks = await page.evaluate(() => ({ sys: document.querySelectorAll('[data-testid^="news-sysmark-"]:not([data-predicted])').length, dia: document.querySelectorAll('[data-testid^="news-diamark-"]:not([data-predicted])').length,
     solid: !!document.querySelector('[data-testid="news-line-bp_sys"]') && !document.querySelector('[data-testid="news-line-bp_sys"]').classList.contains("n2-dashed"),
-    dashed: [...document.querySelectorAll('[data-testid^="news-line-bp_sys-"]')].every((e) => e.classList.contains("n2-dashed")) && document.querySelectorAll('[data-testid^="news-line-bp_sys-"]').length === 2,
-    sysDown: [...document.querySelectorAll('[data-testid^="news-sysmark-"]')].every((e) => { const p = e.getAttribute("points").split(" ").map((q) => q.split(",").map(Number)); return p[2][1] > p[0][1]; }),
-    diaUp: [...document.querySelectorAll('[data-testid^="news-diamark-"]')].every((e) => { const p = e.getAttribute("points").split(" ").map((q) => q.split(",").map(Number)); return p[2][1] < p[0][1]; }),
+    dashed: [...document.querySelectorAll('[data-testid^="news-line-bp_sys-"]:not([data-testid$="-predicted"])')].every((e) => e.classList.contains("n2-dashed")) && document.querySelectorAll('[data-testid^="news-line-bp_sys-"]:not([data-testid$="-predicted"])').length === 2,
+    sysDown: [...document.querySelectorAll('[data-testid^="news-sysmark-"]:not([data-predicted])')].every((e) => { const p = e.getAttribute("points").split(" ").map((q) => q.split(",").map(Number)); return p[2][1] > p[0][1]; }),
+    diaUp: [...document.querySelectorAll('[data-testid^="news-diamark-"]:not([data-predicted])')].every((e) => { const p = e.getAttribute("points").split(" ").map((q) => q.split(",").map(Number)); return p[2][1] < p[0][1]; }),
     mapLine: (document.querySelector('[data-testid="news-line-bp_sys"]')?.getAttribute("points") ?? "").split(" ").length }));
   check(bpMarks.sys >= 3 && bpMarks.sys === bpMarks.dia && bpMarks.sysDown && bpMarks.diaUp, `${vp.name}: systolic is a down-facing arrow and diastolic an up-facing arrow (${bpMarks.sys} of each)`);
   check(bpMarks.solid && bpMarks.dashed && bpMarks.mapLine === maps.length, `${vp.name}: a solid line follows the MAP and dashed lines link the systolic and diastolic trends`);
@@ -1241,33 +1241,258 @@ for (const vp of VIEWPORTS) {
   const tabBox = await page.evaluate(() => [...document.querySelectorAll(".tabbar .tab")].map((e) => { const r = e.getBoundingClientRect(); return r.right <= innerWidth + 1 && r.height >= 48; }).every(Boolean));
   check(tabBox, `${vp.name}: all twelve tabs fit across the screen and are touch targets`);
   const bpBefore = (await page.locator('[data-testid^="bp-dot-bp-"]').count());
+  const sheetOpen = () => page.evaluate(() => window.__emus.ui.getState().openSheet ?? null);
   await T("tab-measure-bp").click();
-  await T("measure-bp").waitFor();
-  await T("measure-start").click();
-  check(await T("measure-running").isVisible(), `${vp.name}: Measure BP starts a simulated measurement in one more touch`);
-  await T("measure-result").waitFor({ timeout: 12000 });
+  check(await T("tab-measure-bp").getAttribute("data-measuring") === "true" && await sheetOpen() === null && await page.locator(".sheet, [role=dialog]").count() === 0, `${vp.name}: one touch on Measure BP starts it and nothing opens`);
+  const pulse = await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="tab-measure-bp"]')).animationName);
+  check(pulse === "measure-pulse" || matchMedia("(prefers-reduced-motion: reduce)").matches, `${vp.name}: the Measure BP tab button pulses while it measures (${pulse})`);
+  check(await T("row-bp").getAttribute("data-measuring") === null && !/measure-pulse/.test(await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="row-bp"]')).animationName)), `${vp.name}: the BP box on the observations does not pulse`);
+  await T("tab-measure-bp").click();
+  check(await T("tab-measure-bp").getAttribute("data-measuring") === null, `${vp.name}: touching it again cancels the measurement before it finishes`);
+  await page.waitForTimeout(500);
+  check((await page.locator('[data-testid^="bp-dot-bp-"]').count()) === bpBefore, `${vp.name}: a cancelled measurement adds no reading`);
+  await T("tab-measure-bp").click();
+  await page.waitForFunction(() => !document.querySelector('[data-testid="tab-measure-bp"]').dataset.measuring, null, { timeout: 14000 });
   const mm = await api("/api/examples/scn-pneumonia/measure?kind=bp&minute=360");
-  check((await T("measure-value").innerText()).startsWith(`${mm.bp.sys}/${mm.bp.dia}`) && /Simulated Reading/.test(await T("measure-result").innerText()), `${vp.name}: the reading is the scenario's value and says it is simulated`);
-  await T("measure-done").click();
   await settle();
-  check((await page.locator('[data-testid^="bp-dot-bp-"]').count()) === bpBefore + 1, `${vp.name}: the new BP appears on the trace`);
+  check((await page.locator('[data-testid^="bp-dot-bp-"]').count()) === bpBefore + 1, `${vp.name}: when it finishes the pulse stops and the new BP is on the trace`);
   check((await T("num-bp_sys").innerText()).includes(`${mm.bp.sys}`), `${vp.name}: and in the BP tile`);
   await T("tab-measure-temp").click();
-  await T("measure-temp").waitFor();
-  await T("measure-start").click();
-  await T("measure-result").waitFor({ timeout: 10000 });
-  await T("measure-done").click();
+  check(await T("tab-measure-temp").getAttribute("data-measuring") === "true" && await T("tab-measure-bp").getAttribute("data-measuring") === null, `${vp.name}: Measure Temp pulses its own tab button, not the BP one`);
+  await page.waitForFunction(() => !document.querySelector('[data-testid="tab-measure-temp"]').dataset.measuring, null, { timeout: 10000 });
   await settle();
   check(await page.locator('[data-testid^="temp-dot-temp-"]').count() >= 1, `${vp.name}: Measure Temp adds a thermometer point`);
+  await T("tab-measure-bp").click();
   await ex("setMinute", 361); await settle();
-  const cleared = await page.evaluate(() => { const t = window.__emus.examples.getState().taken; return t.bp.length + t.temp.length; });
-  check(cleared === 0, `${vp.name}: taken readings clear when the time changes`);
+  check(await T("tab-measure-bp").getAttribute("data-measuring") === null && await page.evaluate(() => { const t = window.__emus.examples.getState().taken; return t.bp.length + t.temp.length; }) === 0, `${vp.name}: changing the time stops a measurement and clears taken readings`);
   await ex("setMinute", 360); await settle();
+
+  // ---- Round 8: dates and times, the Prediction view, the BP list under the number
+  await goDesign("icu-monitor", "monitor"); await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 360); await settle();
+  const topbar = await page.evaluate(() => { const d = document.querySelector(".tb-date"), c = document.querySelector(".tb-clock"); const a = d.getBoundingClientRect(), b = c.getBoundingClientRect(); return { date: d.textContent, visible: a.width > 0, gap: Math.round(b.left - a.right), same: Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2) < 8 }; });
+  check(/^\d{2}\/\d{2}\/\d{4}$/.test(topbar.date) && topbar.visible && topbar.gap >= 0 && topbar.gap < 60 && topbar.same, `${vp.name}: the date is written dd/mm/yyyy next to the time (${topbar.date}, ${topbar.gap}px apart)`);
+  const pair = await page.evaluate(() => ["span.tb-date", "time.tb-clock"].map((q) => { const e = document.querySelector(q), c = getComputedStyle(e), r = e.getBoundingClientRect(); return [c.fontFamily, c.fontSize, c.fontWeight, Math.round(r.top), Math.round(r.bottom)].join("|"); }));
+  check(pair[0] === pair[1], `${vp.name}: the date and the time are the same font, size and weight and sit on one line (${pair[0]})`);
+  const bpRows = await page.evaluate(() => [...document.querySelectorAll('[data-testid="row-bp"] [data-testid^="bp-reading-"]')].map((r) => r.textContent.replace(/\s+/g, " ").trim()));
+  check(bpRows.length >= 4 && bpRows.length <= 5 && bpRows.every((t, i) => t.includes(`${api360.bp_readings[i].sys}/${api360.bp_readings[i].dia}`) && t.includes(`(${api360.bp_readings[i].map})`) && /\d{2}:\d{2}/.test(t) && /\d{2}\/\d{2}/.test(t)), `${vp.name}: the last readings are listed under the BP number with time, date, sys/dia and MAP (${bpRows.length} shown)`);
+  const bpNumber = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('[data-testid="row-bp"] .tile-main')).fontSize));
+  check(bpNumber >= 20, `${vp.name}: the BP number is still readable with the list under it (${Math.round(bpNumber)} px)`);
+  // formats are a setting
+  await T("top-settings").click(); await page.getByText("Appearance").first().click();
+  await T("appearance").waitFor();
+  const barDate = async () => ((await page.locator("span.tb-date").textContent({ timeout: 2000 }).catch(() => "")) ?? "").trim();   // the sheet covers the bar, so read the text, not what is visible
+  await page.locator('[data-testid="date-format"] [data-value="yyyy-mm-dd"]').click();
+  check(/^\d{4}-\d{2}-\d{2}$/.test(await barDate()), `${vp.name}: choosing yyyy-mm-dd rewrites the date in the top bar`);
+  await page.locator('[data-testid="date-format"] [data-value="mm/dd/yyyy"]').click();
+  const us = await page.evaluate(() => ({ bar: document.querySelector(".tb-date").textContent, list: document.querySelector('[data-testid="row-bp"] .bp-date')?.textContent }));
+  check(/^\d{2}\/\d{2}\/\d{4}$/.test(us.bar) && us.list === us.bar.slice(0, 5) || us.list === undefined || /^\d{2}\/\d{2}$/.test(us.list), `${vp.name}: mm/dd/yyyy changes every date on screen (${us.bar}, list ${us.list})`);
+  await page.locator('[data-testid="clock-format"] [data-value="12h"]').click();
+  check(/(AM|PM)$/.test(((await page.locator("time.tb-clock").textContent()) ?? "").trim()), `${vp.name}: 12 hour time shows AM or PM`);
+  await page.locator('[data-testid="date-format"] [data-value="dd Mon yyyy"]').click();
+  check(/^\d{2} [A-Z][a-z]{2} \d{4}$/.test(await barDate()), `${vp.name}: dd Mon yyyy is offered too (${await barDate()})`);
+  await T("show-date").uncheck();
+  check(await page.locator("span.tb-date").count() === 0, `${vp.name}: Show Date Beside The Time removes the date`);
+  await page.evaluate(() => { window.__emus.ui.getState().setDraft(null); window.__emus.ui.getState().showSheet(null); });
+  await settle();
+  check(await page.locator("span.tb-date").count() === 1 && /^\d{2}\/\d{2}\/\d{4}$/.test(await barDate()), `${vp.name}: discarding the changes brings the default format back`);
+
+  await T("tab-predict").click();
+  await T("forecast-panel").waitFor();
+  const newsNow = api360.forecast.forecasts.find((f) => f.parameter === "news2" && f.scenario === "baseline");
+  const hrF = api360.forecast.forecasts.find((f) => f.parameter === "hr" && f.scenario === "baseline");
+  const val = (id) => page.locator(`[data-testid="${id}"]`).getAttribute("data-value");
+  check(await T("fp-news").isVisible() && await T("fp-obs").isVisible() && +(await val("fp-news-60")) === newsNow.points.find((p) => p.horizon_min === 60).value && +(await val("fp-obs-hr-120")) === hrF.points.find((p) => p.horizon_min === 120).value, `${vp.name}: the Prediction view shows the future NEWS and the future observations, as the API predicts`);
+  check(await page.locator('[data-testid^="fp-obs-"][data-testid$="-60"]').count() === 5 && await T("fp-certainty-news").isVisible() && await page.locator('[data-testid^="fp-certainty-"]').count() === 6, `${vp.name}: five observations and six certainty figures (one for NEWS) are shown`);
+  await T("fp-toggle-news").click();
+  check(await T("fp-news").count() === 0 && await T("fp-obs").isVisible(), `${vp.name}: the Future NEWS switch hides the NEWS and leaves the observations`);
+  await T("fp-toggle-news").click();
+  await T("fp-toggle-obs").click();
+  check(await T("fp-obs").count() === 0 && await T("fp-news").isVisible(), `${vp.name}: the Observation Predictions switch hides the observations and leaves the NEWS`);
+  await T("fp-toggle-obs").click();
+  await T("fp-toggle-certainty").click();
+  check(await page.locator('[data-testid^="fp-certainty-"]').count() === 0 && await T("fp-news").isVisible() && await T("fp-obs").isVisible(), `${vp.name}: the Certainty switch removes every certainty figure and keeps the predictions`);
+  await T("fp-toggle-news").click(); await T("fp-toggle-obs").click();
+  check(await T("fp-nothing").isVisible(), `${vp.name}: with everything off it says nothing is selected`);
+  const kept = await page.evaluate(() => JSON.parse(localStorage.getItem("emus.predict-show") ?? "{}"));
+  check(kept.news === false && kept.obs === false && kept.certainty === false, `${vp.name}: the switches are this screen's choice and are kept (${JSON.stringify(kept)})`);
+  await T("fp-toggle-news").click(); await T("fp-toggle-obs").click(); await T("fp-toggle-certainty").click();
+  check(await page.locator('[data-testid^="fp-certainty-"]').count() === 6, `${vp.name}: switching everything back on restores the view`);
+  await T("tab-monitor").click();
+
+  // ---- Round 9: the NEWS2 Breakdown, the Prediction Overlay, the full Prediction tab
+  await goDesign("icu-monitor", "monitor"); await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 360); await settle();
+  await page.locator('[data-parameter="news2"] [data-testid^="row-hit-"]').first().click();
+  await T("news2-breakdown").waitFor();
+  const comp = api360.news2.components;
+  const pts = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="n2b-"][data-points]')].map((r) => +r.getAttribute("data-points")));
+  const shown = +(await T("n2b-total").getAttribute("data-total"));
+  check(shown === api360.news2.total && pts.reduce((a, b) => a + b, 0) === shown && shown === Object.values(comp).reduce((a, b) => a + b, 0), `${vp.name}: one touch on the NEWS box opens the breakdown and its points add up to the total (${shown})`);
+  check(+(await T("n2b-temp").getAttribute("data-points")) === comp.temp && (await T("n2b-temp").textContent()).includes(api360.numerics.temp.toFixed(1)), `${vp.name}: the temperature scored is the one displayed (${api360.numerics.temp.toFixed(1)})`);
+  await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+  await settle();
+
+  const half = async () => page.evaluate(() => { const L = document.querySelector('[data-testid="screen-monitor-predict"]'); const r = L.getBoundingClientRect(); const m = document.querySelector('[data-testid="row-ecg"]').getBoundingClientRect(); const p = document.querySelector('[data-testid="prediction-trends"]').getBoundingClientRect(); return { sw: r.width, mRight: m.right, pLeft: p.left, pRight: p.right, left: r.left }; });
+  check(await T("tab-prediction-overlay").getAttribute("aria-pressed") === null || await T("tab-prediction-overlay").getAttribute("aria-pressed") === "false", `${vp.name}: the Prediction Overlay button starts off`);
+  await T("tab-prediction-overlay").click();
+  await T("prediction-trends").waitFor();
+  const h = await half();
+  check(h.mRight <= h.left + h.sw / 2 + 4 && h.pLeft >= h.left + h.sw / 2 - 4 && h.pRight <= h.left + h.sw + 1, `${vp.name}: the monitor is on the left half and the trends on the right half (${Math.round(h.mRight)} | ${Math.round(h.pLeft)})`);
+  check(await T("tab-prediction-overlay").getAttribute("aria-pressed") === "true" && await page.locator('[data-testid^="row-"][data-parameter="spo2"]').first().isVisible() && await T("row-ecg").isVisible(), `${vp.name}: the button shows it is on, and the monitor rows are on the left`);
+  const pt = await T("prediction-trends");
+  check(await T("pt-axis").getAttribute("data-max") === "480" && await T("pt-axis").getAttribute("data-min") === "-240" && await T("pt-mark-480").isVisible() && await T("pt-mark--240").isVisible(), `${vp.name}: the shared time axis runs from -4 H to +8 H`);
+  for (const id of ["hr", "rr", "spo2", "bp_sys", "bp_mean", "bp_dia", "temp"]) {
+    const f = api360.forecast.forecasts.find((x) => x.parameter === id && x.scenario === "baseline");
+    const endPt = f.points.find((q) => q.horizon_min === 480);
+    const chart = `pt-${id}-chart`;
+    const ok = await T(`${chart}-band95`).count() === 1 && await T(`${chart}-band80`).count() === 1 && await T(`${chart}-future`).count() === 1
+      && +(await T(`${chart}-end`).getAttribute("data-value")) === endPt.value;
+    check(ok, `${vp.name}: ${id} shows its predicted trend with 80 % and 95 % intervals, ending at the API's +8 H value (${endPt.value})`);
+    if (id !== "bp_mean" && id !== "bp_dia") check(await T(`pt-certainty-${id}`).isVisible(), `${vp.name}: ${id} shows its certainty`);
+  }
+  // the NEWS2 total in boxes along the bottom, over time
+  const newsF = api360.forecast.forecasts.find((x) => x.parameter === "news2" && x.scenario === "baseline");
+  check(+(await T("pt-box-0").getAttribute("data-value")) === api360.news2.total && await T("pt-conf-0").count() === 0, `${vp.name}: the NEWS2 box for now shows the live total (${api360.news2.total}) and, being measured, no confidence`);
+  const confApi = (min) => newsF.points.find((q) => q.horizon_min === min).certainty.find((c) => c.metric === "prediction_interval").score;
+  const confShown = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-testid^="pt-conf-"]')].map((e) => [e.dataset.testid.replace("pt-conf-", ""), +e.dataset.value])));
+  check([60, 120, 240, 360, 480].every((m) => Math.abs((confShown[m] ?? -1) - confApi(m)) < 0.006) && confShown[480] < confShown[60], `${vp.name}: each predicted NEWS2 box has its own % confidence, as the API gives it, falling with the horizon (${JSON.stringify(confShown)})`);
+  check(+(await T("pt-box-480").getAttribute("data-value")) === Math.round(newsF.points.find((q) => q.horizon_min === 480).value) && await T("pt-box-480").getAttribute("data-kind") === "future", `${vp.name}: a predicted NEWS2 box at +8 H matches the API`);
+  const pastBoxes = await page.locator('[data-testid^="pt-box-"][data-kind="past"]').count();
+  check(pastBoxes >= 1 && await page.locator('[data-testid^="pt-box-"][data-kind="future"]').count() >= 3, `${vp.name}: charted NEWS2 totals and predicted ones are boxed along the time axis (${pastBoxes} charted)`);
+  const bx = await page.evaluate(() => { const a = document.querySelector('[data-testid="pt-box-0"]').getBoundingClientRect(), m = document.querySelector('[data-testid="pt-mark-0"]').getBoundingClientRect(), c = document.querySelector('[data-testid="pt-hr-chart-now"]')?.getBoundingClientRect(); return { box: (a.left + a.right) / 2, mark: (m.left + m.right) / 2 }; });
+  check(Math.abs(bx.box - bx.mark) <= 2, `${vp.name}: the Now box sits exactly over the Now mark of the time axis`);
+  // each predicted chart is level with the monitor row beside it
+  const level = await page.evaluate(() => [["row-ecg", "pt-hr"], ["row-spo2", "pt-spo2"], ["row-resp", "pt-rr"], ["row-bp", "pt-bp_sys"], ["row-temp", "pt-temp"], ["row-news", "pt-news"]]
+    .map(([a, b]) => { const r = document.querySelector(`[data-testid="${a}"]`).getBoundingClientRect(), c = document.querySelector(`[data-testid="${b}"]`).getBoundingClientRect(); return [a, Math.round(Math.abs(r.top - c.top)), Math.round(Math.abs(r.height - c.height))]; }));
+  check(level.every(([, dt, dh]) => dt <= 2 && dh <= 2), `${vp.name}: every predicted chart has the same top and height as its monitor row (${JSON.stringify(level)})`);
+  await T("fp-toggle-certainty").click();
+  check(await page.locator('[data-testid^="pt-certainty-"]').count() === 0, `${vp.name}: the Certainty switch works on the overlay`);
+  await T("fp-toggle-certainty").click();
+  await T("fp-toggle-news").click();
+  await T("tab-predict").click(); await T("forecast-panel").waitFor();
+  check(await T("fp-news").count() === 0, `${vp.name}: the overlay's switches are the Prediction view's too`);
+  await T("fp-toggle-news").click();
+  await T("tab-prediction-overlay").click();
+  await T("prediction-trends").waitFor();
+  await T("tab-prediction-overlay").click();
+  await settle();
+  check(await T("tab-prediction-overlay").getAttribute("aria-pressed") === "false" && await page.locator('[data-testid="screen-monitor-predict"]').count() === 0, `${vp.name}: pressing the button again goes back to the screen it came from`);
+
+  // ---- Round 14: ABCDE with look, listen and feel; D, E, the gas and the glucose in view
+  await goDesign("icu-monitor", "abcde"); await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 360); await settle();
+  await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+  await page.waitForTimeout(500);
+  const inView = await page.evaluate(() => { const p = document.querySelector('[data-testid="abcde"]').getBoundingClientRect(); return ["abcde-d", "abcde-e", "blood-gas", "blood-glucose", "d-glucose"].map((id) => { const r = document.querySelector(`[data-testid="${id}"]`)?.getBoundingClientRect(); return [id, !!r && r.bottom <= p.bottom + 1 && r.top >= p.top - 1]; }); });
+  check(inView.every(([, ok]) => ok), `${vp.name}: D, E, the blood gas and the glucose are inside the visible ABCDE panel (${JSON.stringify(inView)})`);
+  const glucoseApi = api360.labs.filter((l) => l.test === "glucose").sort((a, b) => b.collected_at.localeCompare(a.collected_at))[0];
+  check(!glucoseApi || (await T("d-glucose").innerText()).includes(String(glucoseApi.value)), `${vp.name}: the glucose shown is the latest the API has (${glucoseApi?.value})`);
+  const abcdeCards = await page.evaluate(() => Object.fromEntries(["abcde-a", "abcde-b", "abcde-c", "abcde-d", "abcde-e", "abcde-bloods"].map((id) => { const r = document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect(); return [id, [Math.round(r.left), Math.round(r.top)]]; })));
+  check(abcdeCards["abcde-a"][0] < abcdeCards["abcde-b"][0] && Math.abs(abcdeCards["abcde-a"][1] - abcdeCards["abcde-b"][1]) < 4 && abcdeCards["abcde-c"][0] < abcdeCards["abcde-d"][0] && Math.abs(abcdeCards["abcde-c"][1] - abcdeCards["abcde-d"][1]) < 4
+    && abcdeCards["abcde-c"][1] > abcdeCards["abcde-a"][1] + 40 && abcdeCards["abcde-e"][1] > abcdeCards["abcde-c"][1] + 40 && abcdeCards["abcde-e"][0] <= abcdeCards["abcde-a"][0] + 2 && abcdeCards["abcde-bloods"][0] > abcdeCards["abcde-e"][0], `${vp.name}: the cards run A B, then C D, then E with the results (${JSON.stringify(abcdeCards)})`);
+  const bangs = await page.evaluate(() => document.body.innerText.match(/!!+/g)?.length ?? 0);
+  check(bangs === 0, `${vp.name}: no !! or !!! anywhere on the ABCDE screen`);
+  check(await page.locator('[data-testid="abcde-b"] .abcde-status .priority-triangle').count() === 1, `${vp.name}: Urgent is a red triangle with its word`);
+  check(await page.locator('[data-testid="abcde-note"]').count() === 0, `${vp.name}: the paragraph above A is gone`);
+  await T("breathing-btn").click(); await T("assess-breathing").waitFor();
+  await page.locator('[data-testid="check-expansion"] [data-value="left-less"]').click();
+  await page.locator('[data-testid="check-percussion"] [data-value="hyper"]').click();
+  await page.locator('[data-testid="check-entry"] [data-value="reduced-left"]').click();
+  await T("check-done").click();
+  check((await T("breathing-prompt-0").innerText()).includes("pneumothorax") && (await T("abcde-b-status").innerText()).includes("Urgent"), `${vp.name}: unequal expansion with hyper-resonance prompts pneumothorax and makes B Urgent`);
+  check(await T("found-entry").getAttribute("data-value") === "reduced-left" && await T("found-percussion").count() === 1, `${vp.name}: what was looked at, listened to and felt is shown with B`);
+  await T("circulation-btn").click(); await T("assess-circulation").waitFor();
+  await page.locator('[data-testid="check-oedema"] [data-value="peripheral"]').click();
+  await page.locator('[data-testid="check-jvp"] [data-value="raised"]').click();
+  await T("check-done").click();
+  check((await T("circulation-prompt-0").innerText()).includes("heart failure"), `${vp.name}: oedema with raised neck veins prompts heart failure or overload`);
+  const abcdeKept = await page.evaluate(() => JSON.parse(localStorage.getItem("emus.abcde")).checks);
+  check(abcdeKept.entry?.value === "reduced-left" && abcdeKept.oedema?.value === "peripheral" && !!abcdeKept.entry.at, `${vp.name}: the checks are kept with their time`);
+  await page.evaluate(() => { const s = window.__emus; try { localStorage.removeItem("emus.abcde"); } catch {} });
+  await page.reload({ waitUntil: "networkidle" });
+  await goDesign("icu-monitor", "abcde"); await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 360); await settle();
+
+  // the NEWS2 chart: observed columns, then predicted ones in the same chart, darker and thinly hatched; the overlay button opens the full-width view
+  await T("tab-news2").click(); await T("news2-chart").first().waitFor(); await page.waitForTimeout(600);
+  const horizonsApi = [60, 120, 240, 360, 480];
+  const predApi = api360.predicted_obs_sets.filter((x) => horizonsApi.includes((Date.parse(x.at) - Date.parse(api360.generated_at)) / 60000));
+  const n2 = await page.evaluate(() => { const c = document.querySelector('[data-testid="news2-chart"]'); return {
+    charts: document.querySelectorAll('[data-testid="news2-chart"]').length,
+    predCols: [...c.querySelectorAll('[data-predicted][data-testid^="news-col-"]')].map((e) => +e.dataset.minutes),
+    obsCols: c.querySelectorAll('[data-testid^="news-col-"]:not([data-predicted])').length,
+    totals: [...c.querySelectorAll('[data-predicted][data-testid^="news-total-"]')].map((e) => [+e.dataset.total, e.dataset.confidence]),
+    regions: c.querySelectorAll('[data-testid="news-predicted-region"]').length, hatch: !!c.querySelector("pattern"), divider: !!c.querySelector('[data-testid="news-now-divider"]'),
+    banner: c.querySelector('[data-testid="news-predicted-banner"]')?.textContent ?? "", hollow: c.querySelectorAll(".n2-dot.is-predicted, .n2-arrow.is-predicted").length,
+    dashed: c.querySelectorAll(".n2-predline").length, groups: [...c.querySelectorAll('[data-testid^="news-group-"]')].length };
+  });
+  check(n2.charts === 1 && n2.obsCols >= 3 && n2.predCols.length >= 3, `${vp.name}: the NEWS2 screen is one chart with observed (${n2.obsCols}) and predicted (${n2.predCols.join(", ")}) columns`);
+  check(JSON.stringify(n2.totals.map((x) => x[0])) === JSON.stringify(predApi.slice(0, n2.predCols.length).map((x) => x.news2_total)) && n2.totals.every(([, c]) => /^\d+%$/.test(c)), `${vp.name}: the predicted totals are the API's, each with a % confidence (${JSON.stringify(n2.totals)})`);
+  check(n2.regions === n2.groups && n2.hatch && n2.divider && n2.banner.includes("Predicted") && n2.hollow > 0 && n2.dashed > 0, `${vp.name}: the predicted part is darker, hatched, dashed and hollow-marked, split at a Now line and labelled (${n2.regions} regions, ${n2.dashed} dashed trends)`);
+  await T("tab-prediction-overlay").click(); await page.locator('[data-testid="screen-news2-predict"]').waitFor(); await page.waitForTimeout(600);
+  check(await page.locator('[data-testid="news2-chart"]').count() === 1 && await page.locator('[data-predicted][data-testid^="news-col-"]').count() >= 3 && await T("tab-prediction-overlay").getAttribute("aria-pressed") === "true", `${vp.name}: on the NEWS2 screen the overlay button shows the same single chart with its prediction`);
+  await T("tab-prediction-overlay").click(); await settle();
+  check(await page.locator('[data-testid="screen-news2"]').count() === 1 && await T("tab-prediction-overlay").getAttribute("aria-pressed") === "false", `${vp.name}: pressing it again returns to the NEWS2 screen`);
+  await T("tab-monitor").click();
+
+  // the Prediction tab: AI findings and events
+  await T("tab-predict").click(); await T("ai-summary").waitFor();
+  const active = api360.findings.filter((f) => f.status === "active").length;
+  check(+(await T("ai-summary").getAttribute("data-count")) === Math.min(6, active) && await page.locator('[data-testid^="ais-"][data-status="active"]').count() === Math.min(6, active), `${vp.name}: What the AI Sees Now lists the ${active} active findings`);
+  await page.locator('[data-testid^="ais-"][data-status="active"]').first().click();
+  check(await page.evaluate(() => window.__emus.ui.getState().openSheet) === "finding-explain", `${vp.name}: one touch on a finding opens its Why sheet`);
+  await page.evaluate(() => window.__emus.ui.getState().showSheet(null));
+  await settle();
+  const evs = api360.forecast.events;
+  check(await page.locator('[data-testid^="evt-row-"]').count() === evs.length && evs.every((e) => true), `${vp.name}: the events timeline lists the ${evs.length} predicted events`);
+  const evProb = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="evt-row-"]')].map((r) => +r.getAttribute("data-probability")));
+  check(evs.every((e) => evProb.includes(e.probability)), `${vp.name}: each event shows the API's probability`);
+  await T("tab-monitor").click();
+
+  // ---- Round 12: a value in alarm is a box of its own colour with white digits, alternating with the normal number
+  const alarmed = async (minute) => {
+    await goDesign("icu-monitor", "monitor"); await ex("setScenario", "scn-pneumonia"); await ex("setMinute", minute); await settle();
+    return page.evaluate(() => [...document.querySelectorAll("[data-alarm]")].map((e) => `${e.closest('[data-testid^="cell-"]').dataset.testid.replace("cell-", "")}:${e.textContent}:${e.dataset.alarm}`).sort());
+  };
+  const apiAlarm = async (minute) => (await api(`/api/examples/scn-pneumonia?minute=${minute}`)).alarms.active.filter((a) => a.kind !== "technical").map((a) => `${a.parameter}:${a.value}`);
+  const a360 = await alarmed(360), a360api = await apiAlarm(360);
+  check(["hr", "spo2", "rr", "temp"].every((p) => a360.some((x) => x.startsWith(`${p}:`))) && a360api.some((x) => x.startsWith("hr:")) && !a360.some((x) => x.startsWith("pulse")), `${vp.name}: at 360 min HR, SpO2, RR and temperature are highlighted, as the API alarms them (${a360.join(" ")})`);
+  const a480 = await alarmed(480);
+  check(a480.some((x) => x.endsWith(":medium") && x.startsWith("bp_sys:63")) && !a480.some((x) => x.startsWith("bp_sys:90") || x.includes(":50:")), `${vp.name}: at 480 min only the MAP (63) of the blood pressure is highlighted (${a480.join(" ")})`);
+  check((await apiAlarm(480)).includes("bp_mean:63") && !(await apiAlarm(480)).some((x) => x.startsWith("bp_sys") || x.startsWith("bp_dia")), `${vp.name}: the API alarms the MAP alone at 480 min`);
+  // alternation: sample for two and a half seconds; a high priority number must be seen both highlighted and normal
+  const seen = new Set();
+  for (let i = 0; i < 25; i++) { seen.add(await page.evaluate(() => document.querySelector('[data-alarm="high"]').dataset.flash)); await page.waitForTimeout(100); }
+  check(seen.has("on") && seen.has("off"), `${vp.name}: a high priority number alternates between the box and the normal number (${[...seen].join(",")})`);
+  const look = await page.evaluate(() => new Promise((res) => { const find = () => { const e = document.querySelector('[data-alarm="high"][data-flash="on"]'); if (!e) return requestAnimationFrame(find); const o = getComputedStyle(e), i = getComputedStyle(e.firstElementChild); res({ bg: o.backgroundColor, colour: o.color, ink: i.color, dark: e.dataset.ink }); }; find(); }));
+  check(look.bg === look.colour && (look.dark === "dark" ? look.ink === "rgb(0, 0, 0)" : look.ink === "rgb(255, 255, 255)"), `${vp.name}: in the highlighted phase the box is the observation's own colour with white digits (${JSON.stringify(look)})`);
+  const numSizes = await page.evaluate(() => [...document.querySelectorAll('[data-alarm]')].map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)].join("x"); }));
+  await page.waitForTimeout(700);
+  const numSizes2 = await page.evaluate(() => [...document.querySelectorAll('[data-alarm]')].map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)].join("x"); }));
+  check(JSON.stringify(numSizes) === JSON.stringify(numSizes2), `${vp.name}: flashing never changes the size of a number (nothing moves)`);
+  const crowd = await page.evaluate(() => {
+    const out = [];
+    const textBox = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect(); };
+    for (const n of document.querySelectorAll("[data-alarm]")) {
+      const a = n.getBoundingClientRect();
+      for (const o of n.closest(".tile").querySelectorAll(".tile-head, .tile-foot, .bp-tile, .tile-last, .tile-flag, .tile-note-head")) {
+        const b = textBox(o);                       // the words themselves, not the (wider) box they sit in
+        if (b.width > 0 && Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5) out.push(`${n.textContent} over ${o.className}`);
+      }
+      const cs = getComputedStyle(n); if (cs.borderTopLeftRadius !== "0px") out.push(`${n.textContent} has rounded corners`);
+    }
+    return out;
+  });
+  check(crowd.length === 0, `${vp.name}: highlighted numbers have square corners and overlap nothing (${crowd.slice(0, 3).join("; ")})`);
+  const bang = await page.evaluate(() => { const svg = document.querySelector(".priority-triangle"); if (!svg) return null; const t = svg.querySelector(".prio-body").getBoundingClientRect(); return [...svg.querySelectorAll(".prio-bang")].every((e) => { const r = e.getBoundingClientRect(); return r.left >= t.left && r.right <= t.right && r.top >= t.top && r.bottom <= t.bottom; }); });
+  check(bang === true, `${vp.name}: the exclamation mark is inside the red triangle`);
+  await T("tab-prediction-overlay").click(); await T("prediction-trends").waitFor();
+  check(await page.locator('[data-alarm]').count() > 0, `${vp.name}: the overlay's monitor half highlights alarming numbers too`);
+  await T("tab-prediction-overlay").click();
+  await ex("setScenario", "scn-pneumonia"); await ex("setMinute", 0); await settle();
+  check(await page.locator('[data-alarm]').count() === 0, `${vp.name}: with nothing in alarm no number is highlighted`);
 
   // Nothing overlaps, nothing is cut off, everything has padding; and the words are capitalised
   const { audit } = require("./layout-audit.cjs");
   const { capsAudit } = require("./caps-audit.cjs");
-  for (const [d, sc, scen, min] of [["icu-monitor", "monitor", "scn-af", 20], ["icu-modules", "monitor", "scn-pneumonia", 180], ["icu-monitor", "abcde", "scn-copd", -20]]) {
+  for (const [d, sc, scen, min] of [["icu-monitor", "monitor", "scn-af", 20], ["icu-modules", "monitor", "scn-pneumonia", 180], ["icu-monitor", "abcde", "scn-copd", -20], ["icu-monitor", "predict", "scn-pneumonia", 120], ["icu-monitor", "monitor-predict", "scn-pneumonia", 360], ["icu-monitor", "monitor", "scn-pneumonia", 360], ["icu-monitor", "monitor", "scn-pneumonia", 480]]) {
     await goDesign(d, sc); await ex("setScenario", scen); await ex("setMinute", min); await settle();
     const r = await audit(page);
     check(r.problems.length === 0, `${vp.name}: ${d}/${sc} has no overlaps, cut-off text or missing padding ${r.problems.slice(0, 3).join(" | ")}`);

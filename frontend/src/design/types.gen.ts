@@ -29,7 +29,7 @@ export interface Design {
   tab_bar: TabBar;
   /**
    * @minItems 2
-   * @maxItems 12
+   * @maxItems 14
    */
   tabs:
     | [Button, Button]
@@ -42,7 +42,9 @@ export interface Design {
     | [Button, Button, Button, Button, Button, Button, Button, Button, Button]
     | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button]
     | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button]
-    | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button];
+    | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button]
+    | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button]
+    | [Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button, Button];
   theme: Theme1;
   tiles: TileDisplay;
   top_bar: TopBar;
@@ -237,7 +239,7 @@ export interface NewsBandColours {
  */
 export interface Forecast {
   certainty: CertaintyDisplay;
-  default_horizon_min: 60 | 120 | 240 | 360 | 720;
+  default_horizon_min: 60 | 120 | 240 | 360 | 480 | 720;
   enabled: boolean;
   event_types: (
     | "news2_ge_5"
@@ -255,7 +257,7 @@ export interface Forecast {
   /**
    * @minItems 1
    */
-  horizons_min: [60 | 120 | 240 | 360 | 720, ...(60 | 120 | 240 | 360 | 720)[]];
+  horizons_min: [60 | 120 | 240 | 360 | 480 | 720, ...(60 | 120 | 240 | 360 | 480 | 720)[]];
   max_contributors: number;
   news_number: "none" | "value-range" | "band-probabilities" | "time-to-threshold";
   news_threshold: number;
@@ -394,7 +396,9 @@ export interface MenuItem {
     | ThemeToggleAction
     | AiToggleAction
     | AiOverlayAction
-    | EditLayoutAction;
+    | EditLayoutAction
+    | MeasureAction
+    | PredictionOverlayAction;
   icon:
     | "monitor"
     | "chart"
@@ -463,8 +467,7 @@ export interface SheetAction {
     | "explanation-examples"
     | "trends"
     | "abcde-assess"
-    | "measure-bp"
-    | "measure-temp"
+    | "news2-breakdown"
     | "forecast-horizon"
     | "news2-variant"
     | "home-screen"
@@ -538,6 +541,28 @@ export interface AiOverlayAction {
  */
 export interface EditLayoutAction {
   type: "edit-layout";
+}
+/**
+ * Starts a blood pressure or temperature measurement on one touch and cancels it on the next. There
+ * is no menu or sheet: the module for that measurement pulses until the reading is in. (In this
+ * prototype the reading is simulated.)
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "MeasureAction".
+ */
+export interface MeasureAction {
+  kind: "bp" | "temp";
+  type: "measure";
+}
+/**
+ * Switches the main screen between the monitor and the prediction overlay: the monitor on the left half, the
+ * trends with their predicted future and intervals on the right. A local preference of the screen.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "PredictionOverlayAction".
+ */
+export interface PredictionOverlayAction {
+  type: "toggle-prediction-overlay";
 }
 /**
  * The notification ticker: the one place alarms and monitoring problems are listed.
@@ -909,6 +934,8 @@ export interface WidgetNode {
     | ImagingWidget
     | AiSummaryWidget
     | ForecastPanelWidget
+    | PredictionTrendsWidget
+    | PredictionSwitchesWidget
     | EventsTimelineWidget
     | AlarmsWidget
     | OxygenWidget
@@ -973,7 +1000,7 @@ export interface News2ChartWidget {
   id: string;
   show_escalation_rows: boolean;
   /**
-   * Append predicted columns (see forecast).
+   * Append the predicted columns: every parameter as the forecast predicts it, scored, drawn darker and hatched.
    */
   show_future: boolean;
   show_total_row: boolean;
@@ -1044,6 +1071,9 @@ export interface AiSummaryWidget {
   type: "ai-summary";
 }
 /**
+ * The Prediction view: future NEWS and the future observations, with their certainty. Each of the three
+ * can be switched on or off on the screen; these are what it starts with.
+ *
  * This interface was referenced by `Design`'s JSON-Schema
  * via the `definition` "ForecastPanelWidget".
  */
@@ -1052,11 +1082,84 @@ export interface ForecastPanelWidget {
    * Lowercase id: letters, digits, hyphens.
    */
   id: string;
+  /**
+   * Start with the certainty of each prediction shown.
+   */
+  show_certainty: boolean;
   show_contributors: boolean;
   show_events: boolean;
+  /**
+   * Start with the future NEWS shown.
+   */
   show_news_number: boolean;
+  /**
+   * Start with the future observation predictions shown.
+   */
+  show_observations: boolean;
   title: string | null;
   type: "forecast-panel";
+}
+/**
+ * The trends with their predicted future and prediction intervals, on one time axis, with the future NEWS
+ * over time. Used on the right of the prediction overlay of the main screen.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "PredictionTrendsWidget".
+ */
+export interface PredictionTrendsWidget {
+  /**
+   * How far ahead the prediction runs, right of now.
+   */
+  ahead_hours: number;
+  /**
+   * How far back the history runs, left of now.
+   */
+  back_hours: number;
+  /**
+   * Lowercase id: letters, digits, hyphens.
+   */
+  id: string;
+  /**
+   * Start with the certainty of each prediction shown.
+   */
+  show_certainty: boolean;
+  /**
+   * Start with the future NEWS shown.
+   */
+  show_news_number: boolean;
+  /**
+   * Start with the observation predictions shown.
+   */
+  show_observations: boolean;
+  title: string | null;
+  type: "prediction-trends";
+}
+/**
+ * The three switches of the prediction views (Future NEWS, Observation Predictions, Certainty) as a strip of their own,
+ * so they can sit above the predicted trends without moving them. The choice is shared with every prediction view.
+ *
+ * This interface was referenced by `Design`'s JSON-Schema
+ * via the `definition` "PredictionSwitchesWidget".
+ */
+export interface PredictionSwitchesWidget {
+  /**
+   * Lowercase id: letters, digits, hyphens.
+   */
+  id: string;
+  /**
+   * Start with the certainty of each prediction shown.
+   */
+  show_certainty: boolean;
+  /**
+   * Start with the future NEWS shown.
+   */
+  show_news_number: boolean;
+  /**
+   * Start with the observation predictions shown.
+   */
+  show_observations: boolean;
+  title: string | null;
+  type: "prediction-switches";
 }
 /**
  * This interface was referenced by `Design`'s JSON-Schema
@@ -1187,7 +1290,9 @@ export interface Button {
     | ThemeToggleAction
     | AiToggleAction
     | AiOverlayAction
-    | EditLayoutAction;
+    | EditLayoutAction
+    | MeasureAction
+    | PredictionOverlayAction;
   colour: string | null;
   icon:
     | "monitor"
@@ -1303,6 +1408,7 @@ export interface TopBar {
     | [Button, Button, Button, Button, Button]
     | [Button, Button, Button, Button, Button, Button];
   clock_format: "24h" | "12h";
+  date_format: "dd/mm/yyyy" | "mm/dd/yyyy" | "yyyy-mm-dd" | "dd Mon yyyy";
   /**
    * Left to right. Must include 'name' and 'clock'.
    */

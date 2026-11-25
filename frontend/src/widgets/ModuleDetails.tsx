@@ -1,4 +1,5 @@
 import { useUi } from "@/app/store";
+import { fmtDate, fmtTime, useFormats } from "@/design/datetime";
 import { titleCase } from "@/design/text";
 import { useSnapshot } from "@/examples/store";
 import { useSize } from "@/traces/useSize";
@@ -71,6 +72,7 @@ export function OxygenDetail() {
 export function NewsTrend() {
   const s = useSnapshot();
   const [ref, { w, h }] = useSize<HTMLDivElement>();
+  const formats = useFormats();
   if (!s || !s.obs_sets.length) return <div className="detail-news" ref={ref} data-testid="news-trend" />;
   const CELL = 68;
   const fit = Math.max(2, Math.floor(Math.max(w - 14, 100) / CELL));
@@ -83,8 +85,8 @@ export function NewsTrend() {
   const cell = Math.max(w - 14, 100) / sets.length;
   const pt = (x: (typeof sets)[number], i: number) => ({ x: cell * i + cell / 2, y: 4 + (1 - (x.news2_total ?? 0) / top) * Math.max(1, plotH - 8) });
   const pts = sets.map(pt);
-  const time = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  const date = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  const time = (iso: string) => fmtTime(iso, formats);
+  const date = (iso: string) => fmtDate(iso, formats, { short: true });
   return (
     <div className="detail-news" ref={ref} data-testid="news-trend">
       {plotH >= 18 && w > 0 && (

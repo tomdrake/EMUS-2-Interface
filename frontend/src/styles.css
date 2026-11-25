@@ -55,9 +55,7 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .tb-date { font-variant-numeric: tabular-nums; }
 .tb-field.tb-date { margin-left: auto; }
 .tb-field.tb-date + .tb-field.tb-clock { margin-left: 0; }
-@media (max-width: 1180px) {
-  .tb-field.tb-date { display: none; }
-  .tb-field.tb-clock, .tb-field.tb-date + .tb-field.tb-clock { margin-left: auto; }
+.tb-field.tb-date { flex: none; margin-right: 10px; white-space: nowrap; }
 }
 .badge { flex: none; font-size: 0.7em; font-weight: 700; letter-spacing: 0.06em; padding: 3px 8px;
   border-radius: 999px; border: 1px solid var(--c-border); color: var(--c-text-muted); line-height: 1.2; }
@@ -321,12 +319,23 @@ h2 { margin: 0; font-size: 1.05em; font-weight: 600; }
 .notif-strip .notif-text { -webkit-line-clamp: 1; }
 .notif-tag, .feed-tag { flex: none; font-size: 0.62em; font-weight: 800; letter-spacing: 0.08em;
   padding: 1px 5px; border: 1px solid currentColor; border-radius: 4px; }
-/* Patient alarm priority in shape: !!! high, !! medium, ! low. Alarm colours live
+/* Patient alarm priority in shape: red triangle high, amber triangle medium, circled mark low. Alarm colours live
    here and on the frame, not on the text. */
 .notif-mark { flex: none; font-size: 0.7em; font-weight: 900; letter-spacing: 0.02em; padding: 0 5px;
   border-radius: 4px; line-height: 1.5; border: 1px solid currentColor; }
-.mark-high { background: var(--c-alarm-high); color: var(--c-background); border-color: var(--c-alarm-high); }
-.mark-medium { background: var(--c-alarm-medium); color: var(--c-background); border-color: var(--c-alarm-medium); }
+/* High priority: a red triangle with an exclamation mark, no box around it. */
+.mark-high { background: none; border: 0; padding: 0; display: inline-flex; align-items: center; line-height: 1; color: var(--c-alarm-high); }
+.priority-triangle { display: block; }
+.priority-triangle .prio-body { fill: var(--c-alarm-high); stroke: var(--c-alarm-high); stroke-width: 1.6; stroke-linejoin: round; }
+.priority-triangle .prio-bang { fill: #ffffff; }
+.mark-medium, .mark-low { background: none; border: 0; padding: 0; display: inline-flex; align-items: center; line-height: 1; }
+.mark-medium { color: var(--c-alarm-medium); }
+.mark-low { color: var(--c-alarm-low); }
+.priority-triangle.is-medium .prio-body { fill: none; stroke: var(--c-alarm-medium); stroke-width: 2.2; }
+.priority-triangle.is-medium .prio-bang { fill: var(--c-alarm-medium); }
+.alert-circle { display: block; }
+.alert-circle .prio-ring { fill: none; stroke: currentColor; stroke-width: 2; }
+.alert-circle .prio-bang { fill: currentColor; }
 .notif-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
 .notif-count { flex: none; font-weight: 800; font-size: 0.8em; padding: 2px 7px; border-radius: 999px;
   border: 1px solid var(--c-border); color: var(--c-text-muted); font-variant-numeric: tabular-nums; }
@@ -786,16 +795,16 @@ button:disabled { opacity: 0.45; }
 .height-opt { min-height: var(--touch); flex: 1 1 auto; }
 .height-opt.is-current { box-shadow: inset 0 0 0 2px var(--c-accent); background: var(--c-surface-alt); }
 
-/* Measure BP and Measure Temp sheets */
-.measure { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
-.measure-go { min-height: 64px; font-size: 1.1rem; }
-.measure-run, .measure-result { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--c-border); border-radius: var(--radius); }
-.measure-bar { height: 14px; border-radius: 7px; background: var(--c-surface-alt); overflow: hidden; }
-.measure-bar span { display: block; height: 100%; background: var(--c-accent); transition: width 0.9s linear; }
-.measure-value { font-size: 2.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-.measure-value small { font-size: 1rem; font-weight: 600; }
-.measure-kind, .measure-time, .measure-added, .measure-left, .measure-last { color: var(--c-text-muted); font-size: 0.9rem; margin: 0; }
-@media (prefers-reduced-motion: reduce) { .measure-bar span { transition: none; } }
+/* A measurement under way: its tab button at the foot of the screen pulses (a ring and a tint) until the reading is in. */
+@keyframes measure-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px var(--c-accent); background-color: color-mix(in srgb, var(--c-accent) 8%, transparent); }
+  50% { box-shadow: inset 0 0 0 5px var(--c-accent); background-color: color-mix(in srgb, var(--c-accent) 32%, transparent); }
+}
+
+.tab.is-measuring { animation: measure-pulse 1.1s ease-in-out infinite; color: var(--c-text); }
+@media (prefers-reduced-motion: reduce) {
+  .tab.is-measuring { animation: none; box-shadow: inset 0 0 0 4px var(--c-accent); background-color: color-mix(in srgb, var(--c-accent) 22%, transparent); }
+}
 
 /* Blood pressure markers: arrows and an X in the row's colour. */
 .discrete-arrow { fill: currentColor; stroke: var(--c-background); stroke-width: 0.6; }
@@ -896,3 +905,273 @@ button:disabled { opacity: 0.45; }
 /* Top-bar buttons keep one-line labels, centred; only the tab bar wraps two-line labels from the top. */
 .topbtn { justify-content: center; padding-top: 0; }
 .topbtn .tab-label { white-space: nowrap; max-width: none; text-wrap: nowrap; }
+
+/* The Prediction view */
+.forecast-panel { flex: 1 1 0; min-height: 0; min-width: 0; overflow: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; }
+.fp-toggles { display: flex; flex-wrap: wrap; gap: 8px; flex: none; }
+.fp-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: var(--touch); padding: 0 10px 0 8px; font-size: 0.9rem; border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--c-surface); font-weight: 700; }
+.fp-toggle-track { width: 38px; height: 22px; border-radius: 11px; background: var(--c-surface-alt); border: 1px solid var(--c-border); position: relative; flex: none; }
+.fp-toggle-track i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--c-text-muted); transition: transform 0.15s; }
+.fp-toggle.is-on { box-shadow: inset 0 0 0 2px var(--c-accent); }
+.fp-toggle.is-on .fp-toggle-track { background: var(--c-accent); border-color: var(--c-accent); }
+.fp-toggle.is-on .fp-toggle-track i { transform: translateX(16px); background: var(--c-background); }
+.fp-note, .fp-hint { margin: 0; color: var(--c-text-muted); font-size: 0.8rem; flex: none; }
+.fp-section { flex: none; border: 1px solid var(--c-border); border-radius: var(--radius); padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; }
+.fp-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fp-head h3 { margin: 0; font-size: 1rem; }
+.fp-cells { display: flex; gap: 8px; }
+.fp-cell { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border: 1px solid var(--c-border); border-radius: calc(var(--radius) - 2px); }
+.fp-cell.fp-now { border-style: solid; box-shadow: inset 0 0 0 1px var(--c-text-muted); }
+.fp-when { font-size: 0.75rem; font-weight: 700; color: var(--c-text-muted); }
+.fp-big { font-size: 1.8rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.fp-range, .fp-bands { font-size: 0.75rem; color: var(--c-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fp-threshold { margin: 0; font-weight: 600; }
+.fan { height: 54px; min-width: 0; }
+.fan svg { display: block; overflow: visible; }
+.fan-band { fill: currentColor; fill-opacity: 0.18; stroke: none; }
+.fan-past { fill: none; stroke: currentColor; stroke-width: 1.8; }
+.fan-future { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-dasharray: 5 4; }
+.fan-now { fill: currentColor; stroke: var(--c-background); stroke-width: 1; }
+.fp-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.fp-table th, .fp-table td { padding: 3px 6px; text-align: center; border-bottom: 1px solid var(--c-border); vertical-align: middle; }
+.fp-table thead th { font-size: 0.75rem; color: var(--c-text-muted); font-weight: 700; }
+.fp-table th[scope="row"] { text-align: left; white-space: nowrap; }
+.fp-table td b { display: block; font-size: 1.05rem; }
+.fp-table td .fp-range { display: block; }
+.fp-none { color: var(--c-text-muted); font-size: 0.8rem; }
+.fp-col-chart { width: 120px; min-width: 100px; }
+.fp-col-chart .fan { height: 40px; }
+@container (max-width: 1px) { .fp-col-chart { display: none; } }
+@media (max-width: 1100px) { .fp-col-chart { display: none; } }
+@media (prefers-reduced-motion: reduce) { .fp-toggle-track i { transition: none; } }
+
+/* The last five blood pressures under the BP number, in the tile. The row keeps its height, so the number takes what the lines
+   leave and the lines that do not fit are dropped (oldest first); each step also tells the number how much room it has lost. */
+.tile .bp-tile { width: 100%; margin-top: 6px; font-size: 10.5px; line-height: 12.5px; font-variant-numeric: tabular-nums; }
+.tile .bp-tile table { width: 100%; border-collapse: collapse; font-size: inherit; }
+.tile .bp-tile td { padding: 0 4px 0 0; white-space: nowrap; text-align: left; line-height: 12.5px; }
+.tile .bp-tile .bp-value { text-align: right; padding-right: 0; font-weight: 700; }
+.tile .bp-tile tr.is-newest { font-size: 1em; font-weight: 800; }
+.tile .bp-tile tr:nth-child(n+2) td { opacity: 0.9; }
+.tile .bp-tile .bp-age { text-align: right; padding-left: 4px; font-weight: 700; }
+.tile:has(.bp-tile) .tile-cell { --list-h: 70px; }
+.tile:has(.bp-tile) .tile-primary .tile-value, .tile:has(.bp-tile) .tile-primary:has(.tile-extra) .tile-value { font-size: min(calc(2.2rem * var(--numeric-scale)), calc((var(--body-h) - var(--list-h, 0px)) / 1.3), 21cqw); }
+@container tile (max-height: 137px) { .tile .bp-tile tr:nth-child(n+5) { display: none; } .tile:has(.bp-tile) .tile-cell { --list-h: 58px; } }
+@container tile (max-height: 124px) { .tile .bp-tile tr:nth-child(n+4) { display: none; } .tile:has(.bp-tile) .tile-cell { --list-h: 45px; } }
+@container tile (max-height: 111px) { .tile .bp-tile tr:nth-child(n+3) { display: none; } .tile:has(.bp-tile) .tile-cell { --list-h: 33px; } }
+@container tile (max-height: 99px) { .tile .bp-tile tr:nth-child(n+2) { display: none; } .tile:has(.bp-tile) .tile-cell { --list-h: 20px; } }
+@container tile (max-height: 86px) { .tile .bp-tile { display: none; } .tile:has(.bp-tile) .tile-cell { --list-h: 0px; } }
+
+/* NEWS2 Breakdown sheet */
+.news2-breakdown { padding: 16px; }
+.n2b-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.n2b-table th, .n2b-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--c-border); }
+.n2b-table thead th { font-size: 0.8rem; color: var(--c-text-muted); }
+.n2b-table tfoot th { text-align: right; }
+.n2b-points { display: inline-flex; min-width: 32px; height: 28px; align-items: center; justify-content: center; border-radius: 4px; font-size: 1.05rem; border: 1px solid var(--c-border); }
+.n2b-points.score-1 { background: #f2cf3f; color: #000; border-color: transparent; }
+.n2b-points.score-2 { background: #ff9f43; color: #000; border-color: transparent; }
+.n2b-points.score-3 { background: #ff6b6b; color: #000; border-color: transparent; }
+.n2b-total { font-size: 1.6rem; font-weight: 800; }
+.n2b-risk { margin: 10px 0 4px; }
+
+/* The prediction overlay's trends: one column of charts on a shared time axis */
+.prediction-trends { flex: 1 1 0; min-height: 0; min-width: 0; padding: 0 10px; display: flex; flex-direction: column; overflow: hidden; }
+
+.pt-stack { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+/* each chart is as tall as the monitor row beside it (flex-grow is that row's height_scale), with the same hairline under it */
+.pt-chart { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; box-shadow: inset 0 -1px 0 var(--c-border); overflow: hidden; }
+.pt-head { flex: none; display: flex; align-items: baseline; gap: 10px; font-size: 0.78rem; line-height: 1.3; min-width: 0; padding-top: 2px; }
+.pt-name { font-weight: 800; white-space: nowrap; }
+.pt-name small { font-weight: 500; opacity: 0.8; }
+.pt-values { color: var(--c-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; font-variant-numeric: tabular-nums; }
+.pt-values b { color: var(--c-text); }
+.pt-head .fp-certainty { margin-left: auto; white-space: nowrap; }
+.trend-fan { flex: 1 1 0; min-height: 0; min-width: 0; }
+.trend-fan svg { display: block; }
+.tf-grid { stroke: var(--c-border); stroke-width: 1; stroke-dasharray: 2 4; }
+.tf-grid.is-now { stroke: var(--c-text-muted); stroke-dasharray: none; stroke-width: 1.2; }
+.tf-future { fill: var(--c-text); fill-opacity: 0.04; }
+.tf-label { font-size: 10px; fill: var(--c-text-muted); font-variant-numeric: tabular-nums; }
+.tf-tick { stroke: var(--c-text-muted); stroke-width: 1; }
+.tf-ref { stroke: var(--c-text-muted); stroke-width: 1; stroke-dasharray: 5 4; opacity: 0.7; }
+.tf-band95 { fill: currentColor; fill-opacity: 0.12; stroke: none; }
+.tf-band80 { fill: currentColor; fill-opacity: 0.26; stroke: none; }
+.tf-past { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.tf-line { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-dasharray: 5 4; }
+.tf-now { fill: currentColor; stroke: var(--c-background); stroke-width: 1; }
+.tf-end { fill: currentColor; stroke: var(--c-background); stroke-width: 1; }
+.tf-end-value { font-size: 11px; font-weight: 800; fill: var(--c-text); font-variant-numeric: tabular-nums; }
+.tf-end-range { font-size: 9.5px; fill: var(--c-text-muted); font-variant-numeric: tabular-nums; }
+.pt-axis { flex: none; position: relative; height: 30px; }
+.pt-axis, .pt-boxes { margin: 0; }
+.pt-mark { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; line-height: 1.15; white-space: nowrap; }
+.pt-mark b { font-size: 0.72rem; }
+.pt-mark small { font-size: 0.64rem; color: var(--c-text-muted); font-variant-numeric: tabular-nums; }
+.pt-mark.is-now b { color: var(--c-accent); }
+.pt-hidden { font-weight: 700; }
+
+/* On the prediction overlay the monitor has half the screen: the AI chips would sit on the row names, and the predicted trends
+   beside it already carry the certainty, so the chips are left off there. */
+[data-testid="screen-monitor-predict"] .module button.ai-chip { display: none; }
+
+/* AI findings and the events timeline */
+.ai-summary { list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 8px; overflow: auto; flex: 1 1 0; min-height: 0; }
+.ais-item { width: 100%; min-height: var(--touch); text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border: 1px solid var(--c-border); border-left-width: 5px; border-radius: var(--radius); background: var(--c-surface); }
+.ais-item.sev-critical { border-left-color: var(--c-alarm-high); }
+.ais-item.sev-warning { border-left-color: var(--c-alarm-medium); }
+.ais-item.sev-info { border-left-color: var(--c-accent); }
+.ais-item.is-resolved { opacity: 0.75; }
+.ais-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ais-sev { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.04em; padding: 0 6px; border: 1px solid currentColor; border-radius: 4px; }
+.ais-label { font-size: 1rem; }
+.ais-status { font-size: 0.75rem; color: var(--c-text-muted); font-weight: 700; }
+.ais-cert { margin-left: auto; font-size: 0.85rem; }
+.ais-summary { font-size: 0.85rem; }
+.ais-when { font-size: 0.75rem; color: var(--c-text-muted); }
+.events-timeline { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; overflow: auto; }
+.evt-chart { flex: none; min-width: 0; }
+.evt-chart svg { display: block; }
+.evt-bar { fill: var(--c-accent); fill-opacity: 0.8; }
+.evt-bar.sev-critical { fill: var(--c-alarm-high); }
+.evt-bar.sev-warning { fill: var(--c-alarm-medium); }
+.evt-whisker { stroke: var(--c-text); stroke-width: 1.4; }
+.evt-marker { fill: var(--c-text); stroke: var(--c-background); stroke-width: 1; }
+.evt-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.evt-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font-size: 0.85rem; padding: 4px 0; border-bottom: 1px solid var(--c-border); }
+.evt-kind { font-size: 0.7rem; font-weight: 800; color: var(--c-text-muted); min-width: 4.6em; }
+.evt-when, .evt-prob { color: var(--c-text-muted); font-variant-numeric: tabular-nums; }
+.evt-prob { font-weight: 700; color: var(--c-text); }
+
+.evt-lane { font-size: 10px; fill: var(--c-text-muted); }
+.evt-list { gap: 0; }
+.evt-head { margin: 6px 0 2px; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.04em; color: var(--c-text-muted); }
+.evt-row strong { flex: 1 1 auto; min-width: 0; }
+.evt-when { order: 3; flex-basis: 100%; font-size: 0.75rem; }
+.evt-prob, .evt-cert { white-space: nowrap; }
+/* Half a screen: the method after a name (ECG, Pleth) goes, so a status such as POOR TRACE keeps all its letters. */
+[data-testid="screen-monitor-predict"] .row-head .row-method { display: none; }
+[data-testid="screen-monitor-predict"] .row-trace:has(> .ai-chip) > .row-head { padding-right: 0; }
+
+/* The strip above each half of the overlay is one height on both sides, so the rows below line up */
+.pt-switches { flex: 1 1 0; align-items: center; align-content: center; flex-wrap: nowrap; gap: 6px; padding: 0 8px; min-width: 0; }
+.pt-switches .fp-toggle { flex: 0 1 auto; min-width: 0; padding: 0 8px 0 6px; gap: 6px; white-space: nowrap; }
+[data-testid="screen-monitor-predict"] .widget-text { justify-content: center; }
+[data-testid="screen-monitor-predict"] .text-widget { padding: 0 12px; font-size: 1rem; font-weight: 700; color: var(--c-text-muted); }
+/* NEWS2 in boxes along the bottom, on the same time scale as the charts */
+.pt-newsstrip { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; }
+.pt-boxes { position: relative; flex: none; height: 52px; margin-bottom: 2px; }
+.pt-boxname { position: absolute; left: 0; top: 18px; transform: translateY(-50%); font-size: 0.7rem; font-weight: 800; color: var(--c-text-muted); }
+.pt-boxcol { position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.pt-box { flex: none; height: 36px; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05;
+  border: 1.5px solid currentColor; border-radius: 6px; background: var(--c-surface-alt); font-variant-numeric: tabular-nums; }
+.pt-box b { font-size: 1.05rem; }
+.pt-box small { font-size: 0.6rem; color: var(--c-text-muted); font-weight: 600; }
+.pt-box.is-future { border-style: dashed; background: transparent; }
+.pt-box.is-now { box-shadow: 0 0 0 2px var(--c-text-muted); }
+.pt-conf { font-size: 0.68rem; font-weight: 700; line-height: 1.1; color: var(--c-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pt-confcap { position: absolute; right: 0; top: 38px; font-size: 0.6rem; line-height: 1.1; color: var(--c-text-muted); white-space: nowrap; }
+.pt-boxnote { position: absolute; left: 50%; top: 18px; transform: translate(-50%, -50%); font-size: 0.78rem; white-space: nowrap; }
+.pt-off { margin: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 12px; flex-basis: 0; }
+@media (max-width: 1100px) {
+  .pt-switches { gap: 4px; padding: 0 6px; }
+  .pt-switches .fp-toggle { font-size: 0.78rem; gap: 4px; padding: 0 6px 0 4px; }
+  .pt-switches .fp-toggle-track { width: 30px; height: 18px; }
+  .pt-switches .fp-toggle-track i { width: 12px; height: 12px; }
+  .pt-switches .fp-toggle.is-on .fp-toggle-track i { transform: translateX(12px); }
+}
+
+/* ---- a value in alarm: a box of the observation's own colour with white digits, alternating with the normal number ----
+   Square corners, and the box is exactly the digits' own box: it adds no padding and no shadow, so it moves and overlaps nothing. */
+.tile-num { border-radius: 0; display: inline-block; line-height: 1; vertical-align: baseline; }
+.tile-num.is-alarm.is-on { background: currentColor; }
+.tile-num.is-alarm.is-on > .tile-num-t { color: #fff; text-shadow: 0 0 2px rgba(0, 0, 0, 0.7), 0 0 1px rgba(0, 0, 0, 0.7); }
+.tile-num.is-alarm.is-on[data-ink="dark"] > .tile-num-t { color: #000; text-shadow: none; }
+.tf-bppast { fill: none; stroke: currentColor; stroke-width: 1.2; stroke-dasharray: 2 3; stroke-linejoin: round; }
+.tf-bpmark { fill: currentColor; stroke: var(--c-background); stroke-width: 0.6; }
+.tf-bpx line { stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+
+/* ---- the predicted part of a NEWS2 chart: darker, thinly hatched over the score colours, dashed trends, hollow markers ---- */
+.news2-chart { --n2-pred-veil: rgba(0, 0, 0, 0.36); --n2-hatch: rgba(255, 255, 255, 0.55); }
+.news2-chart[data-mode="light"] { --n2-pred-veil: rgba(20, 24, 31, 0.28); --n2-hatch: rgba(0, 0, 0, 0.5); }
+.news2-svg .n2-predveil { fill: var(--n2-pred-veil); }
+.news2-svg .n2-hatchline { stroke: var(--n2-hatch); stroke-width: 0.9; }
+.news2-svg .n2-predbanner { fill: var(--c-surface-alt); }
+.news2-svg .n2-predtext { font-size: 9.5px; font-weight: 700; fill: var(--c-text); letter-spacing: 0.02em; }
+.news2-svg .n2-now { stroke: var(--c-text); stroke-width: 2; }
+.news2-svg .n2-nowtext { font-size: 9px; font-weight: 800; fill: var(--c-text); }
+.news2-svg .n2-predline { stroke-dasharray: 4 3; }
+.news2-svg .n2-dot.is-predicted { fill: var(--c-background); stroke-width: 1.6; }
+.news2-svg .n2-arrow.is-predicted { fill: var(--c-background); stroke-width: 1.4; }
+.news2-svg .n2-foot.is-predicted { opacity: 0.8; font-style: italic; }
+.news2-svg .n2-totalhatch { opacity: 0.9; }
+.pt-box.is-future { background-image: repeating-linear-gradient(45deg, transparent 0 4px, color-mix(in srgb, currentColor 35%, transparent) 4px 5px); }
+
+/* ---- ABCDE: A, B and C in the left column, D, E and the results in the right, so nothing is off screen ---- */
+.abcde { overflow-y: auto; padding: 4px 8px 8px; gap: 4px; }
+.abcde-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; align-items: start; }
+.abcde-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.abcde > * { flex: none; }
+.abcde-sec { padding: 4px 8px 6px; }
+.abcde-sec h3 { font-size: 0.95rem; }
+.abcde-letter { width: 24px; height: 24px; }
+.abcde-status { padding: 0 8px; font-size: 0.78rem; }
+.abcde-row { padding: 1px 0; font-size: 0.85rem; gap: 6px; }
+.abcde dl { margin: 2px 0; }
+.abcde-prompt { margin: 2px 0; font-size: 0.82rem; }
+.abcde-inline { margin-top: 2px; gap: 6px; font-size: 0.85rem; }
+.abcde .choice-opt { font-size: 0.8rem; }
+.abcde .btn { min-height: var(--touch); }
+.abcde-checks { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.abcde-found { margin: 0; display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 0.8rem; font-weight: 700; }
+.abcde .bp-readings { margin: 2px 0; } .abcde .bp-readings table { font-size: 0.8rem; }
+.abcde-bloods .blood-set { padding: 2px 0; border-top: 1px solid var(--c-border); }
+.abcde-bloods .blood-head { display: flex; flex-wrap: wrap; gap: 0 8px; align-items: baseline; font-size: 0.82rem; }
+.abcde-bloods .blood-results { display: flex; flex-wrap: wrap; gap: 1px 10px; list-style: none; margin: 2px 0 0; padding: 0; font-size: 0.8rem; }
+.abcde-bloods .blood-results li { display: inline-flex; gap: 4px; align-items: baseline; }
+.abcde-bloods .why-note, .abcde-bloods .btn { font-size: 0.8rem; margin: 2px 0; }
+@container (max-width: 520px) { .abcde-grid { grid-template-columns: minmax(0, 1fr); } }
+.widget-abcde { container-type: inline-size; }
+.abcde .choice { flex-wrap: nowrap; gap: 4px; }
+.abcde .choice-opt { flex: 1 1 0; min-width: 0; padding: 0 4px; text-align: center; line-height: 1.1; }
+.abcde-bloods .blood-results { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.abcde-bloods .blood-results li { display: flex; justify-content: space-between; gap: 4px; border: 0; padding: 0; }
+.abcde-bloods .blood-recency { border-width: 1px; padding: 0 6px; font-size: 0.72rem; }
+.abcde-bloods .blood-head strong { font-size: 0.85rem; }
+.abcde-title { font-size: 1rem; }
+.abcde-checks { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; }
+.abcde-checks > .btn { flex: 0 0 auto; padding: 0 12px; }
+.abcde-checks > .abcde-prompt, .abcde-checks > .abcde-found { flex: 1 1 140px; min-width: 0; }
+.abcde-sec > .btn, .abcde-sec > .panel-buttons { margin-top: 2px; }
+.blood-flag, .blood-results b { white-space: nowrap; }
+.abcde-bloods .blood-results li { flex-wrap: wrap; }
+.news2-svg .n2-range { font-size: 8.5px; }
+.abcde-trendsbtn { margin-left: auto; margin-right: 8px; padding: 0 12px; }
+.abcde-sec > header { gap: 6px; }
+.abcde-bloods .blood-results { font-size: 0.76rem; }
+.abcde-bloods .blood-results li { flex-wrap: nowrap; }
+.abcde-bloods .blood-results li > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.news2-chart .news2-toggle { min-width: 0; padding: 0 10px; font-size: 0.8rem; line-height: 1.1; }
+.abcde-bloods .blood-results li { flex-wrap: wrap; row-gap: 0; }
+.abcde-bloods .blood-results li > span { overflow: visible; text-overflow: clip; white-space: normal; }
+.abcde-bloods .blood-flag { margin-left: auto; }
+.abcde-bloods .blood-set { padding: 3px 6px; }
+
+/* ABCDE as cards in reading order: A B / C D / E and the results */
+.abcde-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-rows: auto; align-items: stretch; }
+.abcde-grid > .abcde-sec { grid-column: span 3; }
+.abcde-grid > [data-letter="E"] { grid-column: span 2; }
+.abcde-grid > .abcde-bloods { grid-column: span 4; }
+.abcde-sec { display: flex; flex-direction: column; }
+.abcde-mark { display: inline-flex; vertical-align: middle; margin-right: 2px; }
+.abcde-bloods .blood-results { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@container (max-width: 520px) { .abcde-grid > .abcde-sec, .abcde-grid > [data-letter="E"], .abcde-grid > .abcde-bloods { grid-column: span 6; } }
+.abcde-bloods .blood-results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.abcde-grid { gap: 4px; }
+.abcde-bloods .blood-results { font-size: 0.72rem; line-height: 1.15; }
+.abcde-bloods .blood-results small, .abcde-bloods .blood-flag { font-size: 0.66rem; }
+.abcde-bloods .blood-results li { column-gap: 3px; }
+.abcde-bloods > header h3 { font-size: 0.9rem; }
+/* the date and the time are one pair: the same font, size and weight, on one baseline */
+.tb-date, .tb-clock, .tb-clock time { color: var(--c-text); font-family: inherit; font-size: 1.35em; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
+@media (max-width: 1100px) { .tb-date, .tb-clock, .tb-clock time { font-size: 1.1em; } }

@@ -5,6 +5,8 @@ import { create } from "zustand";
  * (and in its local storage) with the time, until the recording API exists. None of it feeds the NEWS2 score or
  * any patient record, and the screen says so.
  */
+import type { CheckKey } from "./checks";
+
 export type Airway = "patent" | "not-patent" | "not-assessed";
 export type Refill = "under-2" | "over-2";
 export interface Stamped<T> { value: T; at: string }
@@ -16,6 +18,9 @@ interface State {
   avpu: Stamped<"A" | "C" | "V" | "P" | "U"> | null;
   gcs: Stamped<Gcs> | null;
   exposure: Stamped<string[]> | null;
+  /** The look, listen and feel checks of breathing and circulation, by key. */
+  checks: Partial<Record<CheckKey, Stamped<string>>>;
+  setCheck(key: CheckKey, value: string): void;
   setAirway(v: Airway): void;
   setRefill(v: Refill): void;
   setAvpu(v: "A" | "C" | "V" | "P" | "U"): void;
@@ -25,8 +30,8 @@ interface State {
 }
 
 const KEY = "emus.abcde";
-type Saved = Pick<State, "airway" | "refill" | "avpu" | "gcs" | "exposure">;
-const EMPTY: Saved = { airway: null, refill: null, avpu: null, gcs: null, exposure: null };
+type Saved = Pick<State, "airway" | "refill" | "avpu" | "gcs" | "exposure" | "checks">;
+const EMPTY: Saved = { airway: null, refill: null, avpu: null, gcs: null, exposure: null, checks: {} };
 
 function read(): Saved {
   try { return { ...EMPTY, ...JSON.parse(window.localStorage.getItem(KEY) ?? "{}") }; } catch { return EMPTY; }
@@ -36,10 +41,11 @@ function write(s: Saved): void {
 }
 
 const stamp = <T,>(value: T): Stamped<T> => ({ value, at: new Date().toISOString() });
-const keep = (s: State): Saved => ({ airway: s.airway, refill: s.refill, avpu: s.avpu, gcs: s.gcs, exposure: s.exposure });
+const keep = (s: State): Saved => ({ airway: s.airway, refill: s.refill, avpu: s.avpu, gcs: s.gcs, exposure: s.exposure, checks: s.checks });
 
 export const useAbcde = create<State>((set, get) => ({
   ...read(),
+  setCheck: (key, value) => { set({ checks: { ...get().checks, [key]: stamp(value) } }); write(keep(get())); },
   setAirway: (v) => { set({ airway: stamp(v) }); write(keep(get())); },
   setRefill: (v) => { set({ refill: stamp(v) }); write(keep(get())); },
   setAvpu: (v) => { set({ avpu: stamp(v) }); write(keep(get())); },

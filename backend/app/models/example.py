@@ -155,6 +155,10 @@ class News2Now(_Model):
     complete: bool
     components: dict[str, int]
     response: str = ""
+    #: What was scored, as shown on screen: whole numbers, and the continuous temperature the tile displays.
+    inputs: dict[str, float | int | str | None] = Field(default_factory=dict)
+    #: How often to observe, in hours (0 = continuously).
+    monitoring_hours: float | None = None
 
 
 class ExampleSnapshot(_Model):
@@ -195,6 +199,8 @@ class ExampleSnapshot(_Model):
     labs: list[LabResult]
     #: Charted observation sets, oldest first, each scored for NEWS2.
     obs_sets: list[ObservationSet]
+    #: The observations NEWS2 would score at each forecast horizon (every 30 minutes to 8 hours), from the forecast; for the predicted NEWS2 chart.
+    predicted_obs_sets: list[ObservationSet] = Field(default_factory=list)
     findings: list[Finding]
     finding_data: dict[str, FindingData]
     forecast: ForecastBundle

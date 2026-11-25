@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useDesign, useUi } from "@/app/store";
 import type { DeviceStatus } from "@/contracts/types.gen";
@@ -9,6 +9,7 @@ import { titleCase } from "@/design/text";
 import { spanText } from "@/ai/certainty";
 import { FallFigure, PositionFigure, breathPeriod, poseMeaning, poseOf, poseWord } from "./PositionFigure";
 import { displayFor, elapsed } from "./status";
+import { alarmOn, flashOn, useFlashClock, type Priority } from "./flash";
 import { useSafety } from "./store";
 
 function useTick(ms: number): number {
@@ -86,9 +87,41 @@ export interface TileValue {
   /** Overrides the registry's short name, e.g. "BP". */
   name?: string;
   /** More values written as one, e.g. blood pressure "120/80 (93)". */
-  extra?: { separator: string; value?: number | string | null; wrap?: [string, string] }[];
+  extra?: { separator: string; value?: number | string | null; wrap?: [string, string]; parameter?: string }[];
   /** Small lines under the number (the rhythm in words, regular or irregular, the day's extremes). */
   notes?: string[];
+}
+
+/**
+ * One number of a tile. When that value is in alarm it is drawn in a box of the observation's own colour with white digits,
+ * alternating with the normal coloured digits; the box is a shadow, so nothing moves. Systolic, diastolic and MAP are separate
+ * numbers, so each one highlights on its own alarm and they flash together when several alarm.
+ */
+function Num({ priority, now, label, children }: { priority: Priority | null; now: number; label: string; children: React.ReactNode }) {
+  const on = priority != null && flashOn(priority, now);
+  const ref = useRef<HTMLSpanElement>(null);
+  const [ink, setInk] = useState<"light" | "dark">("light");
+  // white digits, unless the observation's colour is itself so pale (a white row) that they would vanish in the box
+  useLayoutEffect(() => {
+    if (!priority || !ref.current) return;
+    const next = whiteReads(getComputedStyle(ref.current).color) ? "light" : "dark";
+    if (next !== ink) setInk(next);
+  });
+  return (
+    <span ref={ref} className={`tile-num${priority ? " is-alarm" : ""}${on ? " is-on" : ""}`} data-alarm={priority ?? undefined} data-flash={priority ? (on ? "on" : "off") : undefined}
+          data-ink={priority ? ink : undefined} title={priority ? `${label}: ${priority} priority alarm` : undefined}>
+      <span className="tile-num-t">{children}</span>
+    </span>
+  );
+}
+
+/** Whether white text can be read on a box of this CSS colour ("rgb(r, g, b)"); true when the colour is unknown. */
+export function whiteReads(css: string): boolean {
+  const m = /rgba?\(\s*(\d+)[ ,]+(\d+)[ ,]+(\d+)/.exec(css);
+  if (!m) return true;
+  const lin = (v: number) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const L = 0.2126 * lin(+m[1]!) + 0.7152 * lin(+m[2]!) + 0.0722 * lin(+m[3]!);
+  return 1.05 / (L + 0.05) >= 1.6;
 }
 
 /** How serious a display state is, for choosing the frame of a tile whose values differ. */
@@ -111,7 +144,7 @@ const worst = (kinds: string[]) => kinds.sort((a, b) => SEVERITY.indexOf(a) - SE
  * signal is ok or poor. Every numeric goes through here so the rules in status.ts
  * apply everywhere. M2 passes the live values.
  */
-export function Tile({ values }: { values: TileValue[] }) {
+export function Tile({ values, below }: { values: TileValue[]; below?: React.ReactNode }) {
   const design = useDesign()!;
   const registry = useUi((s) => s.registry)!;
   const signals = useSafety((s) => s.signals);
@@ -120,6 +153,11 @@ export function Tile({ values }: { values: TileValue[] }) {
   const link = useSafety((s) => s.link);
   const now = useTick(1000);
   const snapshot = useSnapshot();
+  // which of this tile's numbers are in alarm, by parameter; the flash clock only runs while one is
+  const alarmed = (parameter: string | undefined) => (parameter ? alarmOn(alarms, parameter) : null);
+  const anyAlarm = values.some((v) => alarmed(v.parameter) || v.extra?.some((e) => alarmed(e.parameter)));
+  useFlashClock(!!anyAlarm);                       // re-render on the shared flash clock while a number is in alarm
+  const flashNow = Date.now();
 
   const cells = values.map((v) => ({
     v,
@@ -175,17 +213,18 @@ export function Tile({ values }: { values: TileValue[] }) {
                 ) : c.d.showValue ? (
                   <span className="tile-value">
                     <span className="tile-main">
-                      {fmt(c, c.v.value)}
+                      <Num priority={alarmed(c.v.parameter)} now={flashNow} label={c.p?.label ?? c.v.parameter}>{fmt(c, c.v.value)}</Num>
                       {c.v.extra?.filter((e) => !e.wrap).map((e, j) => (
-                        <span key={j} className="tile-extra">{e.separator}{fmt(c, e.value)}</span>
+                        <span key={j} className="tile-extra">{e.separator}<Num priority={alarmed(e.parameter)} now={flashNow} label={registry.parameters[e.parameter ?? ""]?.label ?? ""}>{fmt(c, e.value)}</Num></span>
                       ))}
                     </span>
                     {c.v.extra?.filter((e) => e.wrap).map((e, j) => (
-                      <span key={`w${j}`} className="tile-extra tile-extra-wrap">{e.wrap![0]}{fmt(c, e.value)}{e.wrap![1]}</span>
+                      <span key={`w${j}`} className="tile-extra tile-extra-wrap">{e.wrap![0]}<Num priority={alarmed(e.parameter)} now={flashNow} label={registry.parameters[e.parameter ?? ""]?.label ?? ""}>{fmt(c, e.value)}</Num>{e.wrap![1]}</span>
                     ))}
                     {c.d.flagged && <span className="tile-flag" aria-label="poor trace">?</span>}
                   </span>
                 ) : <span className="tile-state">{c.d.text}</span>}
+                {i === 0 && c.d.showValue && below}
                 {c.d.last && <span className="tile-last">last {c.d.last.value} · {c.d.last.age}</span>}
               </span>
             </span>

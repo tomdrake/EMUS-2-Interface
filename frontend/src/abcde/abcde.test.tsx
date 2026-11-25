@@ -27,7 +27,8 @@ describe("recency of bloods", () => {
     expect(inWindow(recency(ago(72 * 60 + 1), NOW))).toBe(false);
   });
   it("always writes the date and the time", () => {
-    expect(takenAt("2026-11-24T09:12:00")).toBe("24 Nov 09:12");
+    expect(takenAt("2026-11-24T09:12:00")).toBe("24/11 09:12");
+    expect(takenAt("2026-11-24T09:12:00", { date_format: "dd Mon yyyy", clock_format: "12h", show_seconds: false })).toBe("24 Nov 9:12 AM");
   });
   it("takes the newest sample of each kind, as one sample", () => {
     const l = (test: string, min: number, value = 1) => ({ test, value, unit: "", collected_at: ago(min), flag: "normal" }) as any;
@@ -89,10 +90,9 @@ describe("ABCDE screen", () => {
     expect(dom.getByTestId("abcde-b-status").textContent).toContain("Urgent");
     expect(dom.getByTestId("b-rr").textContent).toBe("27 /min");
     expect(dom.getByTestId("b-oxygen").textContent).toBe("4 L/min, Nasal cannula");
-    expect(dom.getByTestId("b-impedance").textContent).toBe("Movement");
     expect(dom.getByTestId("abcde-c-status").textContent).toContain("Check");
     expect(dom.getByTestId("abcde-a").dataset.status).toBe("Not Assessed");
-    expect(dom.getByTestId("bp-reading-0").textContent).toContain("118/68");
+    expect(dom.getByTestId("c-bp").textContent).toContain("118/68");
   });
   it("records airway and capillary refill with a time, and calls for help when the airway is not patent", () => {
     render(<Abcde widget={widget} />);
@@ -118,7 +118,7 @@ describe("ABCDE screen", () => {
   it("shows each blood set with its date and time and a recency word; old ones are one tap away", () => {
     render(<Abcde widget={widget} />);
     expect(dom.getByTestId("blood-gas-recency").textContent).toBe("Current");
-    expect(dom.getByTestId("blood-gas-when").textContent).toMatch(/\d{2} \w{3} \d{2}:\d{2}/);
+    expect(dom.getByTestId("blood-gas-when").textContent).toMatch(/\d{2}\/\d{2} \d{2}:\d{2}/);
     expect(dom.getByTestId("blood-gas-po2").textContent).toContain("Critical Low");
     expect(dom.getByTestId("blood-bloods-recency").textContent).toBe("Within 24 Hours");
     expect(dom.getByTestId("blood-glucose-recency").textContent).toBe("No Recent Bloods");

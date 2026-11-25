@@ -125,7 +125,7 @@ _ROWS: list[dict] = [
     {"id": "resp", "parameter": "rr", "trace": "waveform", "waveform": "resp", "numerics": ["rr"]},
     {"id": "bp", "parameter": "bp_sys", "label": "Blood Pressure", "trace": "trend",
      "numerics": ["bp_sys", "bp_dia", "bp_mean"], "trend_window_min": 240,
-     "content": {"readings": True}, "height_scale": 1.5},
+     "content": {"readings": True}, "height_scale": 1.9},
     {"id": "temp", "parameter": "temp", "trace": "trend", "numerics": ["temp"],
      "trend_window_min": 240},
     {"id": "oxygen", "parameter": "o2_flow", "trace": "bar", "numerics": ["o2_flow"],
@@ -145,6 +145,10 @@ _MONITOR_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp"]
 #: The line under them, in a nine-column grid: O2 flow, activity and falls (two columns each) and NEWS (three).
 _MONITOR_LINE = [("oxygen", "tile"), ("activity", "tile"), ("falls", "tile"), ("news", "wide")]
 _COMPACT_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp", "oxygen"]
+#: The left half of the prediction overlay: the traces and number boxes, without the small-box line.
+_OVERLAY_ROW_IDS = ["ecg", "spo2", "resp", "bp", "temp", "news"]
+#: How much of the overlay's height the strip above each half takes (the same on both, so the rows line up).
+_OVERLAY_HEAD = 0.1
 
 #: A mixed layout for showing what modules can be: 6 columns, 5 rows of cells.
 #: Rows 1-2: ECG double height, full width. Rows 3-4: two large, two tall. Row 5: two
@@ -196,6 +200,7 @@ def _screens(news_variant: str, monitor: dict | None = None) -> list[dict]:
     return [
         {"id": "monitor", "name": "Monitor", "layout": monitor or _monitor("monitor-rows")},
         {"id": "news2", "name": "NEWS2", "layout": _news("news2-full", news_variant)},
+        {"id": "news2-predict", "name": "NEWS2 With Predictions", "layout": _news("news2-both", news_variant)},
         {"id": "split-h", "name": "Split (Side by Side)",
          "layout": _split("horizontal", 0.5, _news("news2-left", news_variant),
                           _rows("rows-right", _COMPACT_ROW_IDS))},
@@ -203,22 +208,29 @@ def _screens(news_variant: str, monitor: dict | None = None) -> list[dict]:
          "layout": _split("vertical", 0.55, _rows("rows-top", _COMPACT_ROW_IDS),
                           _news("news2-bottom", news_variant))},
         {"id": "abcde", "name": "ABCDE",
-         "layout": _split("horizontal", 0.5,
+         "layout": _split("horizontal", 0.68,
                           _w({"id": "abcde-panel", "type": "abcde"}),
                           _w({"id": "news2-abcde", "type": "news2-chart", "variant": news_variant, "hours_visible": 12}))},
         {"id": "epr", "name": "Results",
          "layout": _split("horizontal", 0.6,
                           _w({"id": "labs", "type": "epr-labs", "title": "Laboratory"}),
                           _w({"id": "imaging", "type": "epr-imaging", "title": "Imaging"}))},
-        {"id": "predict", "name": "AI and Predictions",
+        {"id": "monitor-predict", "name": "Monitor With Predictions",
          "layout": _split("horizontal", 0.5,
-                          _split("vertical", 0.5,
-                                 _w({"id": "forecast", "type": "forecast-panel",
-                                     "title": "Forecast"}),
+                          _split("vertical", _OVERLAY_HEAD,
+                                 _w({"id": "overlay-now-head", "type": "text", "body": "Current And Previous Observations"}),
+                                 _rows("monitor-predict-rows", _OVERLAY_ROW_IDS)),
+                          _split("vertical", _OVERLAY_HEAD,
+                                 _w({"id": "overlay-switches", "type": "prediction-switches"}),
+                                 _w({"id": "predicted-trends", "type": "prediction-trends"})))},
+        {"id": "predict", "name": "AI and Predictions",
+         "layout": _split("horizontal", 0.62,
+                          _w({"id": "forecast", "type": "forecast-panel", "title": "Prediction"}),
+                          _split("vertical", 0.42,
+                                 _w({"id": "ai-summary", "type": "ai-summary",
+                                     "title": "What the AI Sees Now"}),
                                  _w({"id": "timeline", "type": "events-timeline",
-                                     "title": "Events"})),
-                          _w({"id": "ai-summary", "type": "ai-summary",
-                              "title": "What the AI Sees Now"}))},
+                                     "title": "Events"})))},
         {"id": "alarms", "name": "Alarms",
          "layout": _w({"id": "alarms-panel", "type": "alarms", "view": "both"})},
     ]
@@ -237,14 +249,16 @@ _TABS: list[dict] = [
      "action": {"type": "screen", "screen_id": "epr"}},
     {"id": "predict", "label": "Predict", "icon": "forecast",
      "action": {"type": "screen", "screen_id": "predict"}},
+    {"id": "prediction-overlay", "label": "Predict Overlay", "icon": "forecast",
+     "action": {"type": "toggle-prediction-overlay"}},
     {"id": "alarms", "label": "Alarms", "icon": "alarm",
      "action": {"type": "screen", "screen_id": "alarms"}},
     {"id": "patient", "label": "Patient", "icon": "patient",
      "action": {"type": "menu", "menu_id": "patient"}},
     {"id": "measure-bp", "label": "Measure BP", "icon": "bp-cuff",
-     "action": {"type": "sheet", "sheet": "measure-bp"}},
+     "action": {"type": "measure", "kind": "bp"}},
     {"id": "measure-temp", "label": "Measure Temp", "icon": "thermometer",
-     "action": {"type": "sheet", "sheet": "measure-temp"}},
+     "action": {"type": "measure", "kind": "temp"}},
     {"id": "overview", "label": "AI Overview", "icon": "ai",
      "action": {"type": "toggle-ai-overlay"}},
     {"id": "silence", "label": "Silence 2 Min", "icon": "alarm-off",
@@ -319,7 +333,7 @@ _MENUS: list[dict] = [
     ]},
 ]
 
-_TOP_BAR = {"fields": ["name", "nhs_number", "bed", "alarm_status", "clock"],
+_TOP_BAR = {"fields": ["name", "nhs_number", "bed", "alarm_status", "date", "clock"],
             "buttons": _TOP_BUTTONS}
 
 _ALARM_DEFAULTS = {

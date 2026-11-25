@@ -11,6 +11,41 @@ not be used for patient care.** Data is simulated or from the open-access MIMIC-
 demo, and AI findings and forecasts are placeholders until the causal model is
 connected.
 
+## Screenshots
+
+All from example data (a pneumonia case at the point where it is getting worse), not patients. They are regenerated with `make screenshots`.
+
+**The monitor.** Traces and number boxes by row; a number in alarm is a box in its own colour, flashing; the notification box at the bottom left.
+
+![The main monitor](docs/screenshots/01-monitor.png)
+
+**Prediction overlay.** The monitor on the left, the predicted trends to +8 hours on the right, level row for row, with NEWS2 in boxes along the bottom and a confidence under each prediction.
+
+![The prediction overlay](docs/screenshots/02-prediction-overlay.png)
+
+**NEWS2 chart.** The observed columns, then the predicted ones in the same chart, darker and thinly hatched so they cannot be mistaken for charted values.
+
+![The NEWS2 chart with its prediction](docs/screenshots/03-news2-chart.png)
+
+![The NEWS2 chart in the light theme](docs/screenshots/07-news2-light.png)
+
+**ABCDE.** Cards in reading order with look, listen and feel checks, and the latest blood gas, bloods and glucose.
+
+![The ABCDE screen](docs/screenshots/04-abcde.png)
+
+**Prediction tab.** The forecast, what the AI sees now, and the events timeline.
+
+![The prediction tab](docs/screenshots/05-predict-tab.png)
+
+**Alarm highlight and the NEWS2 breakdown.** Systolic, diastolic and MAP highlight separately (here only the MAP, 63); touching the NEWS box shows how the total is made.
+
+![Alarm highlight on one number](docs/screenshots/06-alarm-highlight.png)
+![The NEWS2 breakdown](docs/screenshots/08-news2-breakdown.png)
+
+**A smaller screen (1024 x 768).**
+
+![The monitor at 1024 by 768](docs/screenshots/09-monitor-small.png)
+
 ## Status
 
 The scaffold (milestone 1) is in place: the design schema, clinical registry,
@@ -140,3 +175,31 @@ The monitor is five full-width traces (ECG, SpO2, respiration, blood pressure, t
 - **Blood pressure** on the trace is a down arrow (systolic), an up arrow (diastolic) and an X (MAP), each joined by dashes, with a key and five values on the scale. The tile shows the diastolic as large as the systolic.
 - **Boxes** show the rhythm in words under the HR, Regular or Irregular for breathing, the 24 h high and low temperature, falls in the last 24 hours, time standing, walking and moving, and the NEWS2 total over time and by date and time. These come from the example snapshot (`falls_24h`, `activity_24h`, `extremes_24h`, `rhythm`, `resp_pattern`).
 - **Measure BP** and **Measure Temp** tab buttons run a simulated reading (`GET /api/examples/{scenario}/measure`), added to the list, trend and tile until the time changes. It is marked simulated and reaches no record.
+
+## Dates, predictions and measuring (round 8)
+
+- **Date and time formats** are a setting (Settings, Appearance, Date And Time): date as 24/11/2026 (default), 11/24/2026, 2026-11-24 or 24 Nov 2026; 12 or 24 hour time; seconds; and whether the date sits beside the clock. Every date and time on screen follows it (`design/datetime.ts`); exports keep ISO.
+- **Prediction view** (the Predict tab): future NEWS for each horizon with its 80 % range and a chart running into the prediction, and a table of predicted heart rate, respiration, SpO2, systolic BP and temperature, each with certainty. Three switches (Future NEWS, Observation Predictions, Certainty) turn each part on or off; the choice is kept on the screen. The predictions are from example data until the causal model (M7) is connected.
+- **Last five BP readings** sit under the BP number in the main view; the number takes the room the list leaves and the oldest lines drop out where the row is short.
+- **Measure BP / Measure Temp** are one-touch: the first touch starts a simulated measurement and the box for it pulses until the reading is in; the next touch cancels it. No sheet or menu opens.
+- **Red emergency alerts** are a red triangle with an exclamation mark, not repeated exclamation marks: priority is shown by shape and word (red triangle, amber triangle, circled "!"), and Urgent and Critical use the red triangle.
+
+## Prediction overlay, the full Prediction tab and the NEWS2 check (round 9)
+
+- **Prediction Overlay** is a tab button (one touch on, one touch off, back to the screen you were on). The monitor (traces and number boxes, with the last five BP readings, then NEWS2) fills the left half; the right half is level with it, one predicted chart for each monitor row and the NEWS2 total in boxes over time along the bottom, showing the **predicted trends** on one shared time axis from 4 H back to **+8 H** ahead: the future NEWS over time (charted totals solid, predicted total dashed with 50/80/95 % intervals, risk lines at 5 and 7) and heart rate, respiration, SpO2, systolic BP and temperature, each with its history, prediction, intervals and certainty. The three switches are the Prediction view's own. Screen id `monitor-predict`, widget `prediction-trends` (`back_hours`, `ahead_hours` up to 8).
+- **The Prediction tab** now has all three panels: the forecast, **What the AI Sees Now** (findings with severity, certainty and onset; a touch opens the Why sheet) and an **Events** timeline (what the AI found, and the predicted NEWS2 5 and 7, desaturation and hypotension with their earliest and latest times, probability and certainty).
+- **Forecasts** now have a point every 30 minutes to 8 hours. Intervals are kept inside what the measure allows (NEWS2 0 to 20, saturation to 100 %). Past the end of a scripted scenario the last scripted state is held, so predictions flatten there; that is an example-data limit, not the model.
+- **NEWS2 check:** the NEWS2 total, and the forecast, now score the temperature that is displayed (the continuous skin reading), so the total is always the NEWS2 of the numbers on screen (16 for the pneumonia example at minute 360, not 17). Charted observation sets keep their thermometer values. **Touch the NEWS box** to open the NEWS2 Breakdown: each parameter with the value scored, its source, its points, the total, the risk and the monitoring response. The scoring rules themselves are unchanged and tested against the RCP chart.
+
+## Alarm highlight, confidence, BP prediction and the NEWS2 overlay (round 10)
+
+- **A value in alarm** is drawn as a box of the observation's own colour with white digits (dark digits only where the colour is itself near white, such as the temperature row), alternating with the normal coloured number. Square corners; the box is the number's own box, so it moves and overlaps nothing. Systolic, diastolic and MAP each follow their own alarm (diastolic and MAP now have alarms: DIA 40 to 110, MAP 65 to 120), together or alone; every parameter works the same way. One shared clock keeps all flashing numbers in step: high priority 0.5 s on / 0.5 s off, medium 1 s, low 2 s (never more than one flash a second); with reduced motion the highlight is held. Silencing the sound does not stop it; an alarm switched off for a parameter does.
+- **Confidence under each predicted NEWS2 box** on the overlay (and under each predicted total on the NEWS2 overlay): each forecast point now carries its own certainty (`ForecastPoint.certainty`), which falls with the horizon. It follows the Certainty switch.
+- **BP prediction** now shows systolic, MAP and diastolic like the monitor's BP trend (▼ ✕ ▲, measured readings dotted, predicted lines dashed with 80 / 95 % bands, three end values spread so they never touch). `bp_dia` and `bp_mean` are forecast beside `bp_sys`, kept in order.
+- **Predicted NEWS2 in the same chart:** every NEWS2 chart (NEWS2, split, ABCDE) shows the observed columns, then a column for each forecast horizon (`show_future`, from `predicted_obs_sets`) with every parameter's predicted value, the total, its risk and % confidence. The prediction is unmistakable: a darker region with thin diagonal hatching over the score colours, dashed trends, hollow markers, a Now divider and a "Predicted From Example Data" banner. The Predict Overlay button on the NEWS2 screen opens the same chart full width. Other screens keep the monitor overlay.
+- Fixed: the red triangle's exclamation mark had been pushed out of the triangle by a style name shared with the time axis.
+
+## ABCDE: look, listen and feel (round 12)
+
+- **Breathing** has a Look, Listen, Feel sheet (chest expansion, work of breathing, trachea, percussion including hyper-resonant, air entry, added sounds) and **Circulation** a Look And Feel sheet (oedema, skin, pulse, neck veins). Each touch is recorded with its time on this screen only (never changing NEWS2), shown under the section, and abnormal answers raise the letter to Check or Urgent and bring a prompt (for example unequal expansion with hyper-resonance: think pneumothorax). The note above A has gone.
+- **D, E and the latest blood gas, bloods and glucose are in view**: A, B and C in the left column, D, E and the results in the right, compact; the ABCDE panel now takes about two thirds of the screen, the NEWS2 chart the rest.

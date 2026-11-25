@@ -15,7 +15,7 @@ export interface Notice {
   text: string;
   /** Registry parameter ids this is about, for colouring it like their rows. */
   parameters: string[];
-  /** Priority mark for patient alarms ("!!!", "!!", "!"); null for monitoring items. */
+  /** Priority mark for patient alarms ("High", "Medium", "Low"); null for monitoring items. */
   mark: string | null;
   /** When it started (ms), for ordering and "2 min ago". Null for ongoing states. */
   at: number | null;

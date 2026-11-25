@@ -166,6 +166,7 @@ export interface ExampleSnapshot {
   oxygen: OxygenTherapy;
   patient: Patient;
   placeholder: boolean;
+  predicted_obs_sets: ObservationSet[];
   quality: SignalQuality[];
   resp_pattern: ("regular" | "irregular") | null;
   rhythm: string | null;
@@ -683,6 +684,7 @@ export interface Forecast {
  */
 export interface ForecastPoint {
   at: string;
+  certainty: CertaintyValue[];
   horizon_min: number;
   /**
    * {'50': [lo, hi], '80': [...], '95': [...]}
@@ -760,6 +762,10 @@ export interface News2Now {
   components: {
     [k: string]: number;
   };
+  inputs: {
+    [k: string]: number | string | null;
+  };
+  monitoring_hours: number | null;
   response: string;
   risk: string | null;
   total: number | null;
@@ -782,7 +788,7 @@ export interface ObservationSet {
   news2_total: number | null;
   oxygen: OxygenTherapy | null;
   recorded_by: string | null;
-  source: "charted" | "continuous";
+  source: "charted" | "continuous" | "predicted";
   values: {
     [k: string]: number | string | null;
   };

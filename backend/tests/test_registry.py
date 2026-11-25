@@ -58,7 +58,7 @@ def test_waveform_scales():
 
 
 def test_alarm_priority_marks_use_one_to_three_exclamation_marks():
-    assert r.ALARM_PRIORITY_MARKS == {"high": "!!!", "medium": "!!", "low": "!"}
+    assert r.ALARM_PRIORITY_MARKS == {"high": "High", "medium": "Medium", "low": "Low"}
     assert r.as_public_dict()["alarm_priority_marks"] == r.ALARM_PRIORITY_MARKS
 
 

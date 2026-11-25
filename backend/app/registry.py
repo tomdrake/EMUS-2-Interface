@@ -32,7 +32,7 @@ NHS_NUMBER_SYSTEM = "https://fhir.nhs.uk/Id/nhs-number"
 #: Alarm priority marks shown beside patient alarm text (IEC 60601-1-8 as recalled:
 #: three, two and one exclamation marks; check against the standard). They carry
 #: priority in shape, so text can stay the row colour.
-ALARM_PRIORITY_MARKS: dict[str, str] = {"high": "!!!", "medium": "!!", "low": "!"}
+ALARM_PRIORITY_MARKS: dict[str, str] = {"high": "High", "medium": "Medium", "low": "Low"}
 
 #: Alarm audio is silenced for exactly this long. Deliberately not design-editable.
 ALARM_SILENCE_SECONDS = 120
@@ -246,7 +246,7 @@ MODULE_SIZES: dict[str, dict] = {
     "large": {"label": "Large", "cols": 2, "rows": 2, "full": False, "flow": "split",
               "fits": ["number", "trace", "ai", "certainty", "explain", "readings"]},
     "row": {"label": "Full Row", "cols": 0, "rows": 1, "full": True, "flow": "row",
-            "fits": ["number", "trace", "ai", "certainty"]},
+            "fits": ["number", "trace", "ai", "certainty", "readings"]},
     "row-tall": {"label": "Full Row Double", "cols": 0, "rows": 2, "full": True, "flow": "row",
                  "fits": ["number", "trace", "ai", "certainty", "explain", "forecast", "readings"]},
 }

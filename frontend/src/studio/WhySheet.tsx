@@ -1,3 +1,4 @@
+import { fmtTime, useFormats } from "@/design/datetime";
 import { titleCase } from "@/design/text";
 import { CertaintyTable, ExampleNote, ReasonBars } from "@/explain/parts";
 import { EvidenceStrip, SeriesChart } from "@/explain/EvidenceStrip";
@@ -16,6 +17,7 @@ export function WhySheet() {
   const registry = useUi((s) => s.registry)!;
   const design = useDesign()!;
   const snapshot = useSnapshot();
+  const formats = useFormats();
   const f = snapshot?.findings.find((x) => x.id === id);
   const data = id && snapshot ? snapshot.finding_data[id] : undefined;
   if (!snapshot) {
@@ -33,7 +35,7 @@ export function WhySheet() {
         <h3 data-testid="why-summary" data-prose>{f.summary}</h3>
         <p className="why-sub">
           {f.label} · {f.status === "active" ? "happening now" : "earlier"} · severity {f.severity}
-          {" · read at "}{new Date(f.generated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+          {" · read at "}{fmtTime(f.generated_at, formats)}
         </p>
       </header>
 

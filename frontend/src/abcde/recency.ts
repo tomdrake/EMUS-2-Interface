@@ -1,4 +1,5 @@
 import type { LabResult } from "@/contracts/types.gen";
+import { DEFAULT_FORMAT, fmtDateTime, type DateTimeConfig } from "@/design/datetime";
 
 /**
  * How recent a result is, in the words the ABCDE screen uses. Within an hour is "Current"; within four hours,
@@ -22,10 +23,9 @@ export function recency(collectedAt: string, nowIso: string): Recency {
 
 export const inWindow = (r: Recency): boolean => r.ageMin <= WINDOW_MIN;
 
-/** "24 Nov 09:12": the date and the time a sample was taken, always shown. */
-export function takenAt(iso: string): string {
-  const d = new Date(iso);
-  return `${d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })} ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+/** "24/11 09:12": the date and the time a sample was taken, always shown, in the screen's formats. */
+export function takenAt(iso: string, cfg: DateTimeConfig = DEFAULT_FORMAT): string {
+  return fmtDateTime(iso, cfg, { short: true });
 }
 
 export type BloodSet = { key: "gas" | "bloods" | "glucose"; title: string; taken: string | null; results: LabResult[] };

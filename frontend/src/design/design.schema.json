@@ -366,6 +366,7 @@
           "discriminator": {
             "mapping": {
               "edit-layout": "#/$defs/EditLayoutAction",
+              "measure": "#/$defs/MeasureAction",
               "menu": "#/$defs/MenuAction",
               "open-settings": "#/$defs/SettingsAction",
               "screen": "#/$defs/ScreenAction",
@@ -373,6 +374,7 @@
               "silence-alarms": "#/$defs/SilenceAction",
               "toggle-ai": "#/$defs/AiToggleAction",
               "toggle-ai-overlay": "#/$defs/AiOverlayAction",
+              "toggle-prediction-overlay": "#/$defs/PredictionOverlayAction",
               "toggle-theme": "#/$defs/ThemeToggleAction"
             },
             "propertyName": "type"
@@ -404,6 +406,12 @@
             },
             {
               "$ref": "#/$defs/EditLayoutAction"
+            },
+            {
+              "$ref": "#/$defs/MeasureAction"
+            },
+            {
+              "$ref": "#/$defs/PredictionOverlayAction"
             }
           ],
           "title": "Action"
@@ -632,14 +640,14 @@
       "additionalProperties": false,
       "properties": {
         "hours_ahead": {
-          "default": 6,
+          "default": 8,
           "maximum": 24,
           "minimum": 1,
           "title": "Hours Ahead",
           "type": "integer"
         },
         "hours_back": {
-          "default": 6,
+          "default": 4,
           "maximum": 48,
           "minimum": 0,
           "title": "Hours Back",
@@ -695,6 +703,7 @@
             120,
             240,
             360,
+            480,
             720
           ],
           "title": "Default Horizon Min",
@@ -755,6 +764,7 @@
               120,
               240,
               360,
+              480,
               720
             ],
             "type": "integer"
@@ -831,12 +841,19 @@
     },
     "ForecastPanelWidget": {
       "additionalProperties": false,
+      "description": "The Prediction view: future NEWS and the future observations, with their certainty. Each of the three\ncan be switched on or off on the screen; these are what it starts with.",
       "properties": {
         "id": {
           "description": "Lowercase id: letters, digits, hyphens.",
           "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
           "title": "Id",
           "type": "string"
+        },
+        "show_certainty": {
+          "default": true,
+          "description": "Start with the certainty of each prediction shown.",
+          "title": "Show Certainty",
+          "type": "boolean"
         },
         "show_contributors": {
           "default": true,
@@ -850,7 +867,14 @@
         },
         "show_news_number": {
           "default": true,
+          "description": "Start with the future NEWS shown.",
           "title": "Show News Number",
+          "type": "boolean"
+        },
+        "show_observations": {
+          "default": true,
+          "description": "Start with the future observation predictions shown.",
+          "title": "Show Observations",
           "type": "boolean"
         },
         "title": {
@@ -879,6 +903,8 @@
         "title",
         "type",
         "show_news_number",
+        "show_observations",
+        "show_certainty",
         "show_events",
         "show_contributors"
       ],
@@ -1074,6 +1100,32 @@
       "title": "LabsWidget",
       "type": "object"
     },
+    "MeasureAction": {
+      "additionalProperties": false,
+      "description": "Starts a blood pressure or temperature measurement on one touch and cancels it on the next. There\nis no menu or sheet: the module for that measurement pulses until the reading is in. (In this\nprototype the reading is simulated.)",
+      "properties": {
+        "kind": {
+          "enum": [
+            "bp",
+            "temp"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "type": {
+          "const": "measure",
+          "default": "measure",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "kind"
+      ],
+      "title": "MeasureAction",
+      "type": "object"
+    },
     "Menu": {
       "additionalProperties": false,
       "properties": {
@@ -1137,12 +1189,14 @@
           "discriminator": {
             "mapping": {
               "edit-layout": "#/$defs/EditLayoutAction",
+              "measure": "#/$defs/MeasureAction",
               "open-settings": "#/$defs/SettingsAction",
               "screen": "#/$defs/ScreenAction",
               "sheet": "#/$defs/SheetAction",
               "silence-alarms": "#/$defs/SilenceAction",
               "toggle-ai": "#/$defs/AiToggleAction",
               "toggle-ai-overlay": "#/$defs/AiOverlayAction",
+              "toggle-prediction-overlay": "#/$defs/PredictionOverlayAction",
               "toggle-theme": "#/$defs/ThemeToggleAction"
             },
             "propertyName": "type"
@@ -1171,6 +1225,12 @@
             },
             {
               "$ref": "#/$defs/EditLayoutAction"
+            },
+            {
+              "$ref": "#/$defs/MeasureAction"
+            },
+            {
+              "$ref": "#/$defs/PredictionOverlayAction"
             }
           ],
           "title": "Action"
@@ -1395,7 +1455,7 @@
         },
         "show_future": {
           "default": true,
-          "description": "Append predicted columns (see forecast).",
+          "description": "Append the predicted columns: every parameter as the forecast predicts it, scored, drawn darker and hatched.",
           "title": "Show Future",
           "type": "boolean"
         },
@@ -1686,6 +1746,161 @@
         "type"
       ],
       "title": "PatientWidget",
+      "type": "object"
+    },
+    "PredictionOverlayAction": {
+      "additionalProperties": false,
+      "description": "Switches the main screen between the monitor and the prediction overlay: the monitor on the left half, the\ntrends with their predicted future and intervals on the right. A local preference of the screen.",
+      "properties": {
+        "type": {
+          "const": "toggle-prediction-overlay",
+          "default": "toggle-prediction-overlay",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "PredictionOverlayAction",
+      "type": "object"
+    },
+    "PredictionSwitchesWidget": {
+      "additionalProperties": false,
+      "description": "The three switches of the prediction views (Future NEWS, Observation Predictions, Certainty) as a strip of their own,\nso they can sit above the predicted trends without moving them. The choice is shared with every prediction view.",
+      "properties": {
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "show_certainty": {
+          "default": true,
+          "description": "Start with the certainty of each prediction shown.",
+          "title": "Show Certainty",
+          "type": "boolean"
+        },
+        "show_news_number": {
+          "default": true,
+          "description": "Start with the future NEWS shown.",
+          "title": "Show News Number",
+          "type": "boolean"
+        },
+        "show_observations": {
+          "default": true,
+          "description": "Start with the observation predictions shown.",
+          "title": "Show Observations",
+          "type": "boolean"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "prediction-switches",
+          "default": "prediction-switches",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type",
+        "show_news_number",
+        "show_observations",
+        "show_certainty"
+      ],
+      "title": "PredictionSwitchesWidget",
+      "type": "object"
+    },
+    "PredictionTrendsWidget": {
+      "additionalProperties": false,
+      "description": "The trends with their predicted future and prediction intervals, on one time axis, with the future NEWS\nover time. Used on the right of the prediction overlay of the main screen.",
+      "properties": {
+        "ahead_hours": {
+          "default": 8,
+          "description": "How far ahead the prediction runs, right of now.",
+          "maximum": 8,
+          "minimum": 1,
+          "title": "Ahead Hours",
+          "type": "integer"
+        },
+        "back_hours": {
+          "default": 4,
+          "description": "How far back the history runs, left of now.",
+          "maximum": 24,
+          "minimum": 1,
+          "title": "Back Hours",
+          "type": "integer"
+        },
+        "id": {
+          "description": "Lowercase id: letters, digits, hyphens.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "show_certainty": {
+          "default": true,
+          "description": "Start with the certainty of each prediction shown.",
+          "title": "Show Certainty",
+          "type": "boolean"
+        },
+        "show_news_number": {
+          "default": true,
+          "description": "Start with the future NEWS shown.",
+          "title": "Show News Number",
+          "type": "boolean"
+        },
+        "show_observations": {
+          "default": true,
+          "description": "Start with the observation predictions shown.",
+          "title": "Show Observations",
+          "type": "boolean"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "prediction-trends",
+          "default": "prediction-trends",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type",
+        "back_hours",
+        "ahead_hours",
+        "show_news_number",
+        "show_observations",
+        "show_certainty"
+      ],
+      "title": "PredictionTrendsWidget",
       "type": "object"
     },
     "Row": {
@@ -2051,8 +2266,7 @@
             "explanation-examples",
             "trends",
             "abcde-assess",
-            "measure-bp",
-            "measure-temp",
+            "news2-breakdown",
             "forecast-horizon",
             "news2-variant",
             "home-screen",
@@ -2146,8 +2360,8 @@
         "ratio": {
           "default": 0.5,
           "description": "Share taken by the first pane.",
-          "maximum": 0.85,
-          "minimum": 0.15,
+          "maximum": 0.92,
+          "minimum": 0.08,
           "title": "Ratio",
           "type": "number"
         }
@@ -2591,6 +2805,17 @@
           "title": "Clock Format",
           "type": "string"
         },
+        "date_format": {
+          "default": "dd/mm/yyyy",
+          "enum": [
+            "dd/mm/yyyy",
+            "mm/dd/yyyy",
+            "yyyy-mm-dd",
+            "dd Mon yyyy"
+          ],
+          "title": "Date Format",
+          "type": "string"
+        },
         "fields": {
           "description": "Left to right. Must include 'name' and 'clock'.",
           "items": {
@@ -2638,6 +2863,7 @@
       "required": [
         "fields",
         "clock_format",
+        "date_format",
         "show_seconds",
         "height_px",
         "buttons",
@@ -2714,6 +2940,8 @@
               "news2-chart": "#/$defs/News2ChartWidget",
               "oxygen": "#/$defs/OxygenWidget",
               "patient": "#/$defs/PatientWidget",
+              "prediction-switches": "#/$defs/PredictionSwitchesWidget",
+              "prediction-trends": "#/$defs/PredictionTrendsWidget",
               "text": "#/$defs/TextWidget"
             },
             "propertyName": "type"
@@ -2739,6 +2967,12 @@
             },
             {
               "$ref": "#/$defs/ForecastPanelWidget"
+            },
+            {
+              "$ref": "#/$defs/PredictionTrendsWidget"
+            },
+            {
+              "$ref": "#/$defs/PredictionSwitchesWidget"
             },
             {
               "$ref": "#/$defs/EventsTimelineWidget"
@@ -2875,7 +3109,7 @@
       "items": {
         "$ref": "#/$defs/Button"
       },
-      "maxItems": 12,
+      "maxItems": 14,
       "minItems": 2,
       "title": "Tabs",
       "type": "array"

@@ -19,8 +19,8 @@ export function tileValues(row: Row, numerics?: ExampleSnapshot["numerics"], not
   const at = (p: string) => (numerics as Record<string, number | string | null | undefined> | undefined)?.[p];
   if (n.includes("bp_sys") && n.includes("bp_dia")) {
     return [{ parameter: "bp_sys", name: "BP", value: at("bp_sys"),
-              extra: [{ separator: "/", value: at("bp_dia") }, ...(n.includes("bp_mean")
-                ? [{ separator: " ", wrap: [" (", ")"] as [string, string], value: at("bp_mean") }] : [])] }];
+              extra: [{ separator: "/", value: at("bp_dia"), parameter: "bp_dia" }, ...(n.includes("bp_mean")
+                ? [{ separator: " ", wrap: [" (", ")"] as [string, string], value: at("bp_mean"), parameter: "bp_mean" }] : [])] }];
   }
   return n.map((parameter, i) => ({ parameter, value: at(parameter), ...(i === 0 && notes.length ? { notes } : {}) }));
 }
@@ -96,9 +96,12 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
       {row.parameter && <RowStatus parameter={row.parameter} />}
     </div>
   );
-  const tile = values.length ? <Tile values={values} /> : <span className="tile tile-empty" aria-hidden="true" />;
+  // In a full row the last five blood pressures sit under the number, in the tile.
+  const underNumber = flow === "row" && vis.readings && row.parameter === "bp_sys" && snapshot
+    ? <BpReadings readings={snapshot.bp_readings} nowIso={snapshot.generated_at} variant="tile" /> : null;
+  const tile = values.length ? <Tile values={values} below={underNumber} /> : <span className="tile tile-empty" aria-hidden="true" />;
   // Falls, activity and the NEWS2 history have no trace; they show their own small summaries instead.
-  const summary = flow === "row" ? null : row.parameter === "falls" ? <FallsDetail /> : row.parameter === "activity" ? <ActivityDetail />
+  const summary = flow === "row" && row.trace !== "news" ? null : row.parameter === "falls" ? <FallsDetail /> : row.parameter === "activity" ? <ActivityDetail />
     : row.parameter === "o2_flow" ? <OxygenDetail />
     : row.trace === "news" ? <NewsTrend /> : null;
   const trace = summary ?? (vis.trace
@@ -121,9 +124,9 @@ export function Module({ row, placement }: { row: Row; placement: Placement }) {
                                           vis.explain && "explain", vis.forecast && "forecast", vis.readings && "readings"].filter(Boolean).join(" ")}
          data-dropped={vis.dropped.join(" ")}>
       <button type="button" className="row-hit" data-testid={`row-hit-${row.id}`}
-              aria-label={editing ? `Edit ${title.name}` : `${title.name}: alarm limits`}
+              aria-label={editing ? `Edit ${title.name}` : row.parameter === "news2" ? `${title.name}: how it was scored` : `${title.name}: alarm limits`}
               aria-pressed={editing ? selected : undefined}
-              onClick={() => (editing ? useEditor.getState().select(row.id) : useUi.getState().showSheet("alarm-limits", row.id))} />
+              onClick={() => (editing ? useEditor.getState().select(row.id) : row.parameter === "news2" ? useUi.getState().showSheet("news2-breakdown") : useUi.getState().showSheet("alarm-limits", row.id))} />
       {flow === "row" && (
         <>
           <div className="row-trace">{head}{chip}{trace}{extras}</div>

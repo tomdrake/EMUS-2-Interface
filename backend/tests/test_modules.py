@@ -74,7 +74,7 @@ def test_default_monitor_is_five_full_width_rows_then_one_line_of_small_boxes():
 def test_heights_are_a_weight_per_row_and_ecg_and_spo2_are_a_little_taller_and_bp_more_so():
     doc = DEFAULT_DESIGNS["icu-monitor"]
     scale = {r["id"]: r.get("height_scale", 1.0) for r in doc["rows"]}
-    assert scale["ecg"] == scale["spo2"] == 1.25 and scale["bp"] == 1.5 and scale["resp"] == 1.0
+    assert scale["ecg"] == scale["spo2"] == 1.25 and scale["bp"] == 1.9 and scale["resp"] == 1.0
     d = validated_defaults()["icu-monitor"]
     assert {r.id: r.height_scale for r in d.rows}["ecg"] == 1.25
 
@@ -93,11 +93,12 @@ def test_the_news_row_is_a_module_with_its_own_trace_kind():
     assert (news.parameter, news.trace) == ("news2", "news")
 
 
-def test_the_tab_bar_has_measure_buttons_that_open_their_sheets():
+def test_the_tab_bar_has_measure_buttons_that_start_a_measurement_and_open_nothing():
     d = validated_defaults()["icu-monitor"]
-    sheets = {t.id: t.action.sheet for t in d.tabs if t.action.type == "sheet"}
-    assert sheets == {"measure-bp": "measure-bp", "measure-temp": "measure-temp"}
-    assert len(d.tabs) == 12
+    measure = {t.id: t.action.kind for t in d.tabs if t.action.type == "measure"}
+    assert measure == {"measure-bp": "bp", "measure-temp": "temp"}
+    assert not [t for t in d.tabs if t.action.type == "sheet"]      # no sheet, no menu: one touch starts it
+    assert len(d.tabs) == 13
 
 
 def test_modular_example_shows_every_kind_of_size_and_all_its_rows():
@@ -172,3 +173,30 @@ def test_the_old_rows_widget_is_gone(icu_design):
         w["row_ids"] = [i["row_id"] for i in w["items"]]
         del w["items"]
     _broken(icu_design, swap)
+
+
+def test_the_prediction_overlay_is_a_tab_toggle_and_a_split_of_the_monitor_and_the_predicted_trends():
+    d = validated_defaults()["icu-monitor"]
+    tab = next(t for t in d.tabs if t.id == "prediction-overlay")
+    assert tab.action.type == "toggle-prediction-overlay" and tab.label == "Predict Overlay"
+    screen = next(s for s in d.screens if s.id == "monitor-predict")
+    left, right = screen.layout.children
+    assert screen.layout.direction == "horizontal" and screen.layout.ratio == 0.5
+    # each half is a strip over the content, the same height on both so the rows and the predicted charts line up
+    (lhead, lbody), (rhead, rbody) = left.children, right.children
+    assert left.direction == right.direction == "vertical" and left.ratio == right.ratio
+    assert lhead.widget.type == "text" and rhead.widget.type == "prediction-switches"
+    assert lbody.widget.type == "monitor-grid" and rbody.widget.type == "prediction-trends"
+    assert [i.row_id for i in lbody.widget.items] == ["ecg", "spo2", "resp", "bp", "temp", "news"]   # traces and number boxes, then NEWS2
+    assert (rbody.widget.back_hours, rbody.widget.ahead_hours) == (4, 8)
+
+
+def test_the_trends_widget_runs_no_further_than_eight_hours_ahead(icu_design):
+    import copy
+    from app.models.design import Design
+    doc = copy.deepcopy(icu_design)
+    doc["screens"][0]["layout"] = {"kind": "widget", "widget": {"id": "pt", "type": "prediction-trends", "ahead_hours": 9}}
+    with pytest.raises(ValidationError):
+        Design.model_validate(doc)
+    doc["screens"][0]["layout"]["widget"]["ahead_hours"] = 8
+    assert Design.model_validate(doc)

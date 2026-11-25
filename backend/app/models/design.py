@@ -240,7 +240,7 @@ class News2ChartWidget(_Widget):
     hours_visible: int = Field(24, ge=4, le=168)
     show_total_row: bool = True
     show_escalation_rows: bool = True
-    show_future: bool = Field(True, description="Append predicted columns (see forecast).")
+    show_future: bool = Field(True, description="Append the predicted columns: every parameter as the forecast predicts it, scored, drawn darker and hatched.")
     column_source: Literal["charted", "continuous"] = Field(
         "charted", description="'charted' = recorded observation sets; "
                                "'continuous' = derived from the wearable every interval.")
@@ -278,16 +278,43 @@ class AiSummaryWidget(_Widget):
 
 
 class ForecastPanelWidget(_Widget):
+    """The Prediction view: future NEWS and the future observations, with their certainty. Each of the three
+    can be switched on or off on the screen; these are what it starts with."""
+
     type: Literal["forecast-panel"] = "forecast-panel"
-    show_news_number: bool = True
+    show_news_number: bool = Field(True, description="Start with the future NEWS shown.")
+    show_observations: bool = Field(True, description="Start with the future observation predictions shown.")
+    show_certainty: bool = Field(True, description="Start with the certainty of each prediction shown.")
     show_events: bool = True
     show_contributors: bool = True
 
 
+class PredictionTrendsWidget(_Widget):
+    """The trends with their predicted future and prediction intervals, on one time axis, with the future NEWS
+    over time. Used on the right of the prediction overlay of the main screen."""
+
+    type: Literal["prediction-trends"] = "prediction-trends"
+    back_hours: int = Field(4, ge=1, le=24, description="How far back the history runs, left of now.")
+    ahead_hours: int = Field(8, ge=1, le=8, description="How far ahead the prediction runs, right of now.")
+    show_news_number: bool = Field(True, description="Start with the future NEWS shown.")
+    show_observations: bool = Field(True, description="Start with the observation predictions shown.")
+    show_certainty: bool = Field(True, description="Start with the certainty of each prediction shown.")
+
+
+class PredictionSwitchesWidget(_Widget):
+    """The three switches of the prediction views (Future NEWS, Observation Predictions, Certainty) as a strip of their own,
+    so they can sit above the predicted trends without moving them. The choice is shared with every prediction view."""
+
+    type: Literal["prediction-switches"] = "prediction-switches"
+    show_news_number: bool = Field(True, description="Start with the future NEWS shown.")
+    show_observations: bool = Field(True, description="Start with the observation predictions shown.")
+    show_certainty: bool = Field(True, description="Start with the certainty of each prediction shown.")
+
+
 class EventsTimelineWidget(_Widget):
     type: Literal["events-timeline"] = "events-timeline"
-    hours_back: int = Field(6, ge=0, le=48)
-    hours_ahead: int = Field(6, ge=1, le=24)
+    hours_back: int = Field(4, ge=0, le=48)
+    hours_ahead: int = Field(8, ge=1, le=24)
 
 
 class AlarmsWidget(_Widget):
@@ -311,7 +338,7 @@ class TextWidget(_Widget):
 Widget = Annotated[
     Union[
         MonitorGridWidget, News2ChartWidget, AbcdeWidget, LabsWidget, ImagingWidget, AiSummaryWidget,
-        ForecastPanelWidget, EventsTimelineWidget, AlarmsWidget, OxygenWidget,
+        ForecastPanelWidget, PredictionTrendsWidget, PredictionSwitchesWidget, EventsTimelineWidget, AlarmsWidget, OxygenWidget,
         PatientWidget, TextWidget,
     ],
     Field(discriminator="type"),
@@ -330,7 +357,7 @@ class SplitNode(_Model):
 
     kind: Literal["split"] = "split"
     direction: Literal["horizontal", "vertical"]
-    ratio: float = Field(0.5, ge=0.15, le=0.85, description="Share taken by the first pane.")
+    ratio: float = Field(0.5, ge=0.08, le=0.92, description="Share taken by the first pane.")
     children: Annotated[list["LayoutNode"], Field(min_length=2, max_length=2)]
 
 
@@ -359,7 +386,7 @@ SheetId = Literal[
     # clinical
     "alarm-limits", "oxygen", "patient", "new-patient", "discharge-patient",
     "record-observations", "finding-explain", "underlying-data", "explanation-examples",
-    "trends", "abcde-assess", "measure-bp", "measure-temp",
+    "trends", "abcde-assess", "news2-breakdown",
     "forecast-horizon", "news2-variant", "home-screen",
     # design studio sections (each one touch from the Settings menu)
     "studio-appearance", "studio-layout", "studio-rows", "studio-navigation",
@@ -409,6 +436,22 @@ class AiOverlayAction(_Model):
     type: Literal["toggle-ai-overlay"] = "toggle-ai-overlay"
 
 
+class MeasureAction(_Model):
+    """Starts a blood pressure or temperature measurement on one touch and cancels it on the next. There
+    is no menu or sheet: the module for that measurement pulses until the reading is in. (In this
+    prototype the reading is simulated.)"""
+
+    type: Literal["measure"] = "measure"
+    kind: Literal["bp", "temp"]
+
+
+class PredictionOverlayAction(_Model):
+    """Switches the main screen between the monitor and the prediction overlay: the monitor on the left half, the
+    trends with their predicted future and intervals on the right. A local preference of the screen."""
+
+    type: Literal["toggle-prediction-overlay"] = "toggle-prediction-overlay"
+
+
 class EditLayoutAction(_Model):
     """Enters Edit Layout: tap a module to change its size, content and place. Edits stay local
     to this screen until they are saved as a new design version."""
@@ -418,13 +461,13 @@ class EditLayoutAction(_Model):
 
 ButtonAction = Annotated[
     Union[ScreenAction, MenuAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction,
-          AiToggleAction, AiOverlayAction, EditLayoutAction],
+          AiToggleAction, AiOverlayAction, EditLayoutAction, MeasureAction, PredictionOverlayAction],
     Field(discriminator="type"),
 ]
 # Menu items cannot open another menu: that is what keeps everything within two touches.
 MenuItemAction = Annotated[
     Union[ScreenAction, SheetAction, SilenceAction, SettingsAction, ThemeToggleAction,
-          AiToggleAction, AiOverlayAction, EditLayoutAction],
+          AiToggleAction, AiOverlayAction, EditLayoutAction, MeasureAction, PredictionOverlayAction],
     Field(discriminator="type"),
 ]
 
@@ -468,6 +511,8 @@ class TopBar(_Model):
     fields: list[TopBarField] = Field(
         description="Left to right. Must include 'name' and 'clock'.")
     clock_format: Literal["24h", "12h"] = "24h"
+    #: How dates are written everywhere on screen: 24/11/2026, 11/24/2026, 2026-11-24 or 24 Nov 2026.
+    date_format: Literal["dd/mm/yyyy", "mm/dd/yyyy", "yyyy-mm-dd", "dd Mon yyyy"] = "dd/mm/yyyy"
     show_seconds: bool = True
     height_px: int = Field(64, ge=48, le=96)
     buttons: list[Button] = Field(
@@ -647,12 +692,12 @@ class CertaintyDisplay(_Model):
         return self
 
 
-HorizonMin = Literal[60, 120, 240, 360, 720]
+HorizonMin = Literal[60, 120, 240, 360, 480, 720]
 
 
 class Forecast(_Model):
     enabled: bool = True
-    horizons_min: list[HorizonMin] = Field(default_factory=lambda: [60, 120, 240, 360],
+    horizons_min: list[HorizonMin] = Field(default_factory=lambda: [60, 120, 240, 360, 480],
                                            min_length=1)
     default_horizon_min: HorizonMin = 240
     #: N1 value-range, N2 band-probabilities, N3 time-to-threshold
@@ -691,7 +736,7 @@ class Design(_Model):
     alt_theme: Theme = Field(description="The other side of the dark / light switch.")
     top_bar: TopBar
     tab_bar: TabBar = Field(default_factory=TabBar)
-    tabs: list[Button] = Field(min_length=2, max_length=12)
+    tabs: list[Button] = Field(min_length=2, max_length=14)
     menus: list[Menu] = Field(default_factory=list)
     screens: list[Screen] = Field(min_length=1)
     home_screen: Slug
