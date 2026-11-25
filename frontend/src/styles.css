@@ -1174,5 +1174,4 @@ button:disabled { opacity: 0.45; }
 .abcde-bloods > header h3 { font-size: 0.9rem; }
 /* the date and the time are one pair: the same font, size and weight, on one baseline */
 .tb-date, .tb-clock, .tb-clock time { color: var(--c-text); font-family: inherit; font-size: 1.35em; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
-.tb-field.tb-date, .tb-field.tb-clock { align-self: center; }
 @media (max-width: 1100px) { .tb-date, .tb-clock, .tb-clock time { font-size: 1.1em; } }
