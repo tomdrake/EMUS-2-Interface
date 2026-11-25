@@ -44,3 +44,8 @@ mimic:            ## download and import the open-access MIMIC-IV demo (mileston
 
 clean:
 	rm -rf frontend/dist frontend/e2e/screenshots backend/.pytest_cache
+
+.PHONY: screenshots
+screenshots: build  ## regenerate the pictures in docs/screenshots (starts a temporary server)
+	@rm -f /tmp/emus-shots.db; cd backend && EMUS_DB=/tmp/emus-shots.db ../.venv/bin/python -m uvicorn app.main:app --port 8125 >/tmp/emus-shots.log 2>&1 & echo $$! > /tmp/emus-shots.pid; sleep 4; \
+	cd frontend && node e2e/screenshots.cjs http://127.0.0.1:8125; status=$$?; kill `cat /tmp/emus-shots.pid` 2>/dev/null; exit $$status

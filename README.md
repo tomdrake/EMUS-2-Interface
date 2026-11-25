@@ -11,6 +11,41 @@ not be used for patient care.** Data is simulated or from the open-access MIMIC-
 demo, and AI findings and forecasts are placeholders until the causal model is
 connected.
 
+## Screenshots
+
+All from example data (a pneumonia case at the point where it is getting worse), not patients. They are regenerated with `make screenshots`.
+
+**The monitor.** Traces and number boxes by row; a number in alarm is a box in its own colour, flashing; the notification box at the bottom left.
+
+![The main monitor](docs/screenshots/01-monitor.png)
+
+**Prediction overlay.** The monitor on the left, the predicted trends to +8 hours on the right, level row for row, with NEWS2 in boxes along the bottom and a confidence under each prediction.
+
+![The prediction overlay](docs/screenshots/02-prediction-overlay.png)
+
+**NEWS2 chart.** The observed columns, then the predicted ones in the same chart, darker and thinly hatched so they cannot be mistaken for charted values.
+
+![The NEWS2 chart with its prediction](docs/screenshots/03-news2-chart.png)
+
+![The NEWS2 chart in the light theme](docs/screenshots/07-news2-light.png)
+
+**ABCDE.** Cards in reading order with look, listen and feel checks, and the latest blood gas, bloods and glucose.
+
+![The ABCDE screen](docs/screenshots/04-abcde.png)
+
+**Prediction tab.** The forecast, what the AI sees now, and the events timeline.
+
+![The prediction tab](docs/screenshots/05-predict-tab.png)
+
+**Alarm highlight and the NEWS2 breakdown.** Systolic, diastolic and MAP highlight separately (here only the MAP, 63); touching the NEWS box shows how the total is made.
+
+![Alarm highlight on one number](docs/screenshots/06-alarm-highlight.png)
+![The NEWS2 breakdown](docs/screenshots/08-news2-breakdown.png)
+
+**A smaller screen (1024 x 768).**
+
+![The monitor at 1024 by 768](docs/screenshots/09-monitor-small.png)
+
 ## Status
 
 The scaffold (milestone 1) is in place: the design schema, clinical registry,
