@@ -1177,5 +1177,5 @@ button:disabled { opacity: 0.45; }
 @media (max-width: 1100px) { .tb-date, .tb-clock, .tb-clock time { font-size: 1.1em; } }
 /* the predicted part: hatching sits behind the score colours, which are a little see-through there; the forecast's ranges are bars behind each marker */
 .news2-svg .n2-predband { fill-opacity: 0.62; }
-.news2-svg .n2-range95 { fill-opacity: 0.2; }
-.news2-svg .n2-range80 { fill-opacity: 0.42; }
+.news2-svg .n2-ribbon95 { fill-opacity: 0.16; stroke: none; }
+.news2-svg .n2-ribbon80 { fill-opacity: 0.32; stroke: none; }

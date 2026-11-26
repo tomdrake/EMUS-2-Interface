@@ -223,7 +223,7 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
               <pattern id={hatchId} patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" className="n2-hatchline" /></pattern>
             </defs>
             <rect x={colX(obsCount)} y={0} width={(cols - obsCount) * colW} height={13} className="n2-predbanner" />
-            <text x={colX(obsCount) + (cols - obsCount) * colW / 2} y={10} textAnchor="middle" className="n2-predtext">{(cols - obsCount) * colW >= 330 ? "Predicted From Example Data · Bars Show 80 % And 95 % Ranges" : "Predicted From Example Data"}</text>
+            <text x={colX(obsCount) + (cols - obsCount) * colW / 2} y={10} textAnchor="middle" className="n2-predtext">{(cols - obsCount) * colW >= 330 ? "Predicted From Example Data · Bands Show 80 % And 95 % Ranges" : "Predicted From Example Data"}</text>
           </g>
         )}
 
@@ -379,17 +379,27 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
                   </g>
                 );
               })}
-              {axis && hasPred && sets.map((s, i) => {
-                if (!isPred(s)) return null;
-                const bars = (pid: string, key: string) => {
-                  const lo95 = rangeAt(pid, minutesOf(s), "95"), lo80 = rangeAt(pid, minutesOf(s), "80");
-                  if (!lo80 || !lo95) return null;
-                  const clamp = (v: number) => Math.min(top + bh, Math.max(top, yOf(v)));
-                  const bar = (r: [number, number], cls: string) => <rect x={cx(i) - 5} width={10} y={clamp(r[1])} height={Math.max(1, clamp(r[0]) - clamp(r[1]))} className={cls} style={{ fill: colour }} />;
-                  return <g key={key} data-testid={`news-range-${key}-${i}`} data-lo={lo80[0]} data-hi={lo80[1]}>{colW >= 40 && bar(lo95, "n2-range95")}{bar(lo80, "n2-range80")}</g>;
+              {axis && hasPred && obsCount > 0 && (() => {
+                // the forecast's ranges as a ribbon around each predicted line: nothing at the last observation, widening with the horizon
+                const clamp = (v: number) => Math.min(top + bh, Math.max(top, yOf(v)));
+                const lastObs = sets[obsCount - 1]!;
+                const ribbons = (pid: string, valueKey: string) => {
+                  const start = Number(val(lastObs, valueKey));
+                  const anchor = Number.isFinite(start) ? { x: cx(obsCount - 1), y: clamp(start) } : null;
+                  const pts = sets.map((s, i) => ({ s, i })).filter((q) => isPred(q.s)).map(({ s, i }) => {
+                    const r80 = rangeAt(pid, minutesOf(s), "80"), r95 = rangeAt(pid, minutesOf(s), "95");
+                    return r80 && r95 ? { x: cx(i), lo80: clamp(r80[0]), hi80: clamp(r80[1]), lo95: clamp(r95[0]), hi95: clamp(r95[1]), r80 } : null;
+                  }).filter((q): q is NonNullable<typeof q> => q != null);
+                  if (!pts.length) return null;
+                  return (
+                    <g key={pid} data-testid={`news-ribbon-${pid}`} data-start-x={anchor?.x} data-start-y={anchor?.y} data-end-lo={pts[pts.length - 1]!.r80[0]} data-end-hi={pts[pts.length - 1]!.r80[1]}>
+                      {colW >= 40 && <path className="n2-ribbon95" style={{ fill: colour }} d={ribbonPath(anchor, pts.map((q) => ({ x: q.x, top: q.hi95, bottom: q.lo95 })))} data-testid={`news-ribbon95-${pid}`} />}
+                      <path className="n2-ribbon80" style={{ fill: colour }} d={ribbonPath(anchor, pts.map((q) => ({ x: q.x, top: q.hi80, bottom: q.lo80 })))} data-testid={`news-ribbon80-${pid}`} />
+                    </g>
+                  );
                 };
-                return <g key={s.at}>{bars(g.key, g.key)}{g.key === "bp_sys" && bars("bp_dia", "bp_dia")}</g>;
-              })}
+                return g.key === "bp_sys" ? <>{ribbons("bp_sys", "bp_sys")}{ribbons("bp_mean", "bp_mean")}{ribbons("bp_dia", "bp_dia")}</> : ribbons(g.key, g.key);
+              })()}
               {g.key !== "o2_flow" && dots.map(({ s, i, r, y }) => {
                 const score = g.bands[r]!.score;
                 const above = y - top > 11;
@@ -454,6 +464,19 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
       </svg>
     </div>
   );
+}
+
+/**
+ * A band around a predicted line as one closed path: the upper edge left to right, then the lower edge back. It starts at the last
+ * observed point (width nothing, because the observation is known) and widens with the horizon. Pure, so it is tested without a chart.
+ */
+export function ribbonPath(anchor: { x: number; y: number } | null, cols: { x: number; top: number; bottom: number }[]): string {
+  if (!cols.length) return "";
+  const f = (n: number) => n.toFixed(1);
+  const up = cols.map((c) => `L${f(c.x)} ${f(c.top)}`).join("");
+  const down = [...cols].reverse().map((c) => `L${f(c.x)} ${f(c.bottom)}`).join("");
+  const first = anchor ?? { x: cols[0]!.x, y: (cols[0]!.top + cols[0]!.bottom) / 2 };
+  return `M${f(first.x)} ${f(first.y)}${up}${down}Z`;
 }
 
 /** A predicted region of a block: a darker veil, then thin diagonal hatching over the coloured score bands. */
