@@ -1092,10 +1092,10 @@ button:disabled { opacity: 0.45; }
 .tf-bpx line { stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 
 /* ---- the predicted part of a NEWS2 chart: darker, thinly hatched over the score colours, dashed trends, hollow markers ---- */
-.news2-chart { --n2-pred-veil: rgba(0, 0, 0, 0.36); --n2-hatch: rgba(255, 255, 255, 0.55); }
-.news2-chart[data-mode="light"] { --n2-pred-veil: rgba(20, 24, 31, 0.28); --n2-hatch: rgba(0, 0, 0, 0.5); }
+.news2-chart { --n2-pred-veil: rgba(0, 0, 0, 0.14); --n2-hatch: rgba(255, 255, 255, 0.3); }
+.news2-chart[data-mode="light"] { --n2-pred-veil: rgba(20, 24, 31, 0.10); --n2-hatch: rgba(0, 0, 0, 0.2); }
 .news2-svg .n2-predveil { fill: var(--n2-pred-veil); }
-.news2-svg .n2-hatchline { stroke: var(--n2-hatch); stroke-width: 0.9; }
+.news2-svg .n2-hatchline { stroke: var(--n2-hatch); stroke-width: 0.7; }
 .news2-svg .n2-predbanner { fill: var(--c-surface-alt); }
 .news2-svg .n2-predtext { font-size: 9.5px; font-weight: 700; fill: var(--c-text); letter-spacing: 0.02em; }
 .news2-svg .n2-now { stroke: var(--c-text); stroke-width: 2; }
@@ -1104,7 +1104,7 @@ button:disabled { opacity: 0.45; }
 .news2-svg .n2-dot.is-predicted { fill: var(--c-background); stroke-width: 1.6; }
 .news2-svg .n2-arrow.is-predicted { fill: var(--c-background); stroke-width: 1.4; }
 .news2-svg .n2-foot.is-predicted { opacity: 0.8; font-style: italic; }
-.news2-svg .n2-totalhatch { opacity: 0.9; }
+.news2-svg .n2-totalhatch { opacity: 1; }
 .pt-box.is-future { background-image: repeating-linear-gradient(45deg, transparent 0 4px, color-mix(in srgb, currentColor 35%, transparent) 4px 5px); }
 
 /* ---- ABCDE: A, B and C in the left column, D, E and the results in the right, so nothing is off screen ---- */
@@ -1175,3 +1175,7 @@ button:disabled { opacity: 0.45; }
 /* the date and the time are one pair: the same font, size and weight, on one baseline */
 .tb-date, .tb-clock, .tb-clock time { color: var(--c-text); font-family: inherit; font-size: 1.35em; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
 @media (max-width: 1100px) { .tb-date, .tb-clock, .tb-clock time { font-size: 1.1em; } }
+/* the predicted part: hatching sits behind the score colours, which are a little see-through there; the forecast's ranges are bars behind each marker */
+.news2-svg .n2-predband { fill-opacity: 0.62; }
+.news2-svg .n2-ribbon95 { fill-opacity: 0.16; stroke: none; }
+.news2-svg .n2-ribbon80 { fill-opacity: 0.32; stroke: none; }

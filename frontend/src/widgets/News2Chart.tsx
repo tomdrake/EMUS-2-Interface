@@ -168,6 +168,12 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
     const c = pickCertainty(news?.points.find((p) => p.horizon_min === minutesOf(s))?.certainty ?? [], design?.forecast.certainty.metric ?? "prediction_interval");
     return c ? `${Math.round(Math.min(1, Math.max(0, c.score)) * 100)}%` : null;
   };
+  // the forecast's own interval for a parameter at a horizon: the bars behind each predicted marker
+  const rangeAt = (pid: string, minutes: number, level: "80" | "95"): [number, number] | null => {
+    const f = snapshot.forecast.forecasts.find((x) => x.parameter === pid && x.scenario === "baseline");
+    const iv = f?.points.find((p) => p.horizon_min === minutes)?.intervals[level] as unknown as [number, number] | undefined;
+    return iv ?? null;
+  };
   const cols = sets.length;
   const band = theme.news_bands as unknown as Record<string, string>;
   const fill = (score: number) => band[`score_${Math.min(3, score)}`] ?? "transparent";
@@ -214,10 +220,10 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
         {hasPred && (
           <g data-testid="news-predicted-banner">
             <defs>
-              <pattern id={hatchId} patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" className="n2-hatchline" /></pattern>
+              <pattern id={hatchId} patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" className="n2-hatchline" /></pattern>
             </defs>
             <rect x={colX(obsCount)} y={0} width={(cols - obsCount) * colW} height={13} className="n2-predbanner" />
-            <text x={colX(obsCount) + (cols - obsCount) * colW / 2} y={10} textAnchor="middle" className="n2-predtext">Predicted From Example Data</text>
+            <text x={colX(obsCount) + (cols - obsCount) * colW / 2} y={10} textAnchor="middle" className="n2-predtext">{(cols - obsCount) * colW >= 330 ? "Predicted From Example Data · Bands Show 80 % And 95 % Ranges" : "Predicted From Example Data"}</text>
           </g>
         )}
 
@@ -256,6 +262,7 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
           if (need(lines) > room) noteLines.forEach((l) => lines.splice(lines.indexOf(l), 1));
           return (
             <g key={g.key} data-testid={`news-group-${g.key}`} data-letter={g.letter}>
+              {hasPred && <PredictedRegion x={colX(obsCount)} y={top} w={(cols - obsCount) * colW} h={bh} hatchId={hatchId} />}
               <rect x={0} y={top} width={NAME_W} height={bh} className="n2-name" style={{ fill: band.header }} />
               {wide ? (
                 <>
@@ -289,10 +296,13 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
                       <g key={b.label} data-testid={`news-band-${g.key}-${r}`} data-score={b.score} data-from={y0.toFixed(1)} data-to={y1.toFixed(1)}>
                         {g.bandKey === "spo2_2" ? (
                           <>
-                            {sets.map((s, i) => applies(onO2(s)) && <rect key={s.at} x={colX(i)} y={y0} width={colW} height={y1 - y0} style={{ fill: fill(b.score) }} className="n2-bandcont" />)}
+                            {sets.map((s, i) => applies(onO2(s)) && <rect key={s.at} x={colX(i)} y={y0} width={colW} height={y1 - y0} style={{ fill: fill(b.score) }} className={`n2-bandcont${isPred(s) ? " n2-predband" : ""}`} />)}
                           </>
                         ) : (
-                          <rect x={left} y={y0} width={cols * colW} height={y1 - y0} style={{ fill: fill(b.score) }} className="n2-bandcont" />
+                          <>
+                            <rect x={left} y={y0} width={obsCount * colW} height={y1 - y0} style={{ fill: fill(b.score) }} className="n2-bandcont" />
+                            {cols > obsCount && <rect x={colX(obsCount)} y={y0} width={(cols - obsCount) * colW} height={y1 - y0} style={{ fill: fill(b.score) }} className="n2-bandcont n2-predband" />}
+                          </>
                         )}
                       </g>
                     );
@@ -304,11 +314,11 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
                   <g key={b.label} data-testid={`news-band-${g.key}-${r}`} data-score={b.score}>
                     <rect x={NAME_W} y={top + r * rh} width={LABEL_W} height={rh} className="n2-bandlabel" />
                     <text x={NAME_W + LABEL_W - 4} y={top + r * rh + rh / 2 + 3.2} textAnchor="end" className="n2-label">{b.label}</text>
-                    <rect x={left} y={top + r * rh} width={cols * colW} height={rh} style={{ fill: fill(b.score) }} className="n2-bandrow" />
+                    <rect x={left} y={top + r * rh} width={obsCount * colW} height={rh} style={{ fill: fill(b.score) }} className="n2-bandrow" />
+                    {cols > obsCount && <rect x={colX(obsCount)} y={top + r * rh} width={(cols - obsCount) * colW} height={rh} style={{ fill: fill(b.score) }} className="n2-bandrow n2-predband" />}
                   </g>
                 ))
               )}
-              {hasPred && <PredictedRegion x={colX(obsCount)} y={top} w={(cols - obsCount) * colW} h={bh} hatchId={hatchId} />}
               <rect x={NAME_W} y={top} width={LABEL_W + cols * colW} height={bh} className="n2-block" />
 
               {/* blood pressure: a dotted tail from the systolic dot to the diastolic number, and an X at the MAP */}
@@ -369,6 +379,27 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
                   </g>
                 );
               })}
+              {axis && hasPred && obsCount > 0 && (() => {
+                // the forecast's ranges as a ribbon around each predicted line: nothing at the last observation, widening with the horizon
+                const clamp = (v: number) => Math.min(top + bh, Math.max(top, yOf(v)));
+                const lastObs = sets[obsCount - 1]!;
+                const ribbons = (pid: string, valueKey: string) => {
+                  const start = Number(val(lastObs, valueKey));
+                  const anchor = Number.isFinite(start) ? { x: cx(obsCount - 1), y: clamp(start) } : null;
+                  const pts = sets.map((s, i) => ({ s, i })).filter((q) => isPred(q.s)).map(({ s, i }) => {
+                    const r80 = rangeAt(pid, minutesOf(s), "80"), r95 = rangeAt(pid, minutesOf(s), "95");
+                    return r80 && r95 ? { x: cx(i), lo80: clamp(r80[0]), hi80: clamp(r80[1]), lo95: clamp(r95[0]), hi95: clamp(r95[1]), r80 } : null;
+                  }).filter((q): q is NonNullable<typeof q> => q != null);
+                  if (!pts.length) return null;
+                  return (
+                    <g key={pid} data-testid={`news-ribbon-${pid}`} data-start-x={anchor?.x} data-start-y={anchor?.y} data-end-lo={pts[pts.length - 1]!.r80[0]} data-end-hi={pts[pts.length - 1]!.r80[1]}>
+                      {colW >= 40 && <path className="n2-ribbon95" style={{ fill: colour }} d={ribbonPath(anchor, pts.map((q) => ({ x: q.x, top: q.hi95, bottom: q.lo95 })))} data-testid={`news-ribbon95-${pid}`} />}
+                      <path className="n2-ribbon80" style={{ fill: colour }} d={ribbonPath(anchor, pts.map((q) => ({ x: q.x, top: q.hi80, bottom: q.lo80 })))} data-testid={`news-ribbon80-${pid}`} />
+                    </g>
+                  );
+                };
+                return g.key === "bp_sys" ? <>{ribbons("bp_sys", "bp_sys")}{ribbons("bp_mean", "bp_mean")}{ribbons("bp_dia", "bp_dia")}</> : ribbons(g.key, g.key);
+              })()}
               {g.key !== "o2_flow" && dots.map(({ s, i, r, y }) => {
                 const score = g.bands[r]!.score;
                 const above = y - top > 11;
@@ -397,9 +428,10 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
           <g data-testid="news-totals">
             <rect x={0} y={totalTop} width={left} height={totalH} style={{ fill: band.header }} />
             <text x={6} y={totalTop + totalH / 2 + 4} className="n2-label" style={{ fill: band.header_text }}>NEWS Total</text>
+            {hasPred && <rect x={colX(obsCount)} y={totalTop} width={(cols - obsCount) * colW} height={totalH} fill={`url(#${hatchId})`} className="n2-totalhatch" pointerEvents="none" />}
             {sets.map((s, i) => (
               <g key={s.at} data-testid={`news-total-${i}`} data-total={s.news2_total ?? ""} data-risk={s.news2_risk ?? ""} data-confidence={isPred(s) ? confidenceOf(s) ?? "" : undefined} data-predicted={isPred(s) || undefined}>
-                <rect x={colX(i)} y={totalTop} width={colW} height={totalH} style={{ fill: fill(totalRisk(s)) }} className="n2-totalcell" />
+                <rect x={colX(i)} y={totalTop} width={colW} height={totalH} style={{ fill: fill(totalRisk(s)) }} className={`n2-totalcell${isPred(s) ? " n2-predband" : ""}`} />
                 {isPred(s) ? (
                   <>
                     <text x={cx(i)} y={totalTop + 12} textAnchor="middle" className="n2-totaltext n2-small" style={{ fill: readableOn(fill(totalRisk(s))) }}>{s.news2_total}</text>
@@ -410,7 +442,6 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
                 )}
               </g>
             ))}
-            {hasPred && <rect x={colX(obsCount)} y={totalTop} width={(cols - obsCount) * colW} height={totalH} fill={`url(#${hatchId})`} className="n2-totalhatch" pointerEvents="none" />}
           </g>
         )}
         {widget.show_escalation_rows && [[wide ? "Monitoring Frequency" : "Monitoring", (s: ObsSet) => frequencyText(s.monitoring_hours)], [wide ? "Clinical Risk" : "Risk", (s: ObsSet) => (s.news2_risk ? RISK_SHORT[s.news2_risk] ?? "" : "")]].map(([label, text], r) => {
@@ -433,6 +464,19 @@ export function News2Chart({ widget }: { widget: WidgetOf<"news2-chart"> }) {
       </svg>
     </div>
   );
+}
+
+/**
+ * A band around a predicted line as one closed path: the upper edge left to right, then the lower edge back. It starts at the last
+ * observed point (width nothing, because the observation is known) and widens with the horizon. Pure, so it is tested without a chart.
+ */
+export function ribbonPath(anchor: { x: number; y: number } | null, cols: { x: number; top: number; bottom: number }[]): string {
+  if (!cols.length) return "";
+  const f = (n: number) => n.toFixed(1);
+  const up = cols.map((c) => `L${f(c.x)} ${f(c.top)}`).join("");
+  const down = [...cols].reverse().map((c) => `L${f(c.x)} ${f(c.bottom)}`).join("");
+  const first = anchor ?? { x: cols[0]!.x, y: (cols[0]!.top + cols[0]!.bottom) / 2 };
+  return `M${f(first.x)} ${f(first.y)}${up}${down}Z`;
 }
 
 /** A predicted region of a block: a darker veil, then thin diagonal hatching over the coloured score bands. */
